@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
-import { type AuthEnv, SESSION_COOKIE, requireDirectusSession, sessionToken, verifyDirectusToken } from "./auth";
+import { type AuthEnv, SESSION_COOKIE, isAdmin, requireAdmin, requireDirectusSession, verifyDirectusToken } from "./auth";
 import { fetchDirectusProfile, fetchDirectusUsers } from "./profile";
 
 export { User } from "./user";
@@ -49,20 +49,18 @@ app.use("/api/me", requireDirectusSession);
 app.use("/api/users/*", requireDirectusSession); // also matches /api/users
 
 app.get("/api/me", async (c) => {
-  const { id, admin_access, exp } = c.get("jwtPayload");
+  const claims = c.get("claims");
+  const { id, exp } = claims;
   const profile = await c.env.USER.getByName(id).getProfile();
-  return c.json({ id, isAdmin: admin_access === true, exp, name: profile?.name ?? null, email: profile?.email ?? null });
+  return c.json({ id, isAdmin: isAdmin(claims), exp, name: profile?.name ?? null, email: profile?.email ?? null });
 });
 
 // Admins only: every Directus user, asked for with the admin's own token. The
 // Worker checks admin_access itself rather than leaving it to Directus (which
 // would answer anyone else with just themselves) or to the page.
-app.get("/api/users", async (c) => {
-  if (c.get("jwtPayload").admin_access !== true) {
-    return c.json({ error: "only admins can list users" }, 403);
-  }
+app.get("/api/users", requireAdmin, async (c) => {
   try {
-    return c.json(await fetchDirectusUsers(c.env.DIRECTUS_URL, sessionToken(c)!));
+    return c.json(await fetchDirectusUsers(c.env.DIRECTUS_URL, c.get("token")));
   } catch (err) {
     console.warn("couldn't list Directus users:", err);
     return c.json({ error: "couldn't reach Directus" }, 502);
@@ -79,8 +77,8 @@ app.get("/api/users/:id", async (c) => {
 // ...but only you can increment yours (admins can increment anyone's).
 app.post("/api/users/:id/increment", async (c) => {
   const id = c.req.param("id");
-  const { id: me, admin_access } = c.get("jwtPayload");
-  if (id !== me && admin_access !== true) {
+  const claims = c.get("claims");
+  if (id !== claims.id && !isAdmin(claims)) {
     return c.json({ error: "you can only increment your own counter" }, 403);
   }
   const count = await c.env.USER.getByName(id).increment();

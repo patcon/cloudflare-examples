@@ -56,7 +56,7 @@ dembrane.com isn't on Cloudflare DNS, so the Worker lives on `*.workers.dev`, a 
 
 | Here | In dembrane |
 |---|---|
-| `src/auth.ts` → `requireDirectusSession` | `require_directus_session` in `echo/server/dembrane/api/dependency_auth.py`: same secret, same algorithm, same claims. Both accept `Authorization: Bearer` or a cookie. (Hono checks the header first, FastAPI the cookie first. With one token per request this makes no difference.) |
+| `src/auth.ts` → `requireDirectusSession` | `require_directus_session` in `echo/server/dembrane/api/dependency_auth.py`: same secret, same algorithm, same claims. Both accept `Authorization: Bearer` or a cookie. (We check the header first, FastAPI the cookie first. With one token per request this makes no difference.) |
 | The dashboard's login page | The iOS app (`dembrane-go/.../DembraneCore/Auth.swift`): `POST /auth/login` and `/auth/refresh` with `mode: "json"`, then `Bearer` |
 | The `?handoff=1` round trip | The dashboard's Directus SDK refreshing its session (`autoRefresh: true` in `echo/frontend/src/lib/directus.ts`) |
 | `admin_access` → the admin badge | `admin_access`, which identifies staff (the admin panel's gate) |

@@ -1,7 +1,6 @@
-import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
-import { jwt, verify } from "hono/jwt";
+import { verify } from "hono/jwt";
 
 // The Worker's own cookie, set by POST /api/session after the link handoff.
 // (It can't use dembrane's `directus_session_token` cookie: that one belongs to
@@ -22,25 +21,35 @@ export type DirectusClaims = {
 
 export type AuthEnv = {
   Bindings: Env;
-  Variables: { jwtPayload: DirectusClaims };
+  // Set by requireDirectusSession. `token` is kept so the Worker can pass it
+  // on to Directus and ask as this user.
+  Variables: { claims: DirectusClaims; token: string };
 };
-
-// The TypeScript twin of FastAPI's `require_directus_session`: an HS256 JWT
-// signed with DIRECTUS_SECRET, from `Authorization: Bearer` (like the iOS app)
-// or from our session cookie (like the browser). Anything else → 401.
-export const requireDirectusSession = createMiddleware<AuthEnv>((c, next) =>
-  jwt({ secret: c.env.DIRECTUS_SECRET, alg: "HS256", cookie: SESSION_COOKIE })(c, next),
-);
 
 export async function verifyDirectusToken(token: string, secret: string) {
   return (await verify(token, secret, "HS256")) as DirectusClaims;
 }
 
-// The raw token behind the current request, found the same way
-// requireDirectusSession finds it (header first, then our cookie), so the Worker
-// can pass it on to Directus and ask as this user.
-export function sessionToken(c: Context<AuthEnv>): string | undefined {
+export const isAdmin = (claims: DirectusClaims) => claims.admin_access === true;
+
+// The TypeScript twin of FastAPI's `require_directus_session`: an HS256 JWT
+// signed with DIRECTUS_SECRET, from `Authorization: Bearer` (like the iOS app)
+// or from our session cookie (like the browser). Anything else → 401.
+export const requireDirectusSession = createMiddleware<AuthEnv>(async (c, next) => {
   const header = c.req.header("authorization");
-  if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length);
-  return getCookie(c, SESSION_COOKIE);
-}
+  const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : getCookie(c, SESSION_COOKIE);
+  if (!token) return c.json({ error: "not logged in" }, 401);
+  try {
+    c.set("claims", await verifyDirectusToken(token, c.env.DIRECTUS_SECRET));
+  } catch {
+    return c.json({ error: "invalid or expired token" }, 401);
+  }
+  c.set("token", token);
+  await next();
+});
+
+// Use after requireDirectusSession. Anyone who isn't an admin → 403.
+export const requireAdmin = createMiddleware<AuthEnv>(async (c, next) => {
+  if (!isAdmin(c.get("claims"))) return c.json({ error: "admins only" }, 403);
+  await next();
+});
