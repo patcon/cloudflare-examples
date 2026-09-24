@@ -7,7 +7,10 @@ The Worker verifies the same Directus JWT that dembrane's FastAPI backend alread
 What you'll see:
 
 - A stand-in for the dembrane dashboard, with a link to the demo and the link's URL printed beneath it.
-- A demo page where every user has a counter in their own Durable Object. You can only increment your own. Admins also see every Directus user, and can increment anyone's. Both rules are enforced by the Worker, not the page: a non-admin gets a 403 from `GET /api/users` and from incrementing someone else (see the curl example below).
+- A demo page where every user has a counter in their own Durable Object. You can only increment your own. Admins also see every Directus user, and can increment anyone's.
+- A shared directory of users, in a single `Directory` Durable Object. Admins refresh it from Directus with **Update**, and can tick **Allow non-admins to see other users**. Then everyone sees the list, though still only increments their own counter.
+
+The Worker enforces these rules, not the page: a non-admin gets a 403 from `GET /api/users` (unless an admin allows non-admins to see other users), from `POST /api/users/refresh` and `PUT /api/settings`, and from incrementing someone else (see the curl example below).
 
 It needs a Directus to log in to. The quickest is [`../directus`](../directus), a local one with test accounts (see [Logging in](#logging-in)).
 
@@ -29,7 +32,7 @@ Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which send
  /dembrane-dashboard/              /auth/#token=…             /demo/
  (pretend: dashboard.dembrane.com) (the demo, another site)
  ┌──────────────────────┐  click  ┌──────────────────┐       ┌─────────────────────────┐
- │ pick an account ↙    │ ──────▶ │ POST /api/session│ ────▶ │ GET  /api/users (admin) │
+ │ pick an account ↙    │ ──────▶ │ POST /api/session│ ────▶ │ GET  /api/users         │
  │ Open realtime demo → │         │ token → our own  │       │ GET  /api/users/:id     │
  │ http://…/auth/#token │         │ httpOnly cookie  │       │ POST /api/users/:id/    │
  │                      │         │                  │       │      increment          │
@@ -38,12 +41,13 @@ Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which send
           └──── ?handoff=1: near expiry, fetch a fresh link ◀─────────────┤ then getByName(userId)
                                                                           ▼
                                                               User Durable Object
-                                                              (one per user)
+                                                              (one per user), and the
+                                                              Directory (one, shared)
 ```
 
 1. **Pick an account** in the bottom-left account switcher on the dashboard. **Add another account…** takes you to `/dembrane-dashboard/login` to log in with Directus, and adds that account to the switcher. The dashboard also sends you there whenever there's no account, or the current one can't be refreshed, and you come back afterwards.
 2. **Click the link.** The token travels in the URL **fragment** (`#token=…`). Browsers never send the fragment to servers, so it stays out of logs and `Referer` headers. `/auth/` hands the token to `POST /api/session`, which verifies it and stores it in the demo's own httpOnly cookie. Then `/auth/` removes the token from the address bar.
-3. **Use the demo.** Each request's JWT is checked by `requireDirectusSession`, and the Worker calls the user's Durable Object with `getByName(id)`. For an admin, the page also asks for `GET /api/users`. The Worker checks `admin_access` in the token, then passes the admin's own token on to Directus's `/users` (more below). The Durable Object does no auth itself, since it can only be reached through the Worker. In Cloudflare's words, *"Durable Objects do not receive requests directly from the Internet. Durable Objects receive requests from Workers or other Durable Objects."* ([docs](https://developers.cloudflare.com/durable-objects/get-started/))
+3. **Use the demo.** Each request's JWT is checked by `requireDirectusSession`, and the Worker calls the user's Durable Object with `getByName(id)`. The page also asks for the saved list of users with `GET /api/users`, which the Worker answers for admins and, if an admin allows it, for everyone. An admin's **Update** calls `POST /api/users/refresh`: the Worker checks `admin_access` in the token, then passes the admin's own token on to Directus's `/users` (more below). The Durable Objects do no auth themselves, since they can only be reached through the Worker. In Cloudflare's words, *"Durable Objects do not receive requests directly from the Internet. Durable Objects receive requests from Workers or other Durable Objects."* ([docs](https://developers.cloudflare.com/durable-objects/get-started/))
 4. **Stay logged in.** The dashboard keeps its token in localStorage, so reloading the page reuses it, and it refreshes the token with its Directus refresh token when it has a minute left. The printed URL changes when this happens. When the demo session has 30 seconds left, or on any 401, `/demo/` refreshes it by sending the browser through `/dembrane-dashboard/?handoff=1`, which gets a fresh token and sends it straight back. There's no need to log in again, unless the Directus login can't be refreshed; then you land on the login page, and it continues the handoff once you log in.
 
 Directus access tokens last 15 minutes by default (`ACCESS_TOKEN_TTL`); lower it in Directus to watch the refreshes happen. The demo's threshold (30s) is below the dashboard's (60s) on purpose: the dashboard only hands out tokens with at least a minute left, so a refresh always brings back more time than the demo's threshold and can't loop.
@@ -74,7 +78,11 @@ BOB=$(curl -s -H "Authorization: Bearer $B" localhost:8787/api/me | jq -r .id)
 curl localhost:8787/api/me                                                   # 401
 curl -H "Authorization: Bearer $A" localhost:8787/api/me                      # Alice
 curl -H "Authorization: Bearer $A" localhost:8787/api/users                   # 403: admins only
-curl -H "Authorization: Bearer $ADM" localhost:8787/api/users                 # every Directus user
+curl -X POST -H "Authorization: Bearer $ADM" localhost:8787/api/users/refresh # save every Directus user
+curl -H "Authorization: Bearer $ADM" localhost:8787/api/users                 # the saved list
+curl -X PUT -H "Authorization: Bearer $ADM" -H 'content-type: application/json' \
+  -d '{"usersCanSeeEachOther":true}' localhost:8787/api/settings
+curl -H "Authorization: Bearer $A" localhost:8787/api/users                   # now Alice sees it too
 curl -X POST -H "Authorization: Bearer $A" localhost:8787/api/users/$BOB/increment    # 403
 curl -X POST -H "Authorization: Bearer $ADM" localhost:8787/api/users/$BOB/increment  # admin: 200
 ```
@@ -93,7 +101,9 @@ The browser talks to Directus directly; the Worker never sees a password.
 
 The token only carries `id`, `role`, `app_access` and `admin_access`. For your name, `POST /api/session` calls Directus's `/users/me` once at login, passing on your own token, so Directus applies your role's permissions and the Worker needs no credentials of its own. It saves the result in your Durable Object, and `/api/me` returns it. This needs the Worker to reach `DIRECTUS_URL` (the one in `wrangler.jsonc`, not whichever URL you typed on the login page). If it can't, you still log in, and just show as "Directus user".
 
-An admin's list of users works the same way. `GET /api/users` passes the admin's token on to Directus's `/users`. The Worker checks `admin_access` first and answers anyone else with a 403. It doesn't rely on the page hiding the list, or on Directus, which would answer a non-admin with just themselves. If Directus can't be reached, the admin gets a 502 and sees only their own row.
+The list of users works the same way. `POST /api/users/refresh` passes the admin's token on to Directus's `/users`. The Worker checks `admin_access` first and answers anyone else with a 403. It doesn't rely on the page hiding the button, or on Directus, which would answer a non-admin with just themselves. If Directus can't be reached, the admin gets a 502 and the saved list stays as it was. The page does this for you on an admin's first visit, when nothing is saved yet.
+
+The Worker saves the list, and the **Allow non-admins to see other users** setting, in one `Directory` Durable Object, which it always asks for by the same name. So both belong to the whole demo, not to any one user, and a non-admin can see other users even though Directus would only tell them about themselves. It's a Durable Object rather than KV because KV is eventually consistent: after an admin changes the setting, some requests could keep seeing the old value for a while, and the setting decides who may read the list. The usual advice against one global Durable Object is about putting every request through it. Here only page loads and admin actions use it; the counters stay in each user's own `User`. Non-admins see a change to the setting when they next load the page.
 
 ## Files
 
@@ -102,7 +112,8 @@ src/index.ts           routes
 src/auth.ts            JWT check, and the raw token to pass on to Directus
 src/directus.ts        the Worker's calls to Directus: your profile (fetched at login)
                        and, for admins, everyone's
-src/user.ts            the Durable Object: getCount(), increment(), the saved profile
+src/user.ts            the per-user Durable Object: getCount(), increment(), the saved profile
+src/directory.ts       the one shared Durable Object: the saved list of users, and settings
 public/                the pages (plain HTML, no build step): the dashboard and
                        its login page, /auth/, and /demo/
 wrangler.jsonc         Durable Object binding, static assets, vars

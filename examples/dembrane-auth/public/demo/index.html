@@ -14,6 +14,13 @@
     td.action { text-align: right; width: 1%; white-space: nowrap; }
     tr.me td:first-child { font-weight: 600; }
     .msg { font-size: 0.8rem; display: block; }
+    .admin { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; margin: 16px 0; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 8px; }
+    .admin[hidden] { display: none; } /* otherwise display: flex above overrides `hidden` */
+    /* Undo style.css's form-field styles, meant for the login page's text inputs. */
+    .admin label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: inherit; color: inherit; cursor: pointer; }
+    .admin input[type="checkbox"] { width: auto; margin: 0; padding: 0; }
+    #updated, #list-error { margin: 0 0 12px; }
+    #updated:empty, #list-error:empty { display: none; }
     .source { margin-top: 20px; }
     .source h2 { font-size: 0.9rem; margin: 0 0 4px; }
     .source pre { margin: 6px 0 0; padding: 8px 10px; background: var(--code-bg); border-radius: 6px; overflow-x: auto; }
@@ -30,7 +37,12 @@
 
     <div class="panel">
       <p id="whoami">Loading…</p>
-      <p class="muted">Each counter lives in that user's own Durable Object. You can only increment your own; admins see every Directus user and can increment anyone's.</p>
+      <p class="muted">Each counter lives in that user's own Durable Object. You can only increment your own; admins can increment anyone's. The list of users is saved in one shared Directory Durable Object: admins always see it, and refresh it from Directus with <em>Update</em>. Everyone else sees it only while an admin allows non-admins to see other users.</p>
+      <div class="admin" id="admin" hidden>
+        <label><input type="checkbox" id="see-each-other"> Allow non-admins to see other users</label>
+        <button id="refresh">Update</button>
+      </div>
+      <p class="muted hint" id="updated"></p>
       <p class="error" id="list-error"></p>
       <table><tbody id="rows"></tbody></table>
 
@@ -97,17 +109,69 @@
       `You are <strong>${esc(nameOf(me))}</strong> <code>${esc(me.id)}</code>` +
       (me.isAdmin ? '<span class="badge">admin</span>' : "");
 
-    // Admins see every Directus user (GET /api/users, which the Worker refuses
-    // anyone else with a 403); everyone else sees just themselves.
-    let users = [me];
-    if (me.isAdmin) {
+    // The saved list of users (GET /api/users). Admins can always read it;
+    // everyone else only while an admin allows non-admins to see other users (the
+    // Worker answers them with a 403 otherwise), and sees just themselves.
+    const settings = await (await api("/api/settings")).json();
+    const listError = document.getElementById("list-error");
+    const showError = async (what, res) => {
+      listError.textContent = `Couldn't ${what}: ${res.status} ${(await res.json()).error}`;
+    };
+
+    let snapshot = { users: [], updatedAt: null };
+    if (me.isAdmin || settings.usersCanSeeEachOther) {
       const res = await api("/api/users");
-      if (res.ok) users = await res.json();
-      else document.getElementById("list-error").textContent = `Couldn't list users: ${res.status} ${(await res.json()).error}`;
+      if (res.ok) snapshot = await res.json();
+      else await showError("list users", res);
+    }
+
+    // Admins only: fetch the users from Directus again (POST /api/users/refresh)
+    // and save them for everyone.
+    async function refresh() {
+      const res = await api("/api/users/refresh", { method: "POST" });
+      if (!res.ok) return showError("update the list of users", res);
+      listError.textContent = "";
+      snapshot = await res.json();
+      render();
+    }
+
+    if (me.isAdmin) {
+      document.getElementById("admin").hidden = false;
+      const refreshButton = document.getElementById("refresh");
+      refreshButton.addEventListener("click", async () => {
+        refreshButton.disabled = true;
+        await refresh();
+        refreshButton.disabled = false;
+      });
+
+      // Changes what everyone else sees on their next page load.
+      const toggle = document.getElementById("see-each-other");
+      toggle.checked = settings.usersCanSeeEachOther;
+      toggle.addEventListener("change", async () => {
+        toggle.disabled = true;
+        const res = await api("/api/settings", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ usersCanSeeEachOther: toggle.checked }),
+        });
+        if (res.ok) listError.textContent = "";
+        else { toggle.checked = !toggle.checked; await showError("change the setting", res); }
+        toggle.disabled = false;
+      });
     }
 
     const rows = document.getElementById("rows");
-    for (const user of users) {
+    function render() {
+      document.getElementById("updated").textContent = snapshot.updatedAt
+        ? `List of users last updated ${new Date(snapshot.updatedAt).toLocaleString()}`
+        : "";
+      // The list is a snapshot, so you may not be in it yet.
+      const users = snapshot.users.some((user) => user.id === me.id) ? snapshot.users : [me, ...snapshot.users];
+      rows.replaceChildren();
+      for (const user of users) addRow(user);
+    }
+
+    async function addRow(user) {
       const tr = document.createElement("tr");
       if (user.id === me.id) tr.className = "me";
       tr.innerHTML = `
@@ -141,6 +205,10 @@
         button.disabled = false;
       });
     }
+
+    // An admin's first visit: nothing saved yet, so fetch the users now.
+    if (me.isAdmin && snapshot.updatedAt === null) await refresh();
+    else render();
 
     // Session countdown, and the automatic refresh (a handoff) at REFRESH_AT
     // seconds left. It must stay below the dashboard's 60s: every handoff then

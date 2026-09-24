@@ -4,6 +4,7 @@
 // needs no credentials of its own.
 
 export type Profile = { name: string | null; email: string | null };
+export type DirectoryUser = Profile & { id: string };
 
 type DirectusUser = { id: string; first_name?: string | null; last_name?: string | null; email?: string | null };
 
@@ -28,8 +29,8 @@ export async function fetchDirectusProfile(directusUrl: string, token: string): 
 }
 
 // Every Directus user. Only an admin's token gets them all; Directus returns
-// anyone else just themselves (the Worker doesn't rely on that; see GET /api/users).
-export async function fetchDirectusUsers(directusUrl: string, token: string): Promise<(Profile & { id: string })[]> {
+// anyone else just themselves (the Worker doesn't rely on that; see POST /api/users/refresh).
+export async function fetchDirectusUsers(directusUrl: string, token: string): Promise<DirectoryUser[]> {
   const users = await directusGet<DirectusUser[]>(
     directusUrl,
     "/users?fields=id,first_name,last_name,email&sort=first_name&limit=-1",

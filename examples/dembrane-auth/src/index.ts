@@ -3,9 +3,13 @@ import { deleteCookie, setCookie } from "hono/cookie";
 import { type AuthEnv, SESSION_COOKIE, isAdmin, requireAdmin, requireDirectusSession, verifyDirectusToken } from "./auth";
 import { fetchDirectusProfile, fetchDirectusUsers } from "./directus";
 
+export { Directory } from "./directory";
 export { User } from "./user";
 
 const app = new Hono<AuthEnv>();
+
+// The one Directory, shared by everyone: always the same name.
+const directory = (env: Env) => env.DIRECTORY.getByName("directory");
 
 app.get("/", (c) => c.redirect("/dembrane-dashboard/"));
 
@@ -47,6 +51,7 @@ app.delete("/api/session", (c) => {
 // Everything below requires a valid dembrane (Directus) login.
 app.use("/api/me", requireDirectusSession);
 app.use("/api/users/*", requireDirectusSession); // also matches /api/users
+app.use("/api/settings", requireDirectusSession);
 
 app.get("/api/me", async (c) => {
   const claims = c.get("claims");
@@ -55,16 +60,41 @@ app.get("/api/me", async (c) => {
   return c.json({ id, isAdmin: isAdmin(claims), exp, name: profile?.name ?? null, email: profile?.email ?? null });
 });
 
-// Admins only: every Directus user, asked for with the admin's own token. The
-// Worker checks admin_access itself rather than leaving it to Directus (which
-// would answer anyone else with just themselves) or to the page.
-app.get("/api/users", requireAdmin, async (c) => {
+// Anyone logged in can read the settings (the page needs them)...
+app.get("/api/settings", async (c) => c.json(await directory(c.env).getSettings()));
+
+// ...but only admins can change them.
+app.put("/api/settings", requireAdmin, async (c) => {
+  const { usersCanSeeEachOther } = await c.req.json<{ usersCanSeeEachOther: unknown }>();
+  if (typeof usersCanSeeEachOther !== "boolean") {
+    return c.json({ error: "usersCanSeeEachOther must be true or false" }, 400);
+  }
+  return c.json(await directory(c.env).setSettings({ usersCanSeeEachOther }));
+});
+
+// The saved list of users. Admins can always read it; everyone else only while
+// an admin allows non-admins to see other users.
+app.get("/api/users", async (c) => {
+  const dir = directory(c.env);
+  if (!isAdmin(c.get("claims")) && !(await dir.getSettings()).usersCanSeeEachOther) {
+    return c.json({ error: "only admins can list users" }, 403);
+  }
+  return c.json(await dir.getSnapshot());
+});
+
+// Admins only: fetch every Directus user again and save the list, asking with
+// the admin's own token. The Worker checks admin_access itself rather than
+// leaving it to Directus (which would answer anyone else with just themselves)
+// or to the page.
+app.post("/api/users/refresh", requireAdmin, async (c) => {
+  let users;
   try {
-    return c.json(await fetchDirectusUsers(c.env.DIRECTUS_URL, c.get("token")));
+    users = await fetchDirectusUsers(c.env.DIRECTUS_URL, c.get("token"));
   } catch (err) {
     console.warn("couldn't list Directus users:", err);
     return c.json({ error: "couldn't reach Directus" }, 502);
   }
+  return c.json(await directory(c.env).setUsers(users));
 });
 
 // Anyone logged in can read anyone's count...
