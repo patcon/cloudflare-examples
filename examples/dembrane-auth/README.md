@@ -37,7 +37,7 @@ Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`.
 ```
 
 1. **Pick a user** in the bottom-left account switcher on the dashboard. You can choose:
-   - a mock user (Alice, Bob, or Admin), whose token is signed by the Worker itself (demo-only)
+   - a mock user (Carol, Dave, or Admin), whose token is signed by the Worker itself (demo-only)
    - a **real Directus login**, entered on `/dembrane-dashboard/login`. The dashboard also sends you there whenever that login is missing or can't be refreshed, and comes back afterwards.
 2. **Click the link.** The token travels in the URL **fragment** (`#token=…`). Browsers never send the fragment to servers, so it stays out of logs and `Referer` headers. `/auth/` hands the token to `POST /api/session`, which verifies it and stores it in the demo's own httpOnly cookie. Then `/auth/` removes the token from the address bar.
 3. **Use the demo.** Each request's JWT is checked by `requireDirectusSession`, and the Worker calls the user's Durable Object with `getByName(id)`. The Durable Object does no auth itself, since it can only be reached through the Worker. In Cloudflare's words, *"Durable Objects do not receive requests directly from the Internet. Durable Objects receive requests from Workers or other Durable Objects."* ([docs](https://developers.cloudflare.com/durable-objects/get-started/))
@@ -62,15 +62,15 @@ dembrane.com isn't on Cloudflare DNS, so the Worker lives on `*.workers.dev`, a 
 ## Try it with curl
 
 ```sh
-A=$(pnpm -s mint-token alice); ADM=$(pnpm -s mint-token admin)
-ALICE=a11ce000-0000-4000-8000-000000000001; BOB=b0b00000-0000-4000-8000-000000000002
+C=$(pnpm -s mint-token carol); ADM=$(pnpm -s mint-token admin)
+CAROL=ca000000-0000-4000-8000-000000000001; DAVE=da000000-0000-4000-8000-000000000002
 
 curl localhost:8787/api/me                                                  # 401
-curl -H "Authorization: Bearer $A" localhost:8787/api/me                    # Alice
-curl -H "Authorization: Bearer $A" localhost:8787/api/users/$BOB            # read Bob's: 200
-curl -X POST -H "Authorization: Bearer $A" localhost:8787/api/users/$ALICE/increment  # 200
-curl -X POST -H "Authorization: Bearer $A" localhost:8787/api/users/$BOB/increment    # 403
-curl -X POST -H "Authorization: Bearer $ADM" localhost:8787/api/users/$BOB/increment  # admin: 200
+curl -H "Authorization: Bearer $C" localhost:8787/api/me                     # Carol
+curl -H "Authorization: Bearer $C" localhost:8787/api/users/$DAVE            # read Dave's: 200
+curl -X POST -H "Authorization: Bearer $C" localhost:8787/api/users/$CAROL/increment  # 200
+curl -X POST -H "Authorization: Bearer $C" localhost:8787/api/users/$DAVE/increment   # 403
+curl -X POST -H "Authorization: Bearer $ADM" localhost:8787/api/users/$DAVE/increment # admin: 200
 ```
 
 ## Logging in with a real Directus
@@ -81,7 +81,7 @@ The quickest option is [`../directus`](../directus): a local Directus on SQLite 
 
 1. Put that Directus's `SECRET` in `.dev.vars` as `DIRECTUS_SECRET`.
 2. Allow the demo's origin in Directus's CORS settings: `CORS_ENABLED=true` and `CORS_ORIGIN` including `http://localhost:8787`. This is a config change, not a code change.
-3. On the dashboard, open the account switcher and choose **Add another account…**. On the login page, enter the URL, email, password, and a two-factor code if your account uses one. With `../directus`, the Alice, Bob, and Admin buttons fill in its test accounts for you.
+3. On the dashboard, open the account switcher and choose **Add another account…**. On the login page, enter the URL, email, password, and a two-factor code if your account uses one. With `../directus`, the Alice, Bob, and Admin buttons fill in its test accounts for you. (The mock users are Carol and Dave so they don't get mixed up with these.)
 
 The browser talks to Directus directly; the Worker never sees a password. In the demo you'll appear as an extra row with your Directus name, e.g. "Alice (Directus)".
 

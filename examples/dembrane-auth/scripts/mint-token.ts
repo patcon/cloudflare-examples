@@ -1,9 +1,9 @@
 // Mint a mock dembrane token for curl, signed with DIRECTUS_SECRET from .dev.vars.
-//   pnpm mint-token alice        (alice | bob | admin)
+//   pnpm mint-token carol        (carol | dave | admin)
 import { readFileSync } from "node:fs";
 import { MOCK_USERS, signMockToken } from "../src/auth";
 
-const name = (process.argv[2] ?? "alice").toLowerCase();
+const name = (process.argv[2] ?? "carol").toLowerCase();
 const user = MOCK_USERS.find((u) => u.name.toLowerCase() === name);
 if (!user) {
   console.error(`unknown user "${name}"; pick one of: ${MOCK_USERS.map((u) => u.name.toLowerCase()).join(", ")}`);

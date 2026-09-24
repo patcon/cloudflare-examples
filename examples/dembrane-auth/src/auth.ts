@@ -38,8 +38,9 @@ export async function verifyDirectusToken(token: string, secret: string) {
 // Stand-ins for Directus users, so the demo runs without a dembrane stack.
 
 export const MOCK_USERS = [
-  { id: "a11ce000-0000-4000-8000-000000000001", name: "Alice", admin: false },
-  { id: "b0b00000-0000-4000-8000-000000000002", name: "Bob", admin: false },
+  // Not Alice and Bob: those are real accounts in the local ../directus.
+  { id: "ca000000-0000-4000-8000-000000000001", name: "Carol", admin: false },
+  { id: "da000000-0000-4000-8000-000000000002", name: "Dave", admin: false },
   { id: "ad000000-0000-4000-8000-000000000003", name: "Admin", admin: true },
 ] as const;
 

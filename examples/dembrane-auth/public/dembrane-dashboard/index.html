@@ -101,9 +101,11 @@
 
     const mockUsers = config.demoMode ? config.mockUsers : [];
     let selected = load("selected");
-    // "none" after logging out; nothing saved yet → start as the first mock user.
-    if (selected == null) selected = mockUsers[0]?.id ?? "none";
-    if (!["directus", "none"].includes(selected) && !mockUsers.some((u) => u.id === selected)) selected = "none";
+    // "none" after logging out. Nothing saved yet, or a mock user that no longer
+    // exists → start as the first mock user.
+    if (selected !== "directus" && selected !== "none" && !mockUsers.some((u) => u.id === selected)) {
+      selected = mockUsers[0]?.id ?? "none";
+    }
     let directusLogin = load("directus");
     const mockTokens = load("mockTokens") ?? {};
     let current = null; // { token, claims } behind the link right now

@@ -59,14 +59,15 @@
       location.replace(next);
     };
 
-    // The users seeded by the local ../directus example (its .env.example admin,
-    // and scripts/seed-users.mjs), matched to the Worker's mock users by name.
-    const TEST_ACCOUNTS = {
-      Alice: { email: "alice@example.com", password: "password" },
-      Bob: { email: "bob@example.com", password: "password" },
-      Admin: { email: "admin@dembrane.com", password: "admin" },
-    };
-    let filled = null; // the mock user whose test account is in the form
+    // The users in the local ../directus example (its .env.example admin, and
+    // scripts/seed-users.mjs), each with a mock user to fall back on when
+    // there's no Directus to log in to.
+    const TEST_ACCOUNTS = [
+      { label: "Alice", email: "alice@example.com", password: "password", fallback: "Carol" },
+      { label: "Bob", email: "bob@example.com", password: "password", fallback: "Dave" },
+      { label: "Admin", email: "admin@dembrane.com", password: "admin", fallback: "Admin", admin: true },
+    ];
+    let filled = null; // the test account in the form
 
     $("directus-url").value = load("directus")?.url ?? config.directusUrl;
     $("login-form").addEventListener("submit", async (e) => {
@@ -78,11 +79,12 @@
       } catch (err) {
         $("login-error").textContent = `Login failed: ${err.message}`;
         // No Directus running? The Worker can sign a token for the mock user.
-        if (filled && $("email").value === TEST_ACCOUNTS[filled.name].email) {
+        const mock = filled && $("email").value === filled.email && config.mockUsers.find((u) => u.name === filled.fallback);
+        if (mock) {
           const b = document.createElement("button");
           b.type = "button";
-          b.textContent = `Continue as mock ${filled.name} instead (no Directus)`;
-          b.addEventListener("click", () => done(filled.id));
+          b.textContent = `Continue as mock user ${mock.name} instead (no Directus)`;
+          b.addEventListener("click", () => done(mock.id));
           $("login-error").append(document.createElement("br"), b);
         }
       }
@@ -90,15 +92,13 @@
 
     if (config.demoMode) {
       $("mock-panel").hidden = false;
-      for (const user of config.mockUsers) {
-        const account = TEST_ACCOUNTS[user.name];
-        if (!account) continue;
+      for (const account of TEST_ACCOUNTS) {
         const b = document.createElement("button");
         b.type = "button";
-        b.textContent = user.admin ? `${user.name} (admin)` : user.name;
+        b.textContent = account.admin ? `${account.label} (admin)` : account.label;
         b.title = account.email;
         b.addEventListener("click", () => {
-          filled = user;
+          filled = account;
           $("email").value = account.email;
           $("password").value = account.password;
           $("otp").value = "";
