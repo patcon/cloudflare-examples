@@ -14,6 +14,9 @@
     td.action { text-align: right; width: 1%; white-space: nowrap; }
     tr.me td:first-child { font-weight: 600; }
     .msg { font-size: 0.8rem; display: block; }
+    .source { margin-top: 20px; }
+    .source h2 { font-size: 0.9rem; margin: 0 0 4px; }
+    .source pre { margin: 6px 0 0; padding: 8px 10px; background: var(--code-bg); border-radius: 6px; overflow-x: auto; }
   </style>
 </head>
 <body>
@@ -27,6 +30,16 @@
       <p id="whoami">Loading…</p>
       <p class="muted">Each counter lives in that user's own Durable Object. You can read anyone's, but only increment your own (admins can increment anyone's).</p>
       <table><tbody id="rows"></tbody></table>
+
+      <section class="source">
+        <h2>Where "you" comes from: <code>GET /api/me</code></h2>
+        <p class="muted hint">
+          <code>id</code>, <code>isAdmin</code> and <code>exp</code> come from the verified token in the session cookie.
+          <code>name</code> and <code>email</code> come from your Directus profile, which the Worker fetched when you logged in
+          (always <code>null</code> for mock users, who aren't in Directus).
+        </p>
+        <pre class="mono" id="me-json">…</pre>
+      </section>
     </div>
 
     <p>
@@ -70,6 +83,7 @@
     }
 
     const me = await (await api("/api/me")).json();
+    document.getElementById("me-json").textContent = JSON.stringify(me, null, 2);
     const { mockUsers } = await (await fetch("/api/config")).json();
 
     // A real Directus user's name comes from their Directus profile, which the
