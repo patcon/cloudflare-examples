@@ -54,7 +54,7 @@ Directus access tokens last 15 minutes by default (`ACCESS_TOKEN_TTL`); lower it
 
 ### Why a link, and not dembrane's cookie?
 
-dembrane.com isn't on Cloudflare DNS, so the Worker lives on `*.workers.dev`, a different site from the dashboard. The browser never sends the dashboard's `directus_session_token` cookie there. JavaScript can't read that cookie either (it's httpOnly), so the token has to travel in the link.
+dembrane.com isn't on Cloudflare DNS, so the Worker lives on `*.workers.dev`, a different site from the dashboard. The browser never sends the dashboard's `dembrane_session_token` cookie there. JavaScript can't read that cookie either (it's httpOnly), so the token has to travel in the link.
 
 ## How it maps to dembrane
 
