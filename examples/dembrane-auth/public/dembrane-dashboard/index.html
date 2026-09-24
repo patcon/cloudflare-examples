@@ -86,7 +86,7 @@
         <dl class="claims mono">
           <dt>id</dt><dd id="claim-id"></dd>
           <dt>admin_access</dt><dd id="claim-admin"></dd>
-          <dt>expires in</dt><dd><span id="claim-exp"></span> <span class="muted hint">(auto-refreshes at 1:00)</span></dd>
+          <dt>expires in</dt><dd><span id="claim-exp"></span> <span class="muted hint" id="refresh-hint"></span></dd>
         </dl>
         <p class="muted" id="link-note"></p>
       </section>
@@ -110,20 +110,28 @@
     const mockTokens = load("mockTokens") ?? {};
     let current = null; // { token, claims } behind the link right now
 
-    // A token with at least a minute left for the selected user, or null
+    // Every token the dashboard hands out has at least this long left, so the
+    // link survives a click and the exchange at /auth/. /demo/ refreshes its
+    // own session at 30s, which must stay below this: a handoff always brings
+    // back more time than the demo's threshold, so it can't bounce straight back.
+    const REFRESH_AT = 60;
+    const formatLeft = (s) => `${Math.floor(s / 60)}:${String(Math.max(s % 60, 0)).padStart(2, "0")}`;
+    $("refresh-hint").textContent = `(auto-refreshes at ${formatLeft(REFRESH_AT)})`;
+
+    // A token with at least REFRESH_AT seconds left for the selected user, or null
     // if the real Directus login is missing or can't be refreshed.
     async function freshToken() {
       if (selected === "none") return null;
       if (selected === "directus") {
         if (!directusLogin) return null;
-        if (secondsLeft(claimsOf(directusLogin.accessToken)) < 60) {
+        if (secondsLeft(claimsOf(directusLogin.accessToken)) < REFRESH_AT) {
           try { directusLogin = await refreshDirectus(directusLogin); } catch { directusLogin = null; save("directus", null); return null; }
         }
         return directusLogin.accessToken;
       }
       // Like the Directus token, reuse a saved one until it's nearly expired.
       const saved = mockTokens[selected];
-      if (saved && secondsLeft(claimsOf(saved)) >= 60) return saved;
+      if (saved && secondsLeft(claimsOf(saved)) >= REFRESH_AT) return saved;
       const res = await fetch("/api/dev/mint", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -136,7 +144,7 @@
 
     function renderExpiry() {
       const left = secondsLeft(current.claims);
-      $("claim-exp").textContent = `${Math.floor(left / 60)}:${String(Math.max(left % 60, 0)).padStart(2, "0")}`;
+      $("claim-exp").textContent = formatLeft(left);
     }
 
     const linkFor = (token, ret = "/demo/") => `/auth/?return=${encodeURIComponent(ret)}#token=${token}`;
@@ -226,14 +234,14 @@
       await updateLink("Switched user");
     }
 
-    // Keep the link valid: refresh about a minute before the token expires.
+    // Keep the link valid: refresh the token once it has REFRESH_AT seconds left.
     let refreshing = false;
     setInterval(async () => {
       if (!current) return;
       renderExpiry();
-      if (secondsLeft(current.claims) < 60 && !refreshing) {
+      if (secondsLeft(current.claims) < REFRESH_AT && !refreshing) {
         refreshing = true;
-        await updateLink(selected === "directus" ? "Refreshed with the Directus refresh token" : "Re-minted").finally(() => (refreshing = false));
+        await updateLink(selected === "directus" ? "Refreshed with the Directus refresh token" : "Refreshed (re-minted by the Worker)").finally(() => (refreshing = false));
       }
     }, 1000);
 

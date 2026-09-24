@@ -20,7 +20,7 @@
   <main class="centered">
     <header>
       <h1>Realtime demo</h1>
-      <span class="muted">session expires in <span id="expires" class="mono">–</span> <span class="hint">(auto-renews at 0:30)</span></span>
+      <span class="muted">session expires in <span id="expires" class="mono">–</span> <span class="hint" id="refresh-hint"></span></span>
     </header>
 
     <div class="panel">
@@ -120,12 +120,17 @@
       });
     }
 
-    // Session countdown, and the automatic re-handoff 30s before expiry.
+    // Session countdown, and the automatic refresh (a handoff) at REFRESH_AT
+    // seconds left. It must stay below the dashboard's 60s: every handoff then
+    // brings back a token with more time than this, so it can't loop.
+    const REFRESH_AT = 30;
+    const formatLeft = (s) => `${Math.floor(s / 60)}:${String(Math.max(s % 60, 0)).padStart(2, "0")}`;
+    document.getElementById("refresh-hint").textContent = `(auto-refreshes at ${formatLeft(REFRESH_AT)})`;
     const expires = document.getElementById("expires");
     setInterval(() => {
       const left = me.exp - Math.floor(Date.now() / 1000);
-      expires.textContent = `${Math.floor(left / 60)}:${String(Math.max(left % 60, 0)).padStart(2, "0")}`;
-      if (left <= 30) handoff();
+      expires.textContent = formatLeft(left);
+      if (left <= REFRESH_AT) handoff();
     }, 1000);
 
     document.getElementById("logout").addEventListener("click", async (e) => {
