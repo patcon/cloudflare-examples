@@ -11,7 +11,7 @@
     "db:reset": "rm -rf data && ./scripts/setup.sh",
     "schema:push": "./scripts/schema-push.sh",
     "migrate": "./scripts/migrate.sh",
-    "seed": "./scripts/seed-users.sh"
+    "seed": "./scripts/seed.sh"
   },
   "dependencies": {
     "directus": "11.13.4",
