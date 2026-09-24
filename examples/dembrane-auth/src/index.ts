@@ -9,6 +9,8 @@ import {
   verifyDirectusToken,
 } from "./auth";
 
+import { fetchDirectusProfile } from "./profile";
+
 export { UserCounter } from "./user-counter";
 
 const app = new Hono<AuthEnv>();
@@ -49,6 +51,17 @@ app.post("/api/session", async (c) => {
     path: "/",
     maxAge: claims.exp - Math.floor(Date.now() / 1000),
   });
+  // A real Directus user: fetch the details the token doesn't carry, while we
+  // hold a token to ask with. (Mock users aren't in Directus; the pages already
+  // know their names.) Best effort: the login works without it.
+  if (!MOCK_USERS.some((u) => u.id === claims.id)) {
+    try {
+      const profile = await fetchDirectusProfile(c.env.DIRECTUS_URL, token);
+      await c.env.USER_COUNTER.getByName(claims.id).setProfile(profile);
+    } catch (err) {
+      console.warn("couldn't fetch the Directus profile:", err);
+    }
+  }
   return c.json({ id: claims.id });
 });
 
@@ -61,9 +74,10 @@ app.delete("/api/session", (c) => {
 app.use("/api/me", requireDirectusSession);
 app.use("/api/users/*", requireDirectusSession);
 
-app.get("/api/me", (c) => {
+app.get("/api/me", async (c) => {
   const { id, admin_access, exp } = c.get("jwtPayload");
-  return c.json({ id, isAdmin: admin_access === true, exp });
+  const profile = await c.env.USER_COUNTER.getByName(id).getProfile();
+  return c.json({ id, isAdmin: admin_access === true, exp, name: profile?.name ?? null, email: profile?.email ?? null });
 });
 
 // Anyone logged in can read anyone's count...

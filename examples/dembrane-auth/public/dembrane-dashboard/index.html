@@ -141,7 +141,8 @@
 
     // --- Rendering ----------------------------------------------------------
     // A user with no role may read its own id but not its email.
-    const directusLabel = () => directusLogin.email ?? directusLogin.id;
+    const esc = (text) => String(text).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+    const directusLabel = () => esc(directusLogin.email ?? directusLogin.id);
 
     // Standard account-switcher menu: every account you can switch to (the
     // current one ticked), then "Add another account…" and "Log out".

@@ -83,14 +83,17 @@ The quickest option is [`../directus`](../directus): a local Directus on SQLite 
 2. Allow the demo's origin in Directus's CORS settings: `CORS_ENABLED=true` and `CORS_ORIGIN` including `http://localhost:8787`. This is a config change, not a code change.
 3. On the dashboard, open the account switcher and choose **Add another account…**. On the login page, enter the URL, email, password, and a two-factor code if your account uses one. With `../directus`, the Alice, Bob, and Admin buttons fill in its test accounts for you.
 
-The browser talks to Directus directly; the Worker never sees a password. In the demo you'll appear as an extra "Directus user" row. Other people won't see you, because the list of users is only the three mock users plus whoever is logged in.
+The browser talks to Directus directly; the Worker never sees a password. In the demo you'll appear as an extra row with your Directus name, e.g. "Alice (Directus)".
+
+The token only carries `id`, `role`, `app_access` and `admin_access`. For your name, `POST /api/session` calls Directus's `/users/me` once at login, passing on your own token, so Directus applies your role's permissions and the Worker needs no credentials of its own. It saves the result in your Durable Object, and `/api/me` returns it. This needs the Worker to reach `DIRECTUS_URL` (the one in `wrangler.jsonc`, not whichever URL you typed on the login page). If it can't, you still log in, and just show as "Directus user". Other people won't see you, because the list of users is only the three mock users plus whoever is logged in.
 
 ## Files
 
 ```
 src/index.ts           routes
 src/auth.ts            JWT check (+ demo-only mock users / token signing)
-src/user-counter.ts    the Durable Object: getCount(), increment()
+src/profile.ts         the user's Directus profile (name, email), fetched at login
+src/user-counter.ts    the Durable Object: getCount(), increment(), the saved profile
 public/                the pages (plain HTML, no build step): the dashboard and
                        its login page, /auth/, and /demo/
 scripts/mint-token.ts  mock tokens for curl

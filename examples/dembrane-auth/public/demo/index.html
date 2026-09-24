@@ -72,20 +72,24 @@
     const me = await (await api("/api/me")).json();
     const { mockUsers } = await (await fetch("/api/config")).json();
 
+    // A real Directus user's name comes from their Directus profile, which the
+    // Worker fetched at login (it can be missing, e.g. if Directus was down).
+    const esc = (text) => String(text).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
     const mock = mockUsers.find((u) => u.id === me.id);
+    const directusName = `${me.name ?? me.email ?? "Directus user"} (Directus)`;
     document.getElementById("whoami").innerHTML =
-      `You are <strong>${mock ? mock.name : "a real Directus user"}</strong> <code>${me.id}</code>` +
+      `You are <strong>${esc(mock ? mock.name : directusName)}</strong> <code>${esc(me.id)}</code>` +
       (me.isAdmin ? '<span class="badge">admin</span>' : "");
 
     // Mock users, plus you if you logged in as a real Directus user.
-    const users = mock ? mockUsers : [...mockUsers, { id: me.id, name: "Directus user" }];
+    const users = mock ? mockUsers : [...mockUsers, { id: me.id, name: directusName }];
 
     const rows = document.getElementById("rows");
     for (const user of users) {
       const tr = document.createElement("tr");
       if (user.id === me.id) tr.className = "me";
       tr.innerHTML = `
-        <td>${user.name}${user.id === me.id ? " (you)" : ""}<span class="msg"></span></td>
+        <td>${esc(user.name)}${user.id === me.id ? " (you)" : ""}<span class="msg"></span></td>
         <td class="count">…</td>
         <td class="action"><button>Increment</button></td>`;
       rows.append(tr);
