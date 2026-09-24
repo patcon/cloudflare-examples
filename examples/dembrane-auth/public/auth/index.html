@@ -33,6 +33,8 @@
       : null;
 
     if (res?.ok) {
+      // Following a link counts as logging in again after a logout (see /demo/).
+      try { localStorage.removeItem("demo:loggedOut"); } catch {}
       location.replace(next);
     } else {
       status.innerHTML =

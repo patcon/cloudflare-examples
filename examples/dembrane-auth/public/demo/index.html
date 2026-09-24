@@ -31,7 +31,7 @@
 
     <p>
       <a href="/dembrane-dashboard/">← Back to the dashboard</a>
-      · <a href="#" id="logout">Log out of the demo</a>
+      <span id="logout-item">· <a href="#" id="logout">Log out of the demo</a></span>
     </p>
   </main>
 
@@ -42,10 +42,24 @@
 
     // Near expiry (or on any 401), bounce through the dashboard, which holds
     // the refresh token, mints a fresh link and sends us straight back here.
+    // Except after an explicit logout: the dashboard is still logged in, so a
+    // handoff would silently log us straight back in. Until you follow a fresh
+    // link from the dashboard (which /auth/ treats as logging in again), show a
+    // logged-out message instead.
+    const LOGGED_OUT = "demo:loggedOut";
+    const loggedOut = () => { try { return localStorage.getItem(LOGGED_OUT) === "1"; } catch { return false; } };
+
     let handingOff = false;
     function handoff() {
       if (handingOff) return;
       handingOff = true;
+      if (loggedOut()) {
+        document.querySelector(".panel").innerHTML =
+          '<p>You\'re logged out of the demo.</p>' +
+          '<a class="button" href="/dembrane-dashboard/">Open it again from the dashboard</a>';
+        document.getElementById("logout-item").hidden = true;
+        return;
+      }
       location.replace("/dembrane-dashboard/?handoff=1&return=" + encodeURIComponent("/demo/"));
     }
 
@@ -112,6 +126,7 @@
 
     document.getElementById("logout").addEventListener("click", async (e) => {
       e.preventDefault();
+      try { localStorage.setItem(LOGGED_OUT, "1"); } catch {}
       await fetch("/api/session", { method: "DELETE" });
       location.href = "/dembrane-dashboard/";
     });
