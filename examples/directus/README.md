@@ -46,6 +46,8 @@ You can run steps 2 to 4 again on their own while `pnpm start` is running, for e
 
 In [`dembrane-auth`](../dembrane-auth), run `pnpm dev`, then on the dashboard choose **Log in with real Directus…** with `http://localhost:8055` and one of the users above. `.env` already allows the Worker's origin (`CORS_ORIGIN` includes `http://localhost:8787`).
 
+For [`dembrane-auth-cookie`](../dembrane-auth-cookie), run its `pnpm dev` instead (it uses the same port). It logs in with `mode: "session"`, and reads the cookie Directus sets, which `.env` names `dembrane_session_token` as in production.
+
 Or with curl:
 
 ```sh
