@@ -9,7 +9,7 @@
     body { display: flex; flex-direction: column; min-height: 100vh; }
     .layout { flex: 1; display: flex; min-height: 0; }
     nav {
-      width: 240px; flex-shrink: 0; display: flex; flex-direction: column;
+      width: 300px; flex-shrink: 0; display: flex; flex-direction: column;
       background: var(--panel); border-right: 1px solid var(--border); padding: 16px 12px;
     }
     nav .brand { font-weight: 700; padding: 4px 8px 16px; }
@@ -24,6 +24,7 @@
       padding: 8px; border-radius: 8px; border: 1px solid var(--border);
     }
     details.picker summary::-webkit-details-marker { display: none; }
+    details.picker summary .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .avatar {
       width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
       display: grid; place-items: center; font-size: 0.8rem; font-weight: 700;
