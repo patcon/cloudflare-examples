@@ -4,6 +4,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-23",
 
+  // Each example has its own port, so they can run side by side, and each
+  // gets its own localStorage. (Cookies ignore the port, so those are shared.)
+  "dev": { "port": 8787 },
+
   // Static pages in ./public. Only /api/* runs the Worker first; everything
   // else is served straight from the assets (and falls through to the Worker
   // if no file matches, e.g. `/`).

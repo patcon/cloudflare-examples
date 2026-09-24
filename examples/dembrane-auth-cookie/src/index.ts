@@ -10,7 +10,7 @@ const app = new Hono<AuthEnv>();
 // The one Directory, shared by everyone: always the same name.
 const directory = (env: Env) => env.DIRECTORY.getByName("directory");
 
-app.get("/", (c) => c.redirect("/demo/"));
+app.get("/", (c) => c.redirect("/demo-cookie/"));
 
 // Public config for the pages.
 app.get("/api/config", (c) => c.json({ directusUrl: c.env.DIRECTUS_URL }));

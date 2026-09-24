@@ -74,7 +74,7 @@
     // This page never sees a token. The browser sends Directus's session cookie
     // with every request, to the Worker (which checks it) and to Directus.
     const { directusUrl } = await (await fetch("/api/config")).json();
-    const toLogin = () => location.replace("/login/?next=" + encodeURIComponent("/demo/"));
+    const toLogin = () => location.replace("/login/?next=" + encodeURIComponent("/demo-ownership/"));
 
     // Directus's session endpoints, called from the browser so the cookie goes along.
     const directusSession = (action) =>

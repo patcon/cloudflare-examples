@@ -35,12 +35,12 @@ cp .dev.vars.example .dev.vars   # DIRECTUS_SECRET, matching ../directus's SECRE
 pnpm dev                         # http://localhost:8787
 ```
 
-Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which sends you to its login page. `dembrane-auth-cookie` uses port 8787 too, so run one at a time.
+Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which sends you to its login page. Each example has its own port (the cookie ones use 8788 and 8789), so you can run them side by side.
 
 ## The flow
 
 ```
- /dembrane-dashboard/              /auth/#token=…             /demo/
+ /dembrane-dashboard/              /auth/#token=…             /demo-token/
  (pretend: dashboard.dembrane.com) (the demo, another domain)
  ┌──────────────────────┐  click  ┌──────────────────┐       ┌─────────────────────────┐
  │ pick an account ↙    │ ──────▶ │ POST /api/session│ ────▶ │ GET  /api/users         │
@@ -59,7 +59,7 @@ Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which send
 1. **Pick an account** in the bottom-left account switcher on the dashboard. **Add another account…** takes you to `/dembrane-dashboard/login` to log in with Directus, and adds that account to the switcher. The dashboard also sends you there whenever there's no account, or the current one can't be refreshed, and you come back afterwards.
 2. **Click the link.** The token travels in the URL **fragment** (`#token=…`). Browsers never send the fragment to servers, so it stays out of logs and `Referer` headers. `/auth/` hands the token to `POST /api/session`, which verifies it and stores it in the demo's own httpOnly cookie. Then `/auth/` removes the token from the address bar.
 3. **Use the demo.** Each request's JWT is checked by `requireDirectusSession`, and the Worker calls the user's Durable Object with `getByName(id)`. The page also asks for the saved list of users with `GET /api/users`, which the Worker answers for admins and, if an admin allows it, for everyone. An admin's **Update** calls `POST /api/users/refresh`: the Worker checks `admin_access` in the token, then passes the admin's own token on to Directus's `/users` (more below). The Durable Objects do no auth themselves, since they can only be reached through the Worker. In Cloudflare's words, *"Durable Objects do not receive requests directly from the Internet. Durable Objects receive requests from Workers or other Durable Objects."* ([docs](https://developers.cloudflare.com/durable-objects/get-started/))
-4. **Stay logged in.** The dashboard keeps its token in localStorage, so reloading the page reuses it, and it refreshes the token with its Directus refresh token when it has a minute left. The printed URL changes when this happens. When the demo session has 30 seconds left, or on any 401, `/demo/` refreshes it by sending the browser through `/dembrane-dashboard/?handoff=1`, which gets a fresh token and sends it straight back. There's no need to log in again, unless the Directus login can't be refreshed; then you land on the login page, and it continues the handoff once you log in.
+4. **Stay logged in.** The dashboard keeps its token in localStorage, so reloading the page reuses it, and it refreshes the token with its Directus refresh token when it has a minute left. The printed URL changes when this happens. When the demo session has 30 seconds left, or on any 401, `/demo-token/` refreshes it by sending the browser through `/dembrane-dashboard/?handoff=1`, which gets a fresh token and sends it straight back. There's no need to log in again, unless the Directus login can't be refreshed; then you land on the login page, and it continues the handoff once you log in.
 
 Directus access tokens last 15 minutes by default (`ACCESS_TOKEN_TTL`); lower it in Directus to watch the refreshes happen. The demo's threshold (30s) is below the dashboard's (60s) on purpose: the dashboard only hands out tokens with at least a minute left, so a refresh always brings back more time than the demo's threshold and can't loop.
 
@@ -128,7 +128,7 @@ src/directus.ts        the Worker's calls to Directus: your profile (fetched at 
 src/user.ts            the per-user Durable Object: getCount(), increment(), the saved profile
 src/directory.ts       the one shared Durable Object: the saved list of users, and settings
 public/                the pages (plain HTML, no build step): the dashboard and
-                       its login page, /auth/, and /demo/
+                       its login page, /auth/, and /demo-token/
 wrangler.jsonc         Durable Object binding, static assets, vars
 ```
 

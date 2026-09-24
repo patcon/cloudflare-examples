@@ -29,10 +29,10 @@ Everything else is the same as `dembrane-auth-cookie`: the Worker reads Directus
 
 pnpm install
 cp .dev.vars.example .dev.vars   # DIRECTUS_SECRET and DIRECTUS_TOKEN, matching ../directus
-pnpm dev                         # http://localhost:8787
+pnpm dev                         # http://localhost:8789
 ```
 
-Open <http://localhost:8787>, and log in as one of `../directus`'s seeded users. It seeds two organisations (with `pnpm db:setup`, or `pnpm seed` on an existing database):
+Open <http://localhost:8789>, and log in as one of `../directus`'s seeded users. It seeds two organisations (with `pnpm db:setup`, or `pnpm seed` on an existing database):
 
 | Organisation | Owner | Members | Projects |
 |---|---|---|---|
@@ -41,7 +41,7 @@ Open <http://localhost:8787>, and log in as one of `../directus`'s seeded users.
 
 So Alice can increment both of her projects and can't see Bob's. Bob can increment Park redesign, and sees Alice's projects but can't increment them. Admin sees and increments everything.
 
-The other examples use port 8787 too, so run one at a time.
+Each example has its own port (`dembrane-auth` uses 8787, `dembrane-auth-cookie` 8788), so you can run them side by side.
 
 ## How the Worker knows your role
 
@@ -73,12 +73,12 @@ A=$(login alice@example.com password); B=$(login bob@example.com password); ADM=
 TOWN=0a11ce00-0000-4000-8000-0000000000a1   # Alice's; the seed uses fixed ids
 PARK=0b0b0000-0000-4000-8000-0000000000b1   # Bob's
 
-curl -H "Authorization: Bearer $B" localhost:8787/api/orgs                             # Alice's (member), Bob's (owner)
-curl -X POST -H "Authorization: Bearer $A" localhost:8787/api/projects/$TOWN/increment   # 200: Alice owns it
-curl -X POST -H "Authorization: Bearer $B" localhost:8787/api/projects/$TOWN/increment   # 403: Bob is only a member
-curl -H "Authorization: Bearer $B" localhost:8787/api/projects/$TOWN                     # 200: but can see it
-curl -X POST -H "Authorization: Bearer $A" localhost:8787/api/projects/$PARK/increment   # 404: Alice isn't in Bob's
-curl -X POST -H "Authorization: Bearer $ADM" localhost:8787/api/projects/$PARK/increment # 200: platform admin
+curl -H "Authorization: Bearer $B" localhost:8789/api/orgs                             # Alice's (member), Bob's (owner)
+curl -X POST -H "Authorization: Bearer $A" localhost:8789/api/projects/$TOWN/increment   # 200: Alice owns it
+curl -X POST -H "Authorization: Bearer $B" localhost:8789/api/projects/$TOWN/increment   # 403: Bob is only a member
+curl -H "Authorization: Bearer $B" localhost:8789/api/projects/$TOWN                     # 200: but can see it
+curl -X POST -H "Authorization: Bearer $A" localhost:8789/api/projects/$PARK/increment   # 404: Alice isn't in Bob's
+curl -X POST -H "Authorization: Bearer $ADM" localhost:8789/api/projects/$PARK/increment # 200: platform admin
 ```
 
 A project you can't see answers 404, not 403, so it doesn't reveal which projects exist.
@@ -94,7 +94,7 @@ src/directus.ts        the Worker's calls to Directus: as you (your profile, and
 src/project.ts         the per-project Durable Object: getCount(), increment()
 src/user.ts            the per-user Durable Object: getCount(), increment(), the saved profile
 src/directory.ts       the one shared Durable Object: the saved list of users, and settings
-public/                the pages (plain HTML, no build step): /login/ and /demo/
+public/                the pages (plain HTML, no build step): /login/ and /demo-ownership/
 wrangler.jsonc         Durable Object bindings, static assets, vars
 ```
 

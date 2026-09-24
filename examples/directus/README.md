@@ -51,7 +51,7 @@ You can run steps 2 to 4 again on their own while `pnpm start` is running, for e
 
 ## Using it with the auth examples
 
-They all use port 8787, so run one at a time. `.env` already allows that origin (`CORS_ORIGIN` includes `http://localhost:8787`).
+Each has its own port (8787, 8788 and 8789), so you can run them side by side. `.env` already allows those origins in `CORS_ORIGIN`.
 
 - **[`dembrane-auth`](../dembrane-auth)** (a Worker outside dembrane's cookie domain, logged in by link): run `pnpm dev`, then log in on its dashboard stand-in with `http://localhost:8055` and one of the users above.
 - **[`dembrane-auth-cookie`](../dembrane-auth-cookie)** (a Worker inside dembrane's cookie domain, logged in by cookie): run `pnpm dev`, then log in on its `/login/` page. It reads the cookie Directus sets, which `.env` names `dembrane_session_token` as in production.
