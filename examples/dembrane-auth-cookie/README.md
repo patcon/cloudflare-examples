@@ -1,12 +1,12 @@
 # dembrane-auth-cookie: a Worker inside dembrane's cookie domain, logged in by cookie
 
-A minimal example of gating a Cloudflare Worker and Durable Object on a **dembrane login**, when the Worker is **inside dembrane's cookie domain** (`.dembrane.com`), for example on `demo.dembrane.com`. Directus sets its session cookie for that whole domain, so the browser sends dembrane's own session cookie to the Worker, so there's no link, no token handoff and no cookie of the Worker's own.
+A minimal example of gating a Cloudflare Worker and Durable Object on a **dembrane login**, when the Worker is **inside dembrane's cookie domain** (`.dembrane.com`), for example on `demo-cookie.dembrane.com`. Directus sets its session cookie for that whole domain, so the browser sends dembrane's own session cookie to the Worker, so there's no link, no token handoff and no cookie of the Worker's own.
 
 It's the simpler version of [`dembrane-auth`](../dembrane-auth), which works when the Worker is outside that cookie domain. The two differ in how the Worker gets your login:
 
 | | [`dembrane-auth`](../dembrane-auth) | [`dembrane-auth-cookie`](../dembrane-auth-cookie) (this one) |
 |---|---|---|
-| **Use it when** | The Worker is **outside dembrane's cookie domain**, such as on `*.workers.dev`. That's the case today, since dembrane.com isn't on Cloudflare DNS | The Worker can be **inside dembrane's cookie domain**, `.dembrane.com`: on a hostname like `demo.dembrane.com` |
+| **Use it when** | The Worker is **outside dembrane's cookie domain**, such as on `*.workers.dev`. That's the case today, since dembrane.com isn't on Cloudflare DNS | The Worker can be **inside dembrane's cookie domain**, `.dembrane.com`: on a hostname like `demo-cookie.dembrane.com` |
 | **How the Worker learns who you are** | The dashboard puts your token in a link. The Worker keeps it in a cookie of its own | The browser sends dembrane's own session cookie. The Worker only reads it |
 | **Staying logged in** | The demo goes back to the dashboard for a fresh link | The demo asks Directus to refresh the session |
 | **Logging out** | Of the demo only | Of dembrane, everywhere: it's one session |
@@ -33,12 +33,12 @@ Open <http://localhost:8788>. It redirects to `/demo-cookie/`, which sends you t
 
 ## Why it works locally
 
-Cookies ignore the port. The cookie that Directus on `localhost:8055` sets is sent to the Worker on `localhost:8788` too, just as a cookie for `.dembrane.com` would reach `demo.dembrane.com`. You can also log in to Directus's own app at <http://localhost:8055/admin> as the admin. It uses the same cookie, so the demo sees you as logged in.
+Cookies ignore the port. The cookie that Directus on `localhost:8055` sets is sent to the Worker on `localhost:8788` too, just as a cookie for `.dembrane.com` would reach `demo-cookie.dembrane.com`. You can also log in to Directus's own app at <http://localhost:8055/admin> as the admin. It uses the same cookie, so the demo sees you as logged in.
 
 ## The flow
 
 ```
- /login/ (pretend: dashboard.dembrane.com/login)     /demo-cookie/ (pretend: demo.dembrane.com)
+ /login/ (pretend: dashboard.dembrane.com/login)     /demo-cookie/ (pretend: demo-cookie.dembrane.com)
  ┌────────────────────────────────────┐            ┌─────────────────────────┐
  │ POST {directus}/auth/login         │            │ GET  /api/me            │
  │   mode: "session"                  │ ─────────▶ │ GET  /api/users         │

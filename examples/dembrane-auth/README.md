@@ -6,7 +6,7 @@ If the Worker can be inside that cookie domain, [`dembrane-auth-cookie`](../demb
 
 | | [`dembrane-auth`](../dembrane-auth) (this one) | [`dembrane-auth-cookie`](../dembrane-auth-cookie) |
 |---|---|---|
-| **Use it when** | The Worker is **outside dembrane's cookie domain**, such as on `*.workers.dev`. That's the case today, since dembrane.com isn't on Cloudflare DNS | The Worker can be **inside dembrane's cookie domain**, `.dembrane.com`: on a hostname like `demo.dembrane.com` |
+| **Use it when** | The Worker is **outside dembrane's cookie domain**, such as on `*.workers.dev`. That's the case today, since dembrane.com isn't on Cloudflare DNS | The Worker can be **inside dembrane's cookie domain**, `.dembrane.com`: on a hostname like `demo-cookie.dembrane.com` |
 | **How the Worker learns who you are** | The dashboard puts your token in a link. The Worker keeps it in a cookie of its own | The browser sends dembrane's own session cookie. The Worker only reads it |
 | **Staying logged in** | The demo goes back to the dashboard for a fresh link | The demo asks Directus to refresh the session |
 | **Logging out** | Of the demo only | Of dembrane, everywhere: it's one session |
@@ -41,7 +41,7 @@ Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which send
 
 ```
  /dembrane-dashboard/              /auth/#token=…             /demo-token/
- (pretend: dashboard.dembrane.com) (the demo, another domain)
+ (pretend: dashboard.dembrane.com) (pretend: demo-token.example.com, another domain)
  ┌──────────────────────┐  click  ┌──────────────────┐       ┌─────────────────────────┐
  │ pick an account ↙    │ ──────▶ │ POST /api/session│ ────▶ │ GET  /api/users         │
  │ Open realtime demo → │         │ token → our own  │       │ GET  /api/users/:id     │
