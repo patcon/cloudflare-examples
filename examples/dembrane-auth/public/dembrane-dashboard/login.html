@@ -44,7 +44,7 @@
   </main>
 
   <script type="module">
-    import { currentAccount, loginToDirectus, safePath } from "./session.js";
+    import { currentAccount, loginToDirectus, safePath } from "./accounts.js";
 
     const $ = (id) => document.getElementById(id);
     const config = await (await fetch("/api/config")).json();

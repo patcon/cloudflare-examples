@@ -94,11 +94,11 @@
   </div>
 
   <script type="module">
-    import { accounts, claimsOf, currentAccount, loginUrl, refreshDirectus, removeAccount, secondsLeft, setCurrent } from "./session.js";
+    import { accounts, claimsOf, currentAccount, loginUrl, refreshDirectus, removeAccount, secondsLeft, setCurrent } from "./accounts.js";
 
     const $ = (id) => document.getElementById(id);
-    let login = currentAccount(); // the account behind the link
-    let current = null; // { token, claims } behind the link right now
+    let account = currentAccount(); // the Directus account behind the link
+    let link = null; // the { token, claims } in the link right now
 
     // Every token the dashboard hands out has at least this long left, so the
     // link survives a click and the exchange at /auth/. /demo/ refreshes its
@@ -112,15 +112,15 @@
     // null if there is none or it can't be refreshed (then it's dropped from
     // the switcher, and you log in to it again).
     async function freshToken() {
-      if (!login) return null;
-      if (secondsLeft(claimsOf(login.accessToken)) < REFRESH_AT) {
-        try { login = await refreshDirectus(login); } catch { removeAccount(login.id); login = null; return null; }
+      if (!account) return null;
+      if (secondsLeft(claimsOf(account.accessToken)) < REFRESH_AT) {
+        try { account = await refreshDirectus(account); } catch { removeAccount(account.id); account = null; return null; }
       }
-      return login.accessToken;
+      return account.accessToken;
     }
 
     function renderExpiry() {
-      const left = secondsLeft(current.claims);
+      const left = secondsLeft(link.claims);
       $("claim-exp").textContent = formatLeft(left);
     }
 
@@ -134,9 +134,9 @@
     // Standard account-switcher menu: every account you've added (the current
     // one ticked), then "Add another account…" and "Log out".
     function renderPicker() {
-      const name = login ? labelOf(login) : "Not logged in";
+      const name = account ? labelOf(account) : "Not logged in";
       $("picker-avatar").textContent = name[0].toUpperCase();
-      $("picker-who").innerHTML = `${name}<small>${login ? "Directus" : "log in to continue"}</small>`;
+      $("picker-who").innerHTML = `${name}<small>${account ? "Directus" : "log in to continue"}</small>`;
 
       const menu = $("picker-menu");
       menu.innerHTML = '<div class="heading">Switch account</div>';
@@ -153,27 +153,27 @@
         });
         menu.append(b);
       };
-      for (const account of accounts()) {
-        const label = labelOf(account);
-        option(label[0].toUpperCase(), label, "Directus", () => select(account), account.id === login?.id);
+      for (const saved of accounts()) {
+        const label = labelOf(saved);
+        option(label[0].toUpperCase(), label, "Directus", () => select(saved), saved.id === account?.id);
       }
       menu.append(document.createElement("hr"));
       option("+", "Add another account…", "", () => (location.href = loginUrl("/dembrane-dashboard/")));
-      if (login) option("⎋", "Log out", "", logOut);
+      if (account) option("⎋", "Log out", "", logOut);
     }
 
     // Forget the current account. Switch to another one if there is one,
     // otherwise go to the login page.
     function logOut() {
-      removeAccount(login.id);
+      removeAccount(account.id);
       const next = accounts()[0];
       if (next) select(next);
       else location.href = loginUrl("/dembrane-dashboard/");
     }
 
-    async function select(account) {
-      login = account;
-      setCurrent(account.id);
+    async function select(chosen) {
+      account = chosen;
+      setCurrent(chosen.id);
       renderPicker();
       await updateLink("Switched account");
     }
@@ -181,20 +181,20 @@
     async function updateLink(note) {
       const token = await freshToken();
       if (!token) {
-        // No real Directus login (or it can't be refreshed): off to the login
+        // No Directus account (or it can't be refreshed): off to the login
         // page, which comes back here afterwards.
         location.replace(loginUrl(location.pathname + location.search));
         return;
       }
       $("link-panel").hidden = false;
-      const changed = current?.token !== token;
-      current = { token, claims: claimsOf(token) };
+      const changed = link?.token !== token;
+      link = { token, claims: claimsOf(token) };
 
       const href = linkFor(token);
       $("demo-link").href = href;
       $("demo-url").textContent = new URL(href, location.origin).href;
-      $("claim-id").textContent = current.claims.id;
-      $("claim-admin").textContent = String(current.claims.admin_access === true);
+      $("claim-id").textContent = link.claims.id;
+      $("claim-admin").textContent = String(link.claims.admin_access === true);
       renderExpiry();
       if (changed) {
         $("demo-url").classList.remove("flash");
@@ -207,9 +207,9 @@
     // Keep the link valid: refresh the token once it has REFRESH_AT seconds left.
     let refreshing = false;
     setInterval(async () => {
-      if (!current) return;
+      if (!link) return;
       renderExpiry();
-      if (secondsLeft(current.claims) < REFRESH_AT && !refreshing) {
+      if (secondsLeft(link.claims) < REFRESH_AT && !refreshing) {
         refreshing = true;
         await updateLink("Refreshed with the Directus refresh token").finally(() => (refreshing = false));
       }

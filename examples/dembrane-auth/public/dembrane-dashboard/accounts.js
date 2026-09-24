@@ -1,5 +1,5 @@
-// Shared by the dashboard and its login page: the dashboard's browser storage,
-// and talking to Directus the way the iOS app does.
+// The dashboard's accounts, shared by the dashboard and its login page: kept
+// in browser storage, and logged in to Directus the way the iOS app does.
 
 // `accounts` holds every Directus login in the account switcher, each
 // { url, accessToken, refreshToken, id, email }; `current` is the id of the
@@ -16,9 +16,9 @@ export const accounts = () => load("accounts") ?? [];
 export const currentAccount = () => accounts().find((a) => a.id === load("current")) ?? null;
 export const setCurrent = (id) => save("current", id);
 
-// Add a login, or replace the saved one for the same user.
-function saveAccount(login) {
-  save("accounts", [...accounts().filter((a) => a.id !== login.id), login]);
+// Add an account, or replace the saved one for the same user.
+function saveAccount(account) {
+  save("accounts", [...accounts().filter((a) => a.id !== account.id), account]);
 }
 
 export function removeAccount(id) {
@@ -53,17 +53,17 @@ export async function loginToDirectus(url, email, password, otp) {
     body: { email, password, ...(otp && { otp }), mode: "json" },
   });
   const me = await directus(url, "/users/me?fields=id,email", { token: auth.access_token });
-  const login = { url, accessToken: auth.access_token, refreshToken: auth.refresh_token, id: me.id, email: me.email };
-  saveAccount(login);
-  setCurrent(login.id);
-  return login;
+  const account = { url, accessToken: auth.access_token, refreshToken: auth.refresh_token, id: me.id, email: me.email };
+  saveAccount(account);
+  setCurrent(account.id);
+  return account;
 }
 
-export async function refreshDirectus(login) {
-  const auth = await directus(login.url, "/auth/refresh", {
-    body: { refresh_token: login.refreshToken, mode: "json" },
+export async function refreshDirectus(account) {
+  const auth = await directus(account.url, "/auth/refresh", {
+    body: { refresh_token: account.refreshToken, mode: "json" },
   });
-  const refreshed = { ...login, accessToken: auth.access_token, refreshToken: auth.refresh_token };
+  const refreshed = { ...account, accessToken: auth.access_token, refreshToken: auth.refresh_token };
   saveAccount(refreshed);
   return refreshed;
 }
