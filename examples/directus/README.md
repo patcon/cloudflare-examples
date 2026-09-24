@@ -1,10 +1,10 @@
 # directus
 
-A local Directus with **dembrane's schema**, running on SQLite. It's a real Directus to log in to when you're testing the other examples, such as [`dembrane-auth`](../dembrane-auth) and [`dembrane-auth-cookie`](../dembrane-auth-cookie), without running the full echo stack (Postgres, Redis, Docker).
+A local Directus with **dembrane's schema**, running on SQLite. It's a real Directus to log in to when you're testing the other examples, such as [`dembrane-auth`](../dembrane-auth), [`dembrane-auth-cookie`](../dembrane-auth-cookie) and [`dembrane-auth-cookie-ownership`](../dembrane-auth-cookie-ownership), without running the full echo stack (Postgres, Redis, Docker).
 
 - Directus **11.13.4**, the version echo's image pins (`tractr/directus-sync:11.13.4`)
 - The schema, roles, policies, permissions and flows come from your **dembrane-echo checkout** (`echo/directus/sync`). Nothing is copied into this repo, so pulling echo is enough to update it.
-- Uses the same `SECRET` as the `.dev.vars` of both auth examples, so its tokens pass their Workers' checks with no extra setup.
+- Uses the same `SECRET` as the `.dev.vars` of the auth examples, so its tokens pass their Workers' checks with no extra setup.
 
 ## Run it
 
@@ -25,6 +25,13 @@ Log in at <http://localhost:8055> as `admin@dembrane.com` / `admin`, or as one o
 | `alice@example.com` | `password` | Basic User |
 | `bob@example.com` | `password` | Basic User |
 
+and two organisations, each with a Default workspace and projects:
+
+| Organisation | Owner | Members | Projects |
+|---|---|---|---|
+| Alice's Organisation | Alice | Bob | Town hall listening session, Budget survey |
+| Bob's Organisation | Bob | | Park redesign |
+
 `pnpm db:reset` deletes the database and runs setup again.
 
 ## What `db:setup` does
@@ -38,16 +45,17 @@ It's the same sequence echo's `scripts/remote-dev/up.sh` runs, adjusted for SQLi
 3. **`pnpm migrate`** runs the scripts in `echo/directus/migrations` (with `uv run`). On a fresh database they should all report `exists, skipping`, because each one was pulled into the snapshot after it ran. They run anyway to catch any migration that hasn't reached the snapshot. It also creates the two partial unique indexes from `echo/docs/database_migrations.md`. Three scripts are skipped:
    - `add_smart_loop_wave5_schema.py` and `add_smart_loop_wave28_canvas_ledgers.py` import the echo server package.
    - `backfill_billing_account.py` only applies to databases from before the billing-account split.
-4. **`pnpm seed`** creates Alice and Bob, each with a `directus_users` row (Basic User role) and an `app_user` row. It's safe to re-run.
+4. **`pnpm seed`** creates Alice and Bob, each with a `directus_users` row (Basic User role) and an `app_user` row (`scripts/seed-users.mjs`). Then it creates the organisations above (`scripts/seed-orgs.mjs`), with the rows dembrane's onboarding creates for a personal organisation: `org`, an owner's `org_membership`, an org-scoped `billing_account` (a workspace needs one), a Default `workspace` with the owner's `workspace_membership`, and the `project`s. The rows have fixed ids, so it's safe to re-run.
 
 You can run steps 2 to 4 again on their own while `pnpm start` is running, for example after pulling echo.
 
 ## Using it with the auth examples
 
-Both use port 8787, so run one at a time. `.env` already allows that origin (`CORS_ORIGIN` includes `http://localhost:8787`).
+Each has its own port (8787, 8788 and 8789), so you can run them side by side. `.env` already allows those origins in `CORS_ORIGIN`.
 
 - **[`dembrane-auth`](../dembrane-auth)** (a Worker outside dembrane's cookie domain, logged in by link): run `pnpm dev`, then log in on its dashboard stand-in with `http://localhost:8055` and one of the users above.
 - **[`dembrane-auth-cookie`](../dembrane-auth-cookie)** (a Worker inside dembrane's cookie domain, logged in by cookie): run `pnpm dev`, then log in on its `/login/` page. It reads the cookie Directus sets, which `.env` names `dembrane_session_token` as in production.
+- **[`dembrane-auth-cookie-ownership`](../dembrane-auth-cookie-ownership)** (the same, plus who owns an organisation): as above. It reads the seeded organisations with `ADMIN_TOKEN` from `.env`, as its `DIRECTUS_TOKEN`.
 
 Or with curl:
 
@@ -72,7 +80,9 @@ scripts/setup.sh          db:setup: bootstrap, then push, migrate, seed with a t
 scripts/schema-push.sh    directus-sync push from $ECHO_DIR/directus/sync
 scripts/sqlite-snapshot.mjs  adapts the Postgres snapshot copy for SQLite
 scripts/migrate.sh        echo's migrations + partial indexes
+scripts/seed.sh           pnpm seed: both of the below
 scripts/seed-users.mjs    Alice and Bob
+scripts/seed-orgs.mjs     their organisations, workspaces and projects
 data/                     the SQLite database (gitignored)
 templates -> $ECHO_DIR/directus/templates   (symlink made by setup, gitignored)
 ```

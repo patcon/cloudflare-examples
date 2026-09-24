@@ -34,8 +34,9 @@ echo "## Pushing schema from $ECHO_DIR/directus/sync"
 rm -f "$log.push"
 echo "## Running migrations"
 ./scripts/migrate.sh
-echo "## Seeding users"
+echo "## Seeding users, organisations and projects"
 node scripts/seed-users.mjs
+node scripts/seed-orgs.mjs
 
 echo
 echo "Ready. Start it with: pnpm start   (admin: $ADMIN_EMAIL / $ADMIN_PASSWORD)"

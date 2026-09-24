@@ -12,7 +12,7 @@
   </style>
 </head>
 <body>
-  <div class="banner">Placeholder: pretend this is <strong>dashboard.dembrane.com/login</strong>, in the same cookie domain as the demo.</div>
+  <div class="banner">Placeholder: pretend this is <strong>dashboard.dembrane.com/login</strong>, in the same cookie domain as the demo (demo-cookie.dembrane.com).</div>
 
   <main class="centered">
     <section class="panel">
@@ -45,7 +45,7 @@
 
     // Only paths on this host, so a ?next= can't bounce people somewhere else.
     const nextParam = new URLSearchParams(location.search).get("next");
-    const next = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/demo/";
+    const next = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/demo-cookie/";
 
     // The users in the local ../directus example (its .env.example admin, and
     // scripts/seed-users.mjs).
@@ -73,7 +73,7 @@
     for (const account of TEST_ACCOUNTS) {
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = account.admin ? `${account.label} (admin)` : account.label;
+      b.textContent = account.admin ? `${account.label} (platform admin)` : account.label;
       b.title = account.email;
       b.addEventListener("click", () => {
         $("email").value = account.email;

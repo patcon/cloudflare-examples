@@ -6,7 +6,7 @@ If the Worker can be inside that cookie domain, [`dembrane-auth-cookie`](../demb
 
 | | [`dembrane-auth`](../dembrane-auth) (this one) | [`dembrane-auth-cookie`](../dembrane-auth-cookie) |
 |---|---|---|
-| **Use it when** | The Worker is **outside dembrane's cookie domain**, such as on `*.workers.dev`. That's the case today, since dembrane.com isn't on Cloudflare DNS | The Worker can be **inside dembrane's cookie domain**, `.dembrane.com`: on a hostname like `demo.dembrane.com` |
+| **Use it when** | The Worker is **outside dembrane's cookie domain**, such as on `*.workers.dev`. That's the case today, since dembrane.com isn't on Cloudflare DNS | The Worker can be **inside dembrane's cookie domain**, `.dembrane.com`: on a hostname like `demo-cookie.dembrane.com` |
 | **How the Worker learns who you are** | The dashboard puts your token in a link. The Worker keeps it in a cookie of its own | The browser sends dembrane's own session cookie. The Worker only reads it |
 | **Staying logged in** | The demo goes back to the dashboard for a fresh link | The demo asks Directus to refresh the session |
 | **Logging out** | Of the demo only | Of dembrane, everywhere: it's one session |
@@ -19,7 +19,7 @@ What you'll see:
 
 - A stand-in for the dembrane dashboard, with a link to the demo and the link's URL printed beneath it.
 - A demo page where every user has a counter in their own Durable Object. You can only increment your own. Admins also see every Directus user, and can increment anyone's.
-- A shared directory of users, in a single `Directory` Durable Object. Admins refresh it from Directus with **Update**, and can tick **Allow non-admins to see other users**. Then everyone sees the list, though still only increments their own counter.
+- A shared directory of users, in a single `Directory` Durable Object. Admins refresh it from Directus with **Update**, and can tick **Allow everyone to see other users**. Then everyone sees the list, though still only increments their own counter.
 
 The Worker enforces these rules, not the page: a non-admin gets a 403 from `GET /api/users` (unless an admin allows non-admins to see other users), from `POST /api/users/refresh` and `PUT /api/settings`, and from incrementing someone else (see the curl example below).
 
@@ -35,13 +35,13 @@ cp .dev.vars.example .dev.vars   # DIRECTUS_SECRET, matching ../directus's SECRE
 pnpm dev                         # http://localhost:8787
 ```
 
-Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which sends you to its login page. `dembrane-auth-cookie` uses port 8787 too, so run one at a time.
+Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which sends you to its login page. Each example has its own port (the cookie ones use 8788 and 8789), so you can run them side by side.
 
 ## The flow
 
 ```
- /dembrane-dashboard/              /auth/#token=…             /demo/
- (pretend: dashboard.dembrane.com) (the demo, another domain)
+ /dembrane-dashboard/              /auth/#token=…             /demo-token/
+ (pretend: dashboard.dembrane.com) (pretend: demo-token.example.com, another domain)
  ┌──────────────────────┐  click  ┌──────────────────┐       ┌─────────────────────────┐
  │ pick an account ↙    │ ──────▶ │ POST /api/session│ ────▶ │ GET  /api/users         │
  │ Open realtime demo → │         │ token → our own  │       │ GET  /api/users/:id     │
@@ -59,7 +59,7 @@ Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which send
 1. **Pick an account** in the bottom-left account switcher on the dashboard. **Add another account…** takes you to `/dembrane-dashboard/login` to log in with Directus, and adds that account to the switcher. The dashboard also sends you there whenever there's no account, or the current one can't be refreshed, and you come back afterwards.
 2. **Click the link.** The token travels in the URL **fragment** (`#token=…`). Browsers never send the fragment to servers, so it stays out of logs and `Referer` headers. `/auth/` hands the token to `POST /api/session`, which verifies it and stores it in the demo's own httpOnly cookie. Then `/auth/` removes the token from the address bar.
 3. **Use the demo.** Each request's JWT is checked by `requireDirectusSession`, and the Worker calls the user's Durable Object with `getByName(id)`. The page also asks for the saved list of users with `GET /api/users`, which the Worker answers for admins and, if an admin allows it, for everyone. An admin's **Update** calls `POST /api/users/refresh`: the Worker checks `admin_access` in the token, then passes the admin's own token on to Directus's `/users` (more below). The Durable Objects do no auth themselves, since they can only be reached through the Worker. In Cloudflare's words, *"Durable Objects do not receive requests directly from the Internet. Durable Objects receive requests from Workers or other Durable Objects."* ([docs](https://developers.cloudflare.com/durable-objects/get-started/))
-4. **Stay logged in.** The dashboard keeps its token in localStorage, so reloading the page reuses it, and it refreshes the token with its Directus refresh token when it has a minute left. The printed URL changes when this happens. When the demo session has 30 seconds left, or on any 401, `/demo/` refreshes it by sending the browser through `/dembrane-dashboard/?handoff=1`, which gets a fresh token and sends it straight back. There's no need to log in again, unless the Directus login can't be refreshed; then you land on the login page, and it continues the handoff once you log in.
+4. **Stay logged in.** The dashboard keeps its token in localStorage, so reloading the page reuses it, and it refreshes the token with its Directus refresh token when it has a minute left. The printed URL changes when this happens. When the demo session has 30 seconds left, or on any 401, `/demo-token/` refreshes it by sending the browser through `/dembrane-dashboard/?handoff=1`, which gets a fresh token and sends it straight back. There's no need to log in again, unless the Directus login can't be refreshed; then you land on the login page, and it continues the handoff once you log in.
 
 Directus access tokens last 15 minutes by default (`ACCESS_TOKEN_TTL`); lower it in Directus to watch the refreshes happen. The demo's threshold (30s) is below the dashboard's (60s) on purpose: the dashboard only hands out tokens with at least a minute left, so a refresh always brings back more time than the demo's threshold and can't loop.
 
@@ -116,7 +116,7 @@ The token only carries `id`, `role`, `app_access` and `admin_access`. For your n
 
 The list of users works the same way. `POST /api/users/refresh` passes the admin's token on to Directus's `/users`. The Worker checks `admin_access` first and answers anyone else with a 403. It doesn't rely on the page hiding the button, or on Directus, which would answer a non-admin with just themselves. If Directus can't be reached, the admin gets a 502 and the saved list stays as it was. The page does this for you on an admin's first visit, when nothing is saved yet.
 
-The Worker saves the list, and the **Allow non-admins to see other users** setting, in one `Directory` Durable Object, which it always asks for by the same name. So both belong to the whole demo, not to any one user, and a non-admin can see other users even though Directus would only tell them about themselves. It's a Durable Object rather than KV because KV is eventually consistent: after an admin changes the setting, some requests could keep seeing the old value for a while, and the setting decides who may read the list. The usual advice against one global Durable Object is about putting every request through it. Here only page loads and admin actions use it; the counters stay in each user's own `User`. Non-admins see a change to the setting when they next load the page.
+The Worker saves the list, and the **Allow everyone to see other users** setting, in one `Directory` Durable Object, which it always asks for by the same name. So both belong to the whole demo, not to any one user, and a non-admin can see other users even though Directus would only tell them about themselves. It's a Durable Object rather than KV because KV is eventually consistent: after an admin changes the setting, some requests could keep seeing the old value for a while, and the setting decides who may read the list. The usual advice against one global Durable Object is about putting every request through it. Here only page loads and admin actions use it; the counters stay in each user's own `User`. Non-admins see a change to the setting when they next load the page.
 
 ## Files
 
@@ -128,7 +128,7 @@ src/directus.ts        the Worker's calls to Directus: your profile (fetched at 
 src/user.ts            the per-user Durable Object: getCount(), increment(), the saved profile
 src/directory.ts       the one shared Durable Object: the saved list of users, and settings
 public/                the pages (plain HTML, no build step): the dashboard and
-                       its login page, /auth/, and /demo/
+                       its login page, /auth/, and /demo-token/
 wrangler.jsonc         Durable Object binding, static assets, vars
 ```
 

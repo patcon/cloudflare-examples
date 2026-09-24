@@ -67,7 +67,7 @@
   </style>
 </head>
 <body>
-  <div class="banner">Placeholder: pretend this is <strong>dashboard.dembrane.com</strong>, on a different domain from the demo.</div>
+  <div class="banner">Placeholder: pretend this is <strong>dashboard.dembrane.com</strong>, on a different domain from the demo (demo-token.example.com).</div>
 
   <div class="layout">
     <nav>
@@ -108,7 +108,7 @@
     let link = null; // the { token, claims } in the link right now
 
     // Every token the dashboard hands out has at least this long left, so the
-    // link survives a click and the exchange at /auth/. /demo/ refreshes its
+    // link survives a click and the exchange at /auth/. /demo-token/ refreshes its
     // own session at 30s, which must stay below this: a handoff always brings
     // back more time than the demo's threshold, so it can't bounce straight back.
     const REFRESH_AT = 60;
@@ -131,7 +131,7 @@
       $("claim-exp").textContent = formatLeft(left);
     }
 
-    const linkFor = (token, ret = "/demo/") => `/auth/?return=${encodeURIComponent(ret)}#token=${token}`;
+    const linkFor = (token, ret = "/demo-token/") => `/auth/?return=${encodeURIComponent(ret)}#token=${token}`;
 
     // --- Rendering ----------------------------------------------------------
     // A user with no role may read its own id but not its email.
@@ -239,10 +239,10 @@
     }, 1000);
 
     // --- Handoff: the demo sent us here for a fresh link --------------------
-    // /dembrane-dashboard/?handoff=1&return=/demo/ → go straight back with a
+    // /dembrane-dashboard/?handoff=1&return=/demo-token/ → go straight back with a
     // new token, no clicks needed (like OAuth's silent re-authentication).
     const params = new URLSearchParams(location.search);
-    const handoffReturn = params.get("handoff") === "1" ? params.get("return") ?? "/demo/" : null;
+    const handoffReturn = params.get("handoff") === "1" ? params.get("return") ?? "/demo-token/" : null;
 
     // If there's no token to hand back, updateLink() sends us to the login
     // page, which returns to this same handoff URL afterwards.
