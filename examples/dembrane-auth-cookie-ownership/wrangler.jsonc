@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "dembrane-auth-cookie",
+  "name": "dembrane-auth-cookie-ownership",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-23",
 
@@ -12,15 +12,17 @@
     "run_worker_first": ["/api/*"]
   },
 
-  // One User Durable Object per dembrane user, addressed by user id, and a
-  // single Directory for state shared by everyone (the user list, settings).
+  // One User Durable Object per dembrane user, addressed by user id, one
+  // Project per dembrane project, addressed by project id, and a single
+  // Directory for state shared by everyone (the user list, settings).
   "durable_objects": {
     "bindings": [
       { "name": "USER", "class_name": "User" },
+      { "name": "PROJECT", "class_name": "Project" },
       { "name": "DIRECTORY", "class_name": "Directory" }
     ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["User", "Directory"] }],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["User", "Project", "Directory"] }],
 
   "vars": {
     // The Directus the pages log in to and the Worker asks for profiles:
@@ -28,5 +30,6 @@
     // host for the cookie to reach it.
     "DIRECTUS_URL": "http://localhost:8055"
   }
-  // Secret (not here): DIRECTUS_SECRET — .dev.vars locally, `wrangler secret put` when deployed.
+  // Secrets (not here): DIRECTUS_SECRET and DIRECTUS_TOKEN — .dev.vars locally,
+  // `wrangler secret put` when deployed.
 }

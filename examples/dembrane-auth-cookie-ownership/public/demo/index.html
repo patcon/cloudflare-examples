@@ -20,7 +20,11 @@
     .admin label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: inherit; color: inherit; cursor: pointer; }
     .admin input[type="checkbox"] { width: auto; margin: 0; padding: 0; }
     #updated, #list-error { margin: 0 0 12px; }
-    #updated:empty, #list-error:empty { display: none; }
+    #updated:empty, #list-error:empty, #orgs-error:empty { display: none; }
+    .panel + .panel { margin-top: 16px; }
+    h2.section { font-size: 1.05rem; margin: 0 0 8px; }
+    .org h3 { font-size: 0.95rem; margin: 18px 0 4px; }
+    .org .empty { margin: 4px 0; }
     .source { margin-top: 20px; }
     .source h2 { font-size: 0.9rem; margin: 0 0 4px; }
     .source pre { margin: 6px 0 0; padding: 8px 10px; background: var(--code-bg); border-radius: 6px; overflow-x: auto; }
@@ -54,6 +58,13 @@
         </p>
         <pre class="mono" id="me-json">…</pre>
       </section>
+    </div>
+
+    <div class="panel">
+      <h2 class="section">Your organisations</h2>
+      <p class="muted">Each project's counter lives in that project's own Durable Object. Everyone in an organisation sees its projects, but only its <strong>owner</strong> can increment them. Platform admins see every organisation, and can increment anything. The Worker looks up your role in Directus on every request.</p>
+      <p class="error" id="orgs-error"></p>
+      <div id="orgs"><p class="muted">Loading…</p></div>
     </div>
 
     <p><a href="#" id="logout">Log out of dembrane</a> <span class="muted hint">(one session, so this logs you out everywhere)</span></p>
@@ -204,6 +215,69 @@
     // An admin's first visit: nothing saved yet, so fetch the users now.
     if (me.isAdmin && snapshot.updatedAt === null) await refresh();
     else render();
+
+    // Organisations (GET /api/orgs): the ones you're in, with your role, and
+    // their projects. Each project row reads and increments its own counter.
+    async function renderOrgs() {
+      const container = document.getElementById("orgs");
+      const res = await api("/api/orgs");
+      if (!res.ok) {
+        container.replaceChildren();
+        document.getElementById("orgs-error").textContent = `Couldn't list organisations: ${res.status} ${(await res.json()).error}`;
+        return;
+      }
+      const orgs = await res.json();
+      container.replaceChildren();
+      if (orgs.length === 0) container.innerHTML = '<p class="muted">You aren\'t in any organisation.</p>';
+      for (const org of orgs) {
+        const section = document.createElement("section");
+        section.className = "org";
+        const role = org.role ? `<span class="badge">${esc(org.role)}</span>` : '<span class="muted hint">(not a member)</span>';
+        section.innerHTML = `<h3>${esc(org.name)} ${role}</h3>`;
+        if (org.projects.length === 0) section.insertAdjacentHTML("beforeend", '<p class="muted empty">No projects.</p>');
+        const tbody = document.createElement("tbody");
+        const table = document.createElement("table");
+        table.append(tbody);
+        section.append(table);
+        container.append(section);
+        for (const project of org.projects) addProjectRow(tbody, project, org.canIncrement);
+      }
+    }
+
+    async function addProjectRow(tbody, project, canIncrement) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${esc(project.name)}<span class="msg"></span></td>
+        <td class="count">…</td>
+        <td class="action"><button>Increment</button></td>`;
+      tbody.append(tr);
+
+      const count = tr.querySelector(".count");
+      const msg = tr.querySelector(".msg");
+      const button = tr.querySelector("button");
+      // The server enforces this too; disabling just saves a pointless 403.
+      button.disabled = !canIncrement;
+      if (!canIncrement) button.title = "Only the organisation's owner can increment its projects";
+
+      const { count: initial } = await (await api(`/api/projects/${project.id}`)).json();
+      count.textContent = initial;
+
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        const res = await api(`/api/projects/${project.id}/increment`, { method: "POST" });
+        const body = await res.json();
+        if (res.ok) {
+          count.textContent = body.count;
+          msg.textContent = "";
+        } else {
+          msg.textContent = `${res.status}: ${body.error}`;
+          msg.className = "msg error";
+        }
+        button.disabled = false;
+      });
+    }
+
+    await renderOrgs();
 
     // Session countdown, and the automatic refresh at REFRESH_AT seconds left.
     // Another tab (or Directus's own app) may refresh the cookie first; asking
