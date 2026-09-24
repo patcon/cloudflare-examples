@@ -44,6 +44,7 @@ h2 { font-size: 1.1rem; }
 a { color: var(--accent); }
 code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.85em; }
 .muted { color: var(--muted); }
+.hint { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 0.8rem; }
 .error { color: var(--error); }
 .ok { color: var(--ok); }
 
