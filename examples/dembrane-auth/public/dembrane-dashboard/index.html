@@ -116,7 +116,8 @@
 
     // --- Browser storage (this page's only state) -------------------------
     // `selected` is a mock user's id or "directus"; `directus` holds the real
-    // login: { url, accessToken, refreshToken, id, email }.
+    // login: { url, accessToken, refreshToken, id, email }; `mockTokens` holds
+    // the last token minted for each mock user: { [id]: token }.
     const load = (key) => { try { return JSON.parse(localStorage.getItem("dashboard:" + key)); } catch { return null; } };
     const save = (key, value) => {
       try {
@@ -129,6 +130,7 @@
     let selected = load("selected");
     if (selected !== "directus" && !mockUsers.some((u) => u.id === selected)) selected = mockUsers[0]?.id ?? "directus";
     let directusLogin = load("directus");
+    const mockTokens = load("mockTokens") ?? {};
     let current = null; // { token, claims } behind the link right now
 
     const claimsOf = (token) => JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
@@ -176,13 +178,17 @@
         }
         return directusLogin.accessToken;
       }
-      if (current && current.claims.id === selected && secondsLeft(current.claims) >= 60) return current.token;
+      // Like the Directus token, reuse a saved one until it's nearly expired.
+      const saved = mockTokens[selected];
+      if (saved && secondsLeft(claimsOf(saved)) >= 60) return saved;
       const res = await fetch("/api/dev/mint", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ userId: selected }),
       });
-      return (await res.json()).token;
+      mockTokens[selected] = (await res.json()).token;
+      save("mockTokens", mockTokens);
+      return mockTokens[selected];
     }
 
     function renderExpiry() {
