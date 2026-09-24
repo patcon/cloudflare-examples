@@ -1,0 +1,5 @@
+.env
+/data/
+/uploads/
+# symlink to $ECHO_DIR/directus/templates, made by db:setup
+/templates

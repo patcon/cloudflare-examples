@@ -1,0 +1,39 @@
+{
+  "name": "directus",
+  "version": "1.0.0",
+  "description": "Local Directus on SQLite with dembrane's schema, for testing the other examples against a real Directus",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.5",
+  "scripts": {
+    "db:setup": "./scripts/setup.sh",
+    "start": "directus start",
+    "db:reset": "rm -rf data && ./scripts/setup.sh",
+    "schema:push": "./scripts/schema-push.sh",
+    "migrate": "./scripts/migrate.sh",
+    "seed": "./scripts/seed-users.sh"
+  },
+  "dependencies": {
+    "directus": "11.13.4",
+    "directus-extension-sync": "^3.0.6"
+  },
+  "devDependencies": {
+    "directus-sync": "^3.5.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "argon2",
+      "esbuild",
+      "isolated-vm",
+      "sharp",
+      "sqlite3"
+    ],
+    "ignoredBuiltDependencies": [
+      "oracledb",
+      "vue-demi"
+    ]
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}
