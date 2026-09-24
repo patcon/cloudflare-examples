@@ -52,6 +52,8 @@
     // This page only ever uses the demo's own session cookie (set by /auth/).
     // It deliberately never reads the dashboard's localStorage: the link is
     // the only way in, just as it would be across two real sites.
+    // For the same reason it shares no code with the dashboard, so a couple of
+    // small helpers (esc, formatLeft) appear in both.
 
     // Near expiry (or on any 401), bounce through the dashboard, which holds
     // the refresh token, mints a fresh link and sends us straight back here.
