@@ -216,6 +216,10 @@
     if (me.isAdmin && snapshot.updatedAt === null) await refresh();
     else render();
 
+    // "member" is read-only in this demo (see the README): it can see the
+    // projects but not increment them.
+    const ROLE_LABELS = { owner: "owner", member: "read-only member" };
+
     // Organisations (GET /api/orgs): the ones you're in, with your role, and
     // their projects. Each project row reads and increments its own counter.
     async function renderOrgs() {
@@ -232,7 +236,7 @@
       for (const org of orgs) {
         const section = document.createElement("section");
         section.className = "org";
-        const role = org.role ? `<span class="badge">${esc(org.role)}</span>` : '<span class="muted hint">(not a member)</span>';
+        const role = org.role ? `<span class="badge">${esc(ROLE_LABELS[org.role] ?? org.role)}</span>` : '<span class="muted hint">(not a member)</span>';
         section.innerHTML = `<h3>${esc(org.name)} ${role}</h3>`;
         if (org.projects.length === 0) section.insertAdjacentHTML("beforeend", '<p class="muted empty">No projects.</p>');
         const tbody = document.createElement("tbody");

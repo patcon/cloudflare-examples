@@ -18,6 +18,8 @@ org ─┬─ org_membership (user, role: "owner" or "member")
 
 dembrane has more roles (`admin`, `billing`, and more on workspaces; see `echo/server/dembrane/policies.py`). This demo only seeds and tells apart the two above. Any other role counts as a member.
 
+The page badges members as **read-only members**, which is true here but not in dembrane. There, an organisation role only covers the organisation (a member's preset is just `org:view`), and what someone can do with projects comes from their role in each *workspace*. A workspace member can create and edit projects; dembrane's read-only role is the workspace `observer`. Nor do organisation members see projects automatically: they ask to join a workspace. This demo skips workspaces (see [Going to production](#going-to-production)).
+
 Everything else is the same as `dembrane-auth-cookie`: the Worker reads Directus's own session cookie, `dembrane_session_token`, and checks its JWT the way dembrane's FastAPI backend does. The per-user counters and the admin-refreshed directory of users are still there, above the new organisations panel.
 
 ## Run it
