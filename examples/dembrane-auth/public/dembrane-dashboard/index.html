@@ -32,7 +32,9 @@
     .who { min-width: 0; line-height: 1.2; }
     .who small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .menu {
-      position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: 1;
+      /* At least as wide as the picker, and wider if an email needs it. */
+      position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 1;
+      width: max-content; min-width: 100%; max-width: calc(100vw - 24px);
       background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 4px;
       box-shadow: 0 6px 24px rgb(0 0 0 / 0.15);
     }
