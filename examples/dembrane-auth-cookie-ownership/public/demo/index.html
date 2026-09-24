@@ -41,9 +41,9 @@
 
     <div class="panel">
       <p id="whoami">Loading…</p>
-      <p class="muted">Each counter lives in that user's own Durable Object. You can only increment your own; admins can increment anyone's. The list of users is saved in one shared Directory Durable Object: admins always see it, and refresh it from Directus with <em>Update</em>. Everyone else sees it only while an admin allows non-admins to see other users.</p>
+      <p class="muted">Each counter lives in that user's own Durable Object. You can only increment your own; platform admins can increment anyone's. The list of users is saved in one shared Directory Durable Object: platform admins always see it, and refresh it from Directus with <em>Update</em>. Everyone else sees it only while a platform admin allows everyone to see other users.</p>
       <div class="admin" id="admin" hidden>
-        <label><input type="checkbox" id="see-each-other"> Allow non-admins to see other users</label>
+        <label><input type="checkbox" id="see-each-other"> Allow everyone to see other users</label>
         <button id="refresh">Update</button>
       </div>
       <p class="muted hint" id="updated"></p>

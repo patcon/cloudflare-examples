@@ -67,7 +67,7 @@ app.put("/api/settings", requireAdmin, async (c) => {
 app.get("/api/users", async (c) => {
   const dir = directory(c.env);
   if (!isAdmin(c.get("claims")) && !(await dir.getSettings()).usersCanSeeEachOther) {
-    return c.json({ error: "only admins can list users" }, 403);
+    return c.json({ error: "only platform admins can list users" }, 403);
   }
   return c.json(await dir.getSnapshot());
 });

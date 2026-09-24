@@ -50,6 +50,6 @@ export const requireDirectusSession = createMiddleware<AuthEnv>(async (c, next) 
 
 // Use after requireDirectusSession. Anyone who isn't an admin → 403.
 export const requireAdmin = createMiddleware<AuthEnv>(async (c, next) => {
-  if (!isAdmin(c.get("claims"))) return c.json({ error: "admins only" }, 403);
+  if (!isAdmin(c.get("claims"))) return c.json({ error: "platform admins only" }, 403);
   await next();
 });

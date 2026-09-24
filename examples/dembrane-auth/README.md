@@ -19,7 +19,7 @@ What you'll see:
 
 - A stand-in for the dembrane dashboard, with a link to the demo and the link's URL printed beneath it.
 - A demo page where every user has a counter in their own Durable Object. You can only increment your own. Admins also see every Directus user, and can increment anyone's.
-- A shared directory of users, in a single `Directory` Durable Object. Admins refresh it from Directus with **Update**, and can tick **Allow non-admins to see other users**. Then everyone sees the list, though still only increments their own counter.
+- A shared directory of users, in a single `Directory` Durable Object. Admins refresh it from Directus with **Update**, and can tick **Allow everyone to see other users**. Then everyone sees the list, though still only increments their own counter.
 
 The Worker enforces these rules, not the page: a non-admin gets a 403 from `GET /api/users` (unless an admin allows non-admins to see other users), from `POST /api/users/refresh` and `PUT /api/settings`, and from incrementing someone else (see the curl example below).
 
@@ -116,7 +116,7 @@ The token only carries `id`, `role`, `app_access` and `admin_access`. For your n
 
 The list of users works the same way. `POST /api/users/refresh` passes the admin's token on to Directus's `/users`. The Worker checks `admin_access` first and answers anyone else with a 403. It doesn't rely on the page hiding the button, or on Directus, which would answer a non-admin with just themselves. If Directus can't be reached, the admin gets a 502 and the saved list stays as it was. The page does this for you on an admin's first visit, when nothing is saved yet.
 
-The Worker saves the list, and the **Allow non-admins to see other users** setting, in one `Directory` Durable Object, which it always asks for by the same name. So both belong to the whole demo, not to any one user, and a non-admin can see other users even though Directus would only tell them about themselves. It's a Durable Object rather than KV because KV is eventually consistent: after an admin changes the setting, some requests could keep seeing the old value for a while, and the setting decides who may read the list. The usual advice against one global Durable Object is about putting every request through it. Here only page loads and admin actions use it; the counters stay in each user's own `User`. Non-admins see a change to the setting when they next load the page.
+The Worker saves the list, and the **Allow everyone to see other users** setting, in one `Directory` Durable Object, which it always asks for by the same name. So both belong to the whole demo, not to any one user, and a non-admin can see other users even though Directus would only tell them about themselves. It's a Durable Object rather than KV because KV is eventually consistent: after an admin changes the setting, some requests could keep seeing the old value for a while, and the setting decides who may read the list. The usual advice against one global Durable Object is about putting every request through it. Here only page loads and admin actions use it; the counters stay in each user's own `User`. Non-admins see a change to the setting when they next load the page.
 
 ## Files
 
