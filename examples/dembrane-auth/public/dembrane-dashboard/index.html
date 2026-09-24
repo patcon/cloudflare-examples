@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dembrane Dashboard Stand-in</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body { display: flex; flex-direction: column; min-height: 100vh; }
+    .layout { flex: 1; display: flex; min-height: 0; }
+    nav {
+      width: 240px; flex-shrink: 0; display: flex; flex-direction: column;
+      background: var(--panel); border-right: 1px solid var(--border); padding: 16px 12px;
+    }
+    nav .brand { font-weight: 700; padding: 4px 8px 16px; }
+    nav .item { padding: 6px 8px; border-radius: 6px; color: var(--muted); }
+    nav .spacer { flex: 1; }
+    main { flex: 1; padding: 32px; max-width: 760px; }
+
+    /* Bottom-left user picker, like the real app's. */
+    details.picker { position: relative; }
+    details.picker summary {
+      list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+      padding: 8px; border-radius: 8px; border: 1px solid var(--border);
+    }
+    details.picker summary::-webkit-details-marker { display: none; }
+    .avatar {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      display: grid; place-items: center; font-size: 0.8rem; font-weight: 700;
+      background: var(--accent); color: var(--accent-text);
+    }
+    .who { min-width: 0; line-height: 1.2; }
+    .who small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu {
+      position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: 1;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 4px;
+      box-shadow: 0 6px 24px rgb(0 0 0 / 0.15);
+    }
+    .menu button { display: flex; width: 100%; gap: 10px; align-items: center; border: 0; text-align: left; }
+    .menu button:hover { background: var(--bg); }
+    .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+
+    .claims { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; margin-top: 16px; }
+    .claims dt { color: var(--muted); }
+    .claims dd { margin: 0; }
+    .flash { animation: flash 1.2s ease-out; }
+    @keyframes flash { from { background: var(--warn-bg); } }
+    form .row { display: flex; gap: 8px; margin-top: 12px; }
+
+    @media (max-width: 700px) {
+      .layout { flex-direction: column-reverse; }
+      nav { width: auto; border-right: 0; border-top: 1px solid var(--border); }
+      nav .item, nav .brand, nav .spacer { display: none; }
+      main { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="banner">Placeholder: pretend this is <strong>dashboard.dembrane.com</strong>, on a different site from the demo.</div>
+
+  <div class="layout">
+    <nav>
+      <div class="brand">dembrane</div>
+      <div class="item">Home</div>
+      <div class="item">Projects</div>
+      <div class="item">Settings</div>
+      <div class="spacer"></div>
+
+      <details class="picker" id="picker">
+        <summary><span class="avatar" id="picker-avatar">?</span><span class="who" id="picker-who">…</span></summary>
+        <div class="menu" id="picker-menu"></div>
+      </details>
+    </nav>
+
+    <main>
+      <h1>Your dashboard</h1>
+      <p class="muted">In a real integration, this link would sit somewhere in the dembrane app.</p>
+
+      <section class="panel" id="link-panel" hidden>
+        <a class="button primary" id="demo-link" href="#">Open realtime demo →</a>
+        <div class="url mono" id="demo-url"></div>
+        <dl class="claims mono">
+          <dt>id</dt><dd id="claim-id"></dd>
+          <dt>admin_access</dt><dd id="claim-admin"></dd>
+          <dt>expires in</dt><dd id="claim-exp"></dd>
+        </dl>
+        <p class="muted" id="link-note"></p>
+      </section>
+
+      <section class="panel" id="login-panel" hidden>
+        <h2>Log in with real Directus</h2>
+        <p class="muted">
+          Like the iOS app: <code>POST /auth/login</code> with <code>mode: "json"</code>, straight from the browser.
+          Directus needs CORS to allow this origin, and the Worker's <code>DIRECTUS_SECRET</code> must match its <code>SECRET</code>.
+        </p>
+        <p class="muted" id="login-reason" hidden></p>
+        <form id="login-form">
+          <label for="directus-url">Directus URL</label>
+          <input id="directus-url" required>
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="username" required>
+          <label for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" required>
+          <label for="otp">Two-factor code (if enabled)</label>
+          <input id="otp" inputmode="numeric" autocomplete="one-time-code">
+          <div class="row"><button class="primary">Log in</button></div>
+          <p class="error" id="login-error"></p>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const config = await (await fetch("/api/config")).json();
+
+    // --- Browser storage (this page's only state) -------------------------
+    // `selected` is a mock user's id or "directus"; `directus` holds the real
+    // login: { url, accessToken, refreshToken, id, email }.
+    const load = (key) => { try { return JSON.parse(localStorage.getItem("dashboard:" + key)); } catch { return null; } };
+    const save = (key, value) => {
+      try {
+        if (value == null) localStorage.removeItem("dashboard:" + key);
+        else localStorage.setItem("dashboard:" + key, JSON.stringify(value));
+      } catch {}
+    };
+
+    const mockUsers = config.demoMode ? config.mockUsers : [];
+    let selected = load("selected");
+    if (selected !== "directus" && !mockUsers.some((u) => u.id === selected)) selected = mockUsers[0]?.id ?? "directus";
+    let directusLogin = load("directus");
+    let current = null; // { token, claims } behind the link right now
+
+    const claimsOf = (token) => JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const secondsLeft = (claims) => claims.exp - Math.floor(Date.now() / 1000);
+
+    // --- Talking to Directus the way the iOS app does ---------------------
+    async function directus(base, path, { body, token } = {}) {
+      const res = await fetch(base.replace(/\/$/, "") + path, {
+        method: body ? "POST" : "GET",
+        headers: {
+          ...(body && { "content-type": "application/json" }),
+          ...(token && { authorization: `Bearer ${token}` }),
+        },
+        body: body && JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.errors?.[0]?.message ?? `HTTP ${res.status}`);
+      return json.data;
+    }
+
+    async function loginToDirectus(url, email, password, otp) {
+      const auth = await directus(url, "/auth/login", {
+        body: { email, password, ...(otp && { otp }), mode: "json" },
+      });
+      const me = await directus(url, "/users/me?fields=id,email", { token: auth.access_token });
+      directusLogin = { url, accessToken: auth.access_token, refreshToken: auth.refresh_token, id: me.id, email: me.email };
+      save("directus", directusLogin);
+    }
+
+    async function refreshDirectus() {
+      const auth = await directus(directusLogin.url, "/auth/refresh", {
+        body: { refresh_token: directusLogin.refreshToken, mode: "json" },
+      });
+      directusLogin = { ...directusLogin, accessToken: auth.access_token, refreshToken: auth.refresh_token };
+      save("directus", directusLogin);
+    }
+
+    // A token with at least a minute left for the selected user, or null
+    // if the real Directus login is missing or can't be refreshed.
+    async function freshToken() {
+      if (selected === "directus") {
+        if (!directusLogin) return null;
+        if (secondsLeft(claimsOf(directusLogin.accessToken)) < 60) {
+          try { await refreshDirectus(); } catch { directusLogin = null; save("directus", null); return null; }
+        }
+        return directusLogin.accessToken;
+      }
+      if (current && current.claims.id === selected && secondsLeft(current.claims) >= 60) return current.token;
+      const res = await fetch("/api/dev/mint", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId: selected }),
+      });
+      return (await res.json()).token;
+    }
+
+    function renderExpiry() {
+      const left = secondsLeft(current.claims);
+      $("claim-exp").textContent = `${Math.floor(left / 60)}:${String(Math.max(left % 60, 0)).padStart(2, "0")}`;
+    }
+
+    const linkFor = (token, ret = "/demo/") => `/auth/?return=${encodeURIComponent(ret)}#token=${token}`;
+
+    // --- Rendering ----------------------------------------------------------
+    // A user with no role may read its own id but not its email.
+    const directusLabel = () => directusLogin.email ?? directusLogin.id;
+
+    function renderPicker() {
+      const mock = mockUsers.find((u) => u.id === selected);
+      const name = mock ? mock.name : directusLogin ? directusLabel() : "Real Directus user";
+      $("picker-avatar").textContent = name[0].toUpperCase();
+      $("picker-who").innerHTML = `${name}<small>${mock ? "mock user" : directusLogin ? "Directus" : "not logged in"}</small>`;
+
+      const menu = $("picker-menu");
+      menu.innerHTML = "";
+      const option = (label, sub, onClick) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.innerHTML = `<span class="avatar">${label[0].toUpperCase()}</span><span class="who">${label}<small>${sub}</small></span>`;
+        b.addEventListener("click", () => { $("picker").open = false; onClick(); });
+        menu.append(b);
+      };
+      for (const u of mockUsers) option(u.name, u.admin ? "mock user · admin" : "mock user", () => select(u.id));
+      if (mockUsers.length) menu.append(document.createElement("hr"));
+      if (directusLogin) {
+        option(directusLabel(), "Directus", () => select("directus"));
+        option("Log out of Directus", "forget the real tokens", () => {
+          directusLogin = null;
+          save("directus", null);
+          select("directus");
+        });
+      } else {
+        option("Log in with real Directus…", "email + password", () => select("directus"));
+      }
+    }
+
+    async function updateLink(note) {
+      const token = await freshToken();
+      if (!token) {
+        current = null;
+        $("link-panel").hidden = true;
+        $("login-panel").hidden = false;
+        return;
+      }
+      $("login-panel").hidden = true;
+      $("link-panel").hidden = false;
+      const changed = current?.token !== token;
+      current = { token, claims: claimsOf(token) };
+
+      const href = linkFor(token);
+      $("demo-link").href = href;
+      $("demo-url").textContent = new URL(href, location.origin).href;
+      $("claim-id").textContent = current.claims.id;
+      $("claim-admin").textContent = String(current.claims.admin_access === true);
+      renderExpiry();
+      if (changed) {
+        $("demo-url").classList.remove("flash");
+        void $("demo-url").offsetWidth; // restart the animation
+        $("demo-url").classList.add("flash");
+        $("link-note").textContent = `${note ?? "New token"} at ${new Date().toLocaleTimeString()}.`;
+      }
+    }
+
+    async function select(id) {
+      selected = id;
+      save("selected", id);
+      renderPicker();
+      await updateLink("Switched user");
+    }
+
+    // Keep the link valid: refresh about a minute before the token expires.
+    let refreshing = false;
+    setInterval(async () => {
+      if (!current) return;
+      renderExpiry();
+      if (secondsLeft(current.claims) < 60 && !refreshing) {
+        refreshing = true;
+        await updateLink(selected === "directus" ? "Refreshed with the Directus refresh token" : "Re-minted").finally(() => (refreshing = false));
+      }
+    }, 1000);
+
+    // --- The login form -----------------------------------------------------
+    $("directus-url").value = directusLogin?.url ?? config.directusUrl;
+    $("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("login-error").textContent = "";
+      try {
+        await loginToDirectus($("directus-url").value, $("email").value, $("password").value, $("otp").value);
+        $("password").value = $("otp").value = "";
+        if (handoffReturn) return continueHandoff();
+        await select("directus");
+      } catch (err) {
+        $("login-error").textContent = `Login failed: ${err.message}`;
+      }
+    });
+
+    // --- Handoff: the demo sent us here for a fresh link --------------------
+    // /dembrane-dashboard/?handoff=1&return=/demo/ → go straight back with a
+    // new token, no clicks needed (like OAuth's silent re-authentication).
+    const params = new URLSearchParams(location.search);
+    const handoffReturn = params.get("handoff") === "1" ? params.get("return") ?? "/demo/" : null;
+
+    async function continueHandoff() {
+      const token = await freshToken();
+      if (token) location.replace(linkFor(token, handoffReturn));
+      else {
+        $("login-reason").hidden = false;
+        $("login-reason").textContent = "The demo needs a fresh login. Log in again to go back to it.";
+      }
+      return token;
+    }
+
+    renderPicker();
+    if (!handoffReturn || !(await continueHandoff())) await updateLink();
+  </script>
+</body>
+</html>

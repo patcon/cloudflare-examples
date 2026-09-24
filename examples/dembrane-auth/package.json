@@ -1,0 +1,30 @@
+{
+  "name": "dembrane-auth",
+  "version": "1.0.0",
+  "description": "Gate a Cloudflare Durable Object on dembrane (Directus) login",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "wrangler types && tsc",
+    "mint-token": "tsx scripts/mint-token.ts",
+    "types": "wrangler types"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.5",
+  "dependencies": {
+    "hono": "^4.13.8"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.137.0"
+  },
+  "private": true,
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
+  }
+}

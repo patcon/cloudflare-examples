@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Realtime Demo</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .badge { background: var(--accent); color: var(--accent-text); border-radius: 999px; padding: 1px 8px; font-size: 0.75rem; margin-left: 6px; vertical-align: middle; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 10px 6px; border-top: 1px solid var(--border); vertical-align: middle; }
+    td.count { font-size: 1.4rem; font-variant-numeric: tabular-nums; text-align: right; width: 4ch; }
+    td.action { text-align: right; width: 1%; white-space: nowrap; }
+    tr.me td:first-child { font-weight: 600; }
+    .msg { font-size: 0.8rem; display: block; }
+  </style>
+</head>
+<body>
+  <main class="centered">
+    <header>
+      <h1>Realtime demo</h1>
+      <span class="muted">session expires in <span id="expires" class="mono">–</span></span>
+    </header>
+
+    <div class="panel">
+      <p id="whoami">Loading…</p>
+      <p class="muted">Each counter lives in that user's own Durable Object. You can read anyone's, but only increment your own.</p>
+      <table><tbody id="rows"></tbody></table>
+    </div>
+
+    <p>
+      <a href="/dembrane-dashboard/">← Back to the dashboard</a>
+      · <a href="#" id="logout">Log out of the demo</a>
+    </p>
+  </main>
+
+  <script type="module">
+    // This page only ever uses the demo's own session cookie (set by /auth/).
+    // It deliberately never reads the dashboard's localStorage: the link is
+    // the only way in, just as it would be across two real sites.
+
+    // Near expiry (or on any 401), bounce through the dashboard, which holds
+    // the refresh token, mints a fresh link and sends us straight back here.
+    let handingOff = false;
+    function handoff() {
+      if (handingOff) return;
+      handingOff = true;
+      location.replace("/dembrane-dashboard/?handoff=1&return=" + encodeURIComponent("/demo/"));
+    }
+
+    async function api(path, init) {
+      const res = await fetch(path, init);
+      if (res.status === 401) { handoff(); throw new Error("session expired"); }
+      return res;
+    }
+
+    const me = await (await api("/api/me")).json();
+    const { mockUsers } = await (await fetch("/api/config")).json();
+
+    const mock = mockUsers.find((u) => u.id === me.id);
+    document.getElementById("whoami").innerHTML =
+      `You are <strong>${mock ? mock.name : "a real Directus user"}</strong> <code>${me.id}</code>` +
+      (me.isAdmin ? '<span class="badge">admin</span>' : "");
+
+    // Mock users, plus you if you logged in as a real Directus user.
+    const users = mock ? mockUsers : [...mockUsers, { id: me.id, name: "Directus user" }];
+
+    const rows = document.getElementById("rows");
+    for (const user of users) {
+      const tr = document.createElement("tr");
+      if (user.id === me.id) tr.className = "me";
+      tr.innerHTML = `
+        <td>${user.name}${user.id === me.id ? " (you)" : ""}<span class="msg"></span></td>
+        <td class="count">…</td>
+        <td class="action"><button>Increment</button></td>`;
+      rows.append(tr);
+
+      const count = tr.querySelector(".count");
+      const msg = tr.querySelector(".msg");
+      const button = tr.querySelector("button");
+
+      const { count: initial } = await (await api(`/api/users/${user.id}`)).json();
+      count.textContent = initial;
+
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        const res = await api(`/api/users/${user.id}/increment`, { method: "POST" });
+        const body = await res.json();
+        if (res.ok) {
+          count.textContent = body.count;
+          msg.textContent = "";
+        } else {
+          msg.textContent = `${res.status}: ${body.error}`;
+          msg.className = "msg error";
+        }
+        button.disabled = false;
+      });
+    }
+
+    // Session countdown, and the automatic re-handoff 30s before expiry.
+    const expires = document.getElementById("expires");
+    setInterval(() => {
+      const left = me.exp - Math.floor(Date.now() / 1000);
+      expires.textContent = `${Math.floor(left / 60)}:${String(Math.max(left % 60, 0)).padStart(2, "0")}`;
+      if (left <= 30) handoff();
+    }, 1000);
+
+    document.getElementById("logout").addEventListener("click", async (e) => {
+      e.preventDefault();
+      await fetch("/api/session", { method: "DELETE" });
+      location.href = "/dembrane-dashboard/";
+    });
+  </script>
+</body>
+</html>
