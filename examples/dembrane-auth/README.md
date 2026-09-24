@@ -7,7 +7,7 @@ The Worker verifies the same Directus JWT that dembrane's FastAPI backend alread
 What you'll see:
 
 - A stand-in for the dembrane dashboard, with a link to the demo and the link's URL printed beneath it.
-- A demo page where every user has a counter in their own Durable Object. Anyone logged in can read everyone's count, but you can only increment your own. Try someone else's and you get a 403.
+- A demo page where every user has a counter in their own Durable Object. Anyone logged in can read everyone's count, but you can only increment your own; admins can increment anyone's. Other users' buttons are disabled in the UI, and the server still answers a direct request with a 403 (see the curl example below).
 
 ## Run it
 
@@ -62,7 +62,7 @@ dembrane.com isn't on Cloudflare DNS, so the Worker lives on `*.workers.dev`, a 
 ## Try it with curl
 
 ```sh
-A=$(pnpm -s mint-token alice); B=$(pnpm -s mint-token bob)
+A=$(pnpm -s mint-token alice); ADM=$(pnpm -s mint-token admin)
 ALICE=a11ce000-0000-4000-8000-000000000001; BOB=b0b00000-0000-4000-8000-000000000002
 
 curl localhost:8787/api/me                                                  # 401
@@ -70,6 +70,7 @@ curl -H "Authorization: Bearer $A" localhost:8787/api/me                    # Al
 curl -H "Authorization: Bearer $A" localhost:8787/api/users/$BOB            # read Bob's: 200
 curl -X POST -H "Authorization: Bearer $A" localhost:8787/api/users/$ALICE/increment  # 200
 curl -X POST -H "Authorization: Bearer $A" localhost:8787/api/users/$BOB/increment    # 403
+curl -X POST -H "Authorization: Bearer $ADM" localhost:8787/api/users/$BOB/increment  # admin: 200
 ```
 
 ## Logging in with a real Directus

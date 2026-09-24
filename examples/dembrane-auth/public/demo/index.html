@@ -25,7 +25,7 @@
 
     <div class="panel">
       <p id="whoami">Loading…</p>
-      <p class="muted">Each counter lives in that user's own Durable Object. You can read anyone's, but only increment your own.</p>
+      <p class="muted">Each counter lives in that user's own Durable Object. You can read anyone's, but only increment your own (admins can increment anyone's).</p>
       <table><tbody id="rows"></tbody></table>
     </div>
 
@@ -79,6 +79,10 @@
       const count = tr.querySelector(".count");
       const msg = tr.querySelector(".msg");
       const button = tr.querySelector("button");
+      // The server enforces this too; disabling just saves a pointless 403.
+      const canIncrement = me.isAdmin || user.id === me.id;
+      button.disabled = !canIncrement;
+      if (!canIncrement) button.title = "You can only increment your own counter";
 
       const { count: initial } = await (await api(`/api/users/${user.id}`)).json();
       count.textContent = initial;

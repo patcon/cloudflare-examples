@@ -73,10 +73,11 @@ app.get("/api/users/:id", async (c) => {
   return c.json({ id, count });
 });
 
-// ...but only you can increment yours.
+// ...but only you can increment yours (admins can increment anyone's).
 app.post("/api/users/:id/increment", async (c) => {
   const id = c.req.param("id");
-  if (id !== c.get("jwtPayload").id) {
+  const { id: me, admin_access } = c.get("jwtPayload");
+  if (id !== me && admin_access !== true) {
     return c.json({ error: "you can only increment your own counter" }, 403);
   }
   const count = await c.env.USER_COUNTER.getByName(id).increment();
