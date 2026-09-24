@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dembrane Login Stand-in</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .panel + .panel { margin-top: 16px; }
+    form .row { display: flex; gap: 8px; margin-top: 12px; }
+    .mock-users { display: flex; gap: 8px; flex-wrap: wrap; }
+    #login-error button { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="banner">Placeholder: pretend this is <strong>dashboard.dembrane.com/login</strong>, on a different site from the demo.</div>
+
+  <main class="centered">
+    <section class="panel">
+      <h1>Log in to dembrane</h1>
+      <p class="muted" id="login-reason" hidden>The demo needs a fresh login. Log in again to go back to it.</p>
+      <p class="muted">
+        Like the iOS app: <code>POST /auth/login</code> with <code>mode: "json"</code>, straight from the browser.
+        Directus needs CORS to allow this origin, and the Worker's <code>DIRECTUS_SECRET</code> must match its <code>SECRET</code>.
+      </p>
+      <form id="login-form">
+        <label for="directus-url">Directus URL</label>
+        <input id="directus-url" required>
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <label for="otp">Two-factor code (if enabled)</label>
+        <input id="otp" inputmode="numeric" autocomplete="one-time-code">
+        <div class="row"><button class="primary">Log in</button></div>
+        <p class="error" id="login-error"></p>
+      </form>
+    </section>
+
+    <section class="panel" id="mock-panel" hidden>
+      <h2>Fill in a test account</h2>
+      <p class="muted">Demo-only. These accounts exist in the local <code>../directus</code> example.</p>
+      <div class="mock-users" id="mock-users"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { load, loginToDirectus, safePath, save } from "./session.js";
+
+    const $ = (id) => document.getElementById(id);
+    const config = await (await fetch("/api/config")).json();
+
+    const next = safePath(new URLSearchParams(location.search).get("next"), "/dembrane-dashboard/");
+    // The demo sent us via the dashboard's handoff, and the Directus login is gone.
+    $("login-reason").hidden = !new URL(next, location.origin).searchParams.has("handoff");
+
+    const done = (selected) => {
+      save("selected", selected);
+      location.replace(next);
+    };
+
+    // The users seeded by the local ../directus example (its .env.example admin,
+    // and scripts/seed-users.mjs), matched to the Worker's mock users by name.
+    const TEST_ACCOUNTS = {
+      Alice: { email: "alice@example.com", password: "password" },
+      Bob: { email: "bob@example.com", password: "password" },
+      Admin: { email: "admin@dembrane.com", password: "admin" },
+    };
+    let filled = null; // the mock user whose test account is in the form
+
+    $("directus-url").value = load("directus")?.url ?? config.directusUrl;
+    $("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("login-error").textContent = "";
+      try {
+        await loginToDirectus($("directus-url").value, $("email").value, $("password").value, $("otp").value);
+        done("directus");
+      } catch (err) {
+        $("login-error").textContent = `Login failed: ${err.message}`;
+        // No Directus running? The Worker can sign a token for the mock user.
+        if (filled && $("email").value === TEST_ACCOUNTS[filled.name].email) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.textContent = `Continue as mock ${filled.name} instead (no Directus)`;
+          b.addEventListener("click", () => done(filled.id));
+          $("login-error").append(document.createElement("br"), b);
+        }
+      }
+    });
+
+    if (config.demoMode) {
+      $("mock-panel").hidden = false;
+      for (const user of config.mockUsers) {
+        const account = TEST_ACCOUNTS[user.name];
+        if (!account) continue;
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = user.admin ? `${user.name} (admin)` : user.name;
+        b.title = account.email;
+        b.addEventListener("click", () => {
+          filled = user;
+          $("email").value = account.email;
+          $("password").value = account.password;
+          $("otp").value = "";
+          $("login-error").textContent = "";
+          $("email").focus();
+        });
+        $("mock-users").append(b);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -36,12 +36,12 @@ Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`.
                                                               (one per user)
 ```
 
-1. **Pick a user** in the bottom-left picker on the dashboard. You can choose:
+1. **Pick a user** in the bottom-left account switcher on the dashboard. You can choose:
    - a mock user (Alice, Bob, or Admin), whose token is signed by the Worker itself (demo-only)
-   - a **real Directus login**
+   - a **real Directus login**, entered on `/dembrane-dashboard/login`. The dashboard also sends you there whenever that login is missing or can't be refreshed, and comes back afterwards.
 2. **Click the link.** The token travels in the URL **fragment** (`#token=…`). Browsers never send the fragment to servers, so it stays out of logs and `Referer` headers. `/auth/` hands the token to `POST /api/session`, which verifies it and stores it in the demo's own httpOnly cookie. Then `/auth/` removes the token from the address bar.
 3. **Use the demo.** Each request's JWT is checked by `requireDirectusSession`, and the Worker calls the user's Durable Object with `getByName(id)`. The Durable Object does no auth itself, since it can only be reached through the Worker. In Cloudflare's words, *"Durable Objects do not receive requests directly from the Internet. Durable Objects receive requests from Workers or other Durable Objects."* ([docs](https://developers.cloudflare.com/durable-objects/get-started/))
-4. **Stay logged in.** The dashboard keeps its token in localStorage, so reloading the page reuses it, and it renews the token about a minute before it expires. Mock users get a new token; a real login uses its Directus refresh token. The printed URL changes when this happens. About 30 seconds before the demo session expires, or on any 401, `/demo/` sends the browser through `/dembrane-dashboard/?handoff=1`, which gets a fresh token and sends it straight back. There's no need to log in again.
+4. **Stay logged in.** The dashboard keeps its token in localStorage, so reloading the page reuses it, and it renews the token about a minute before it expires. Mock users get a new token; a real login uses its Directus refresh token. The printed URL changes when this happens. About 30 seconds before the demo session expires, or on any 401, `/demo/` sends the browser through `/dembrane-dashboard/?handoff=1`, which gets a fresh token and sends it straight back. There's no need to log in again, unless a real Directus login can't be refreshed; then you land on the login page, and it continues the handoff once you log in.
 
 Mock tokens last 5 minutes, so you can watch the renewal happen.
 
@@ -81,7 +81,7 @@ The quickest option is [`../directus`](../directus): a local Directus on SQLite 
 
 1. Put that Directus's `SECRET` in `.dev.vars` as `DIRECTUS_SECRET`.
 2. Allow the demo's origin in Directus's CORS settings: `CORS_ENABLED=true` and `CORS_ORIGIN` including `http://localhost:8787`. This is a config change, not a code change.
-3. On the dashboard, choose **Log in with real Directus…**, and enter the URL, email, password, and a two-factor code if your account uses one.
+3. On the dashboard, open the account switcher and choose **Add another account…**. On the login page, enter the URL, email, password, and a two-factor code if your account uses one. With `../directus`, the Alice, Bob, and Admin buttons fill in its test accounts for you.
 
 The browser talks to Directus directly; the Worker never sees a password. In the demo you'll appear as an extra "Directus user" row. Other people won't see you, because the list of users is only the three mock users plus whoever is logged in.
 
@@ -91,7 +91,8 @@ The browser talks to Directus directly; the Worker never sees a password. In the
 src/index.ts           routes
 src/auth.ts            JWT check (+ demo-only mock users / token signing)
 src/user-counter.ts    the Durable Object: getCount(), increment()
-public/                the three pages (plain HTML, no build step)
+public/                the pages (plain HTML, no build step): the dashboard and
+                       its login page, /auth/, and /demo/
 scripts/mint-token.ts  mock tokens for curl
 wrangler.jsonc         Durable Object binding, static assets, vars
 ```
