@@ -76,7 +76,7 @@
     for (const account of TEST_ACCOUNTS) {
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = account.admin ? `${account.label} (admin)` : account.label;
+      b.textContent = account.admin ? `${account.label} (platform admin)` : account.label;
       b.title = account.email;
       b.addEventListener("click", () => {
         $("email").value = account.email;

@@ -102,7 +102,7 @@
     const nameOf = (user) => user.name ?? user.email ?? "Directus user";
     document.getElementById("whoami").innerHTML =
       `You are <strong>${esc(nameOf(me))}</strong> <code>${esc(me.id)}</code>` +
-      (me.isAdmin ? '<span class="badge">admin</span>' : "");
+      (me.isAdmin ? '<span class="badge">platform admin</span>' : "");
 
     // The saved list of users (GET /api/users). Admins can always read it;
     // everyone else only while an admin allows non-admins to see other users (the
