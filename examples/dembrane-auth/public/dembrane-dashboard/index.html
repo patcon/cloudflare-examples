@@ -40,6 +40,10 @@
     }
     .menu button { display: flex; width: 100%; gap: 10px; align-items: center; border: 0; text-align: left; }
     .menu button:hover { background: var(--bg); }
+    .menu .row { display: flex; align-items: center; }
+    .menu .row > button:first-child { flex: 1; min-width: 0; }
+    .menu .remove { width: auto; flex-shrink: 0; padding: 4px 8px; color: var(--muted); }
+    .menu .remove:hover { color: var(--error); }
     .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
     .menu .heading { font-size: 0.75rem; color: var(--muted); padding: 6px 8px 2px; }
     .menu .check { margin-left: auto; color: var(--accent); }
@@ -142,7 +146,7 @@
 
       const menu = $("picker-menu");
       menu.innerHTML = '<div class="heading">Switch account</div>';
-      const option = (icon, label, sub, onClick, isCurrent = false) => {
+      const option = (icon, label, sub, onClick, isCurrent = false, onRemove = null) => {
         const b = document.createElement("button");
         b.type = "button";
         b.innerHTML = `<span class="avatar${/\w/.test(icon) ? "" : " icon"}">${icon}</span>` +
@@ -153,11 +157,27 @@
           $("picker").open = false;
           if (!isCurrent) onClick();
         });
-        menu.append(b);
+        if (!onRemove) return menu.append(b);
+
+        // A separate button beside it (a button can't hold another button).
+        const row = document.createElement("div");
+        row.className = "row";
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "remove";
+        remove.textContent = "×";
+        remove.title = remove.ariaLabel = `Remove ${label} from this list`;
+        remove.addEventListener("click", onRemove);
+        row.append(b, remove);
+        menu.append(row);
       };
       for (const saved of accounts()) {
         const label = labelOf(saved);
-        option(label[0].toUpperCase(), label, "Directus", () => select(saved), saved.id === account?.id);
+        const isCurrent = saved.id === account?.id;
+        // Removing the current account is logging out of it; removing another
+        // just drops it from the list, leaving the menu open.
+        const onRemove = isCurrent ? logOut : () => { removeAccount(saved.id); renderPicker(); };
+        option(label[0].toUpperCase(), label, "Directus", () => select(saved), isCurrent, onRemove);
       }
       menu.append(document.createElement("hr"));
       option("+", "Add another account…", "", () => (location.href = loginUrl("/dembrane-dashboard/")));
