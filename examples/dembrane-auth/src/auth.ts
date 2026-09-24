@@ -1,5 +1,7 @@
+import type { Context } from "hono";
+import { getCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
-import { jwt, sign, verify } from "hono/jwt";
+import { jwt, verify } from "hono/jwt";
 
 // The Worker's own cookie, set by POST /api/session after the link handoff.
 // (It can't use dembrane's `directus_session_token` cookie: that one belongs to
@@ -34,28 +36,11 @@ export async function verifyDirectusToken(token: string, secret: string) {
   return (await verify(token, secret, "HS256")) as DirectusClaims;
 }
 
-// --- Demo-only: mock users and token minting --------------------------------
-// Stand-ins for Directus users, so the demo runs without a dembrane stack.
-
-export const MOCK_USERS = [
-  // Not Alice and Bob: those are real accounts in the local ../directus.
-  { id: "ca000000-0000-4000-8000-000000000001", name: "Carol", admin: false },
-  { id: "da000000-0000-4000-8000-000000000002", name: "Dave", admin: false },
-  { id: "ad000000-0000-4000-8000-000000000003", name: "Admin", admin: true },
-] as const;
-
-export const MOCK_TOKEN_TTL_SECONDS = 5 * 60;
-
-export async function signMockToken(user: (typeof MOCK_USERS)[number], secret: string) {
-  const now = Math.floor(Date.now() / 1000);
-  const claims: DirectusClaims = {
-    id: user.id,
-    role: null,
-    app_access: true,
-    admin_access: user.admin,
-    iat: now,
-    exp: now + MOCK_TOKEN_TTL_SECONDS,
-    iss: "directus",
-  };
-  return sign(claims, secret, "HS256");
+// The raw token behind the current request, found the same way
+// requireDirectusSession finds it (header first, then our cookie), so the Worker
+// can pass it on to Directus and ask as this user.
+export function sessionToken(c: Context<AuthEnv>): string | undefined {
+  const header = c.req.header("authorization");
+  if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length);
+  return getCookie(c, SESSION_COOKIE);
 }

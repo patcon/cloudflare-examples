@@ -19,8 +19,6 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserCounter"] }],
 
   "vars": {
-    // Enables POST /api/dev/mint (mock users). Must be "false" anywhere real.
-    "DEMO_MODE": "true",
     // Default Directus URL for the "log in with real Directus" option.
     "DIRECTUS_URL": "http://localhost:8055"
   }

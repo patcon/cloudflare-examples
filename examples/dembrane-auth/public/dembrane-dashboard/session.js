@@ -1,16 +1,30 @@
 // Shared by the dashboard and its login page: the dashboard's browser storage,
 // and talking to Directus the way the iOS app does.
 
-// `selected` is a mock user's id or "directus"; `directus` holds the real
-// login: { url, accessToken, refreshToken, id, email }; `mockTokens` holds
-// the last token minted for each mock user: { [id]: token }.
-export const load = (key) => { try { return JSON.parse(localStorage.getItem("dashboard:" + key)); } catch { return null; } };
-export const save = (key, value) => {
+// `accounts` holds every Directus login in the account switcher, each
+// { url, accessToken, refreshToken, id, email }; `current` is the id of the
+// one in use.
+const load = (key) => { try { return JSON.parse(localStorage.getItem("dashboard:" + key)); } catch { return null; } };
+const save = (key, value) => {
   try {
     if (value == null) localStorage.removeItem("dashboard:" + key);
     else localStorage.setItem("dashboard:" + key, JSON.stringify(value));
   } catch {}
 };
+
+export const accounts = () => load("accounts") ?? [];
+export const currentAccount = () => accounts().find((a) => a.id === load("current")) ?? null;
+export const setCurrent = (id) => save("current", id);
+
+// Add a login, or replace the saved one for the same user.
+function saveAccount(login) {
+  save("accounts", [...accounts().filter((a) => a.id !== login.id), login]);
+}
+
+export function removeAccount(id) {
+  save("accounts", accounts().filter((a) => a.id !== id));
+  if (load("current") === id) save("current", null);
+}
 
 export const claimsOf = (token) => JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
 export const secondsLeft = (claims) => claims.exp - Math.floor(Date.now() / 1000);
@@ -40,7 +54,8 @@ export async function loginToDirectus(url, email, password, otp) {
   });
   const me = await directus(url, "/users/me?fields=id,email", { token: auth.access_token });
   const login = { url, accessToken: auth.access_token, refreshToken: auth.refresh_token, id: me.id, email: me.email };
-  save("directus", login);
+  saveAccount(login);
+  setCurrent(login.id);
   return login;
 }
 
@@ -49,6 +64,6 @@ export async function refreshDirectus(login) {
     body: { refresh_token: login.refreshToken, mode: "json" },
   });
   const refreshed = { ...login, accessToken: auth.access_token, refreshToken: auth.refresh_token };
-  save("directus", refreshed);
+  saveAccount(refreshed);
   return refreshed;
 }

@@ -94,20 +94,10 @@
   </div>
 
   <script type="module">
-    import { claimsOf, load, loginUrl, refreshDirectus, save, secondsLeft } from "./session.js";
+    import { accounts, claimsOf, currentAccount, loginUrl, refreshDirectus, removeAccount, secondsLeft, setCurrent } from "./session.js";
 
     const $ = (id) => document.getElementById(id);
-    const config = await (await fetch("/api/config")).json();
-
-    const mockUsers = config.demoMode ? config.mockUsers : [];
-    let selected = load("selected");
-    // "none" after logging out. Nothing saved yet, or a mock user that no longer
-    // exists → start as the first mock user.
-    if (selected !== "directus" && selected !== "none" && !mockUsers.some((u) => u.id === selected)) {
-      selected = mockUsers[0]?.id ?? "none";
-    }
-    let directusLogin = load("directus");
-    const mockTokens = load("mockTokens") ?? {};
+    let login = currentAccount(); // the account behind the link
     let current = null; // { token, claims } behind the link right now
 
     // Every token the dashboard hands out has at least this long left, so the
@@ -118,28 +108,15 @@
     const formatLeft = (s) => `${Math.floor(s / 60)}:${String(Math.max(s % 60, 0)).padStart(2, "0")}`;
     $("refresh-hint").textContent = `(auto-refreshes at ${formatLeft(REFRESH_AT)})`;
 
-    // A token with at least REFRESH_AT seconds left for the selected user, or null
-    // if the real Directus login is missing or can't be refreshed.
+    // A token with at least REFRESH_AT seconds left for the current account, or
+    // null if there is none or it can't be refreshed (then it's dropped from
+    // the switcher, and you log in to it again).
     async function freshToken() {
-      if (selected === "none") return null;
-      if (selected === "directus") {
-        if (!directusLogin) return null;
-        if (secondsLeft(claimsOf(directusLogin.accessToken)) < REFRESH_AT) {
-          try { directusLogin = await refreshDirectus(directusLogin); } catch { directusLogin = null; save("directus", null); return null; }
-        }
-        return directusLogin.accessToken;
+      if (!login) return null;
+      if (secondsLeft(claimsOf(login.accessToken)) < REFRESH_AT) {
+        try { login = await refreshDirectus(login); } catch { removeAccount(login.id); login = null; return null; }
       }
-      // Like the Directus token, reuse a saved one until it's nearly expired.
-      const saved = mockTokens[selected];
-      if (saved && secondsLeft(claimsOf(saved)) >= REFRESH_AT) return saved;
-      const res = await fetch("/api/dev/mint", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userId: selected }),
-      });
-      mockTokens[selected] = (await res.json()).token;
-      save("mockTokens", mockTokens);
-      return mockTokens[selected];
+      return login.accessToken;
     }
 
     function renderExpiry() {
@@ -152,15 +129,14 @@
     // --- Rendering ----------------------------------------------------------
     // A user with no role may read its own id but not its email.
     const esc = (text) => String(text).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
-    const directusLabel = () => esc(directusLogin.email ?? directusLogin.id);
+    const labelOf = (account) => esc(account.email ?? account.id);
 
-    // Standard account-switcher menu: every account you can switch to (the
-    // current one ticked), then "Add another account…" and "Log out".
+    // Standard account-switcher menu: every account you've added (the current
+    // one ticked), then "Add another account…" and "Log out".
     function renderPicker() {
-      const mock = mockUsers.find((u) => u.id === selected);
-      const name = mock ? mock.name : directusLogin ? directusLabel() : "Not logged in";
+      const name = login ? labelOf(login) : "Not logged in";
       $("picker-avatar").textContent = name[0].toUpperCase();
-      $("picker-who").innerHTML = `${name}<small>${mock ? "mock user" : directusLogin ? "Directus" : "log in to continue"}</small>`;
+      $("picker-who").innerHTML = `${name}<small>${login ? "Directus" : "log in to continue"}</small>`;
 
       const menu = $("picker-menu");
       menu.innerHTML = '<div class="heading">Switch account</div>';
@@ -177,28 +153,29 @@
         });
         menu.append(b);
       };
-      for (const u of mockUsers) {
-        option(u.name[0], u.name, u.admin ? "mock user · admin" : "mock user", () => select(u.id), u.id === selected);
-      }
-      if (directusLogin) {
-        option(directusLabel()[0].toUpperCase(), directusLabel(), "Directus", () => select("directus"), selected === "directus");
+      for (const account of accounts()) {
+        const label = labelOf(account);
+        option(label[0].toUpperCase(), label, "Directus", () => select(account), account.id === login?.id);
       }
       menu.append(document.createElement("hr"));
       option("+", "Add another account…", "", () => (location.href = loginUrl("/dembrane-dashboard/")));
-      if (selected !== "none") option("⎋", "Log out", "", logOut);
+      if (login) option("⎋", "Log out", "", logOut);
     }
 
-    // Forget the current account's token and go to the login page.
+    // Forget the current account. Switch to another one if there is one,
+    // otherwise go to the login page.
     function logOut() {
-      if (selected === "directus") {
-        directusLogin = null;
-        save("directus", null);
-      } else {
-        delete mockTokens[selected];
-        save("mockTokens", mockTokens);
-      }
-      save("selected", "none");
-      location.href = loginUrl("/dembrane-dashboard/");
+      removeAccount(login.id);
+      const next = accounts()[0];
+      if (next) select(next);
+      else location.href = loginUrl("/dembrane-dashboard/");
+    }
+
+    async function select(account) {
+      login = account;
+      setCurrent(account.id);
+      renderPicker();
+      await updateLink("Switched account");
     }
 
     async function updateLink(note) {
@@ -227,13 +204,6 @@
       }
     }
 
-    async function select(id) {
-      selected = id;
-      save("selected", id);
-      renderPicker();
-      await updateLink("Switched user");
-    }
-
     // Keep the link valid: refresh the token once it has REFRESH_AT seconds left.
     let refreshing = false;
     setInterval(async () => {
@@ -241,7 +211,7 @@
       renderExpiry();
       if (secondsLeft(current.claims) < REFRESH_AT && !refreshing) {
         refreshing = true;
-        await updateLink(selected === "directus" ? "Refreshed with the Directus refresh token" : "Refreshed (re-minted by the Worker)").finally(() => (refreshing = false));
+        await updateLink("Refreshed with the Directus refresh token").finally(() => (refreshing = false));
       }
     }, 1000);
 

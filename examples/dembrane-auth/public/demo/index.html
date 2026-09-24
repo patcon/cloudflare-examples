@@ -28,15 +28,15 @@
 
     <div class="panel">
       <p id="whoami">Loading…</p>
-      <p class="muted">Each counter lives in that user's own Durable Object. You can read anyone's, but only increment your own (admins can increment anyone's).</p>
+      <p class="muted">Each counter lives in that user's own Durable Object. You can only increment your own; admins see every Directus user and can increment anyone's.</p>
+      <p class="error" id="list-error"></p>
       <table><tbody id="rows"></tbody></table>
 
       <section class="source">
         <h2>Where "you" comes from: <code>GET /api/me</code></h2>
         <p class="muted hint">
           <code>id</code>, <code>isAdmin</code> and <code>exp</code> come from the verified token in the session cookie.
-          <code>name</code> and <code>email</code> come from your Directus profile, which the Worker fetched when you logged in
-          (always <code>null</code> for mock users, who aren't in Directus).
+          <code>name</code> and <code>email</code> come from your Directus profile, which the Worker fetched when you logged in.
         </p>
         <pre class="mono" id="me-json">…</pre>
       </section>
@@ -84,26 +84,30 @@
 
     const me = await (await api("/api/me")).json();
     document.getElementById("me-json").textContent = JSON.stringify(me, null, 2);
-    const { mockUsers } = await (await fetch("/api/config")).json();
 
-    // A real Directus user's name comes from their Directus profile, which the
-    // Worker fetched at login (it can be missing, e.g. if Directus was down).
+    // Your name comes from your Directus profile, which the Worker fetched at
+    // login (it can be missing, e.g. if Directus was down).
     const esc = (text) => String(text).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
-    const mock = mockUsers.find((u) => u.id === me.id);
-    const directusName = `${me.name ?? me.email ?? "Directus user"} (Directus)`;
+    const nameOf = (user) => user.name ?? user.email ?? "Directus user";
     document.getElementById("whoami").innerHTML =
-      `You are <strong>${esc(mock ? mock.name : directusName)}</strong> <code>${esc(me.id)}</code>` +
+      `You are <strong>${esc(nameOf(me))}</strong> <code>${esc(me.id)}</code>` +
       (me.isAdmin ? '<span class="badge">admin</span>' : "");
 
-    // Mock users, plus you if you logged in as a real Directus user.
-    const users = mock ? mockUsers : [...mockUsers, { id: me.id, name: directusName }];
+    // Admins see every Directus user (GET /api/users, which the Worker refuses
+    // anyone else with a 403); everyone else sees just themselves.
+    let users = [me];
+    if (me.isAdmin) {
+      const res = await api("/api/users");
+      if (res.ok) users = await res.json();
+      else document.getElementById("list-error").textContent = `Couldn't list users: ${res.status} ${(await res.json()).error}`;
+    }
 
     const rows = document.getElementById("rows");
     for (const user of users) {
       const tr = document.createElement("tr");
       if (user.id === me.id) tr.className = "me";
       tr.innerHTML = `
-        <td>${esc(user.name)}${user.id === me.id ? " (you)" : ""}<span class="msg"></span></td>
+        <td>${esc(nameOf(user))}${user.id === me.id ? " (you)" : ""}<span class="msg"></span></td>
         <td class="count">…</td>
         <td class="action"><button>Increment</button></td>`;
       rows.append(tr);

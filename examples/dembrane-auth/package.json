@@ -6,7 +6,6 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "wrangler types && tsc",
-    "mint-token": "tsx scripts/mint-token.ts",
     "types": "wrangler types"
   },
   "license": "MIT",
@@ -15,7 +14,6 @@
     "hono": "^4.13.8"
   },
   "devDependencies": {
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "wrangler": "^4.137.0"
   },
