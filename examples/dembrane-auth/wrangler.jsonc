@@ -12,11 +12,15 @@
     "run_worker_first": ["/api/*"]
   },
 
-  // One UserCounter Durable Object per dembrane user, addressed by user id.
+  // One User Durable Object per dembrane user, addressed by user id.
   "durable_objects": {
-    "bindings": [{ "name": "USER_COUNTER", "class_name": "UserCounter" }]
+    "bindings": [{ "name": "USER", "class_name": "User" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserCounter"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["UserCounter"] },
+    // Renamed, keeping each user's stored counter and profile.
+    { "tag": "v2", "renamed_classes": [{ "from": "UserCounter", "to": "User" }] }
+  ],
 
   "vars": {
     // Default Directus URL for the "log in with real Directus" option.

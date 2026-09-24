@@ -3,7 +3,7 @@ import { deleteCookie, setCookie } from "hono/cookie";
 import { type AuthEnv, SESSION_COOKIE, requireDirectusSession, sessionToken, verifyDirectusToken } from "./auth";
 import { fetchDirectusProfile, fetchDirectusUsers } from "./profile";
 
-export { UserCounter } from "./user-counter";
+export { User } from "./user";
 
 const app = new Hono<AuthEnv>();
 
@@ -32,7 +32,7 @@ app.post("/api/session", async (c) => {
   // with. Best effort: the login works without it.
   try {
     const profile = await fetchDirectusProfile(c.env.DIRECTUS_URL, token);
-    await c.env.USER_COUNTER.getByName(claims.id).setProfile(profile);
+    await c.env.USER.getByName(claims.id).setProfile(profile);
   } catch (err) {
     console.warn("couldn't fetch the Directus profile:", err);
   }
@@ -50,7 +50,7 @@ app.use("/api/users/*", requireDirectusSession); // also matches /api/users
 
 app.get("/api/me", async (c) => {
   const { id, admin_access, exp } = c.get("jwtPayload");
-  const profile = await c.env.USER_COUNTER.getByName(id).getProfile();
+  const profile = await c.env.USER.getByName(id).getProfile();
   return c.json({ id, isAdmin: admin_access === true, exp, name: profile?.name ?? null, email: profile?.email ?? null });
 });
 
@@ -72,7 +72,7 @@ app.get("/api/users", async (c) => {
 // Anyone logged in can read anyone's count...
 app.get("/api/users/:id", async (c) => {
   const id = c.req.param("id");
-  const count = await c.env.USER_COUNTER.getByName(id).getCount();
+  const count = await c.env.USER.getByName(id).getCount();
   return c.json({ id, count });
 });
 
@@ -83,7 +83,7 @@ app.post("/api/users/:id/increment", async (c) => {
   if (id !== me && admin_access !== true) {
     return c.json({ error: "you can only increment your own counter" }, 403);
   }
-  const count = await c.env.USER_COUNTER.getByName(id).increment();
+  const count = await c.env.USER.getByName(id).increment();
   return c.json({ id, count });
 });
 

@@ -37,7 +37,7 @@ Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which send
           ▲                                                               │ Worker checks the JWT,
           └──── ?handoff=1: near expiry, fetch a fresh link ◀─────────────┤ then getByName(userId)
                                                                           ▼
-                                                              UserCounter Durable Object
+                                                              User Durable Object
                                                               (one per user)
 ```
 
@@ -102,7 +102,7 @@ src/index.ts           routes
 src/auth.ts            JWT check, and the raw token to pass on to Directus
 src/profile.ts         Directus users' names and emails: your own (fetched at login)
                        and, for admins, everyone's
-src/user-counter.ts    the Durable Object: getCount(), increment(), the saved profile
+src/user.ts            the Durable Object: getCount(), increment(), the saved profile
 public/                the pages (plain HTML, no build step): the dashboard and
                        its login page, /auth/, and /demo/
 wrangler.jsonc         Durable Object binding, static assets, vars

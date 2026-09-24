@@ -1,10 +1,11 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Profile } from "./profile";
 
-// One instance per dembrane user (the Worker picks it with getByName(userId)).
+// One instance per dembrane user (the Worker picks it with getByName(userId)),
+// holding their counter and their Directus profile.
 // It does no auth itself: it's only reachable through the Worker's binding,
 // and the Worker has already checked who the caller is.
-export class UserCounter extends DurableObject<Env> {
+export class User extends DurableObject<Env> {
   getCount(): number {
     return this.ctx.storage.kv.get<number>("count") ?? 0;
   }
