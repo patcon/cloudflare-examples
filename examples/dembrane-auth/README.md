@@ -1,6 +1,17 @@
-# dembrane-auth
+# dembrane-auth: a Worker outside dembrane's cookie domain, logged in by link
 
-A minimal example of gating a Cloudflare Worker and Durable Object on a **dembrane login**.
+A minimal example of gating a Cloudflare Worker and Durable Object on a **dembrane login**, when the Worker is **outside dembrane's cookie domain** (`.dembrane.com`). The browser won't send dembrane's session cookie there, so the dashboard passes your token to the Worker in a link.
+
+If the Worker can be inside that cookie domain, [`dembrane-auth-cookie`](../dembrane-auth-cookie) does the same thing more simply. The two differ in how the Worker gets your login:
+
+| | [`dembrane-auth`](../dembrane-auth) (this one) | [`dembrane-auth-cookie`](../dembrane-auth-cookie) |
+|---|---|---|
+| **Use it when** | The Worker is **outside dembrane's cookie domain**, such as on `*.workers.dev`. That's the case today, since dembrane.com isn't on Cloudflare DNS | The Worker can be **inside dembrane's cookie domain**, `.dembrane.com`: on a hostname like `demo.dembrane.com` |
+| **How the Worker learns who you are** | The dashboard puts your token in a link. The Worker keeps it in a cookie of its own | The browser sends dembrane's own session cookie. The Worker only reads it |
+| **Staying logged in** | The demo goes back to the dashboard for a fresh link | The demo asks Directus to refresh the session |
+| **Logging out** | Of the demo only | Of dembrane, everywhere: it's one session |
+| **Accounts** | Several, with an account switcher | One per browser |
+| **Open questions for production** | How the real dashboard gets a token to put in the link | Moving the dembrane.com zone to Cloudflare, and allowing the demo's origin in Directus's CORS |
 
 The Worker verifies the same Directus JWT that dembrane's FastAPI backend already accepts, checked the same way: HS256 with `DIRECTUS_SECRET`, reading `id` and `admin_access`. It then routes each user to their own Durable Object. **dembrane's code doesn't change.**
 
@@ -24,13 +35,13 @@ cp .dev.vars.example .dev.vars   # DIRECTUS_SECRET, matching ../directus's SECRE
 pnpm dev                         # http://localhost:8787
 ```
 
-Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which sends you to its login page.
+Open <http://localhost:8787>. It redirects to `/dembrane-dashboard/`, which sends you to its login page. `dembrane-auth-cookie` uses port 8787 too, so run one at a time.
 
 ## The flow
 
 ```
  /dembrane-dashboard/              /auth/#token=…             /demo/
- (pretend: dashboard.dembrane.com) (the demo, another site)
+ (pretend: dashboard.dembrane.com) (the demo, another domain)
  ┌──────────────────────┐  click  ┌──────────────────┐       ┌─────────────────────────┐
  │ pick an account ↙    │ ──────▶ │ POST /api/session│ ────▶ │ GET  /api/users         │
  │ Open realtime demo → │         │ token → our own  │       │ GET  /api/users/:id     │
@@ -54,7 +65,9 @@ Directus access tokens last 15 minutes by default (`ACCESS_TOKEN_TTL`); lower it
 
 ### Why a link, and not dembrane's cookie?
 
-dembrane.com isn't on Cloudflare DNS, so the Worker lives on `*.workers.dev`, a different site from the dashboard. The browser never sends the dashboard's `dembrane_session_token` cookie there. JavaScript can't read that cookie either (it's httpOnly), so the token has to travel in the link.
+dembrane.com isn't on Cloudflare DNS, so the Worker lives on `*.workers.dev`, outside the dashboard's cookie domain. The browser never sends the dashboard's `dembrane_session_token` cookie there. JavaScript can't read that cookie either (it's httpOnly), so the token has to travel in the link.
+
+Once the Worker can be on a dembrane.com hostname, none of this is needed: see [`dembrane-auth-cookie`](../dembrane-auth-cookie).
 
 ## How it maps to dembrane
 

@@ -8,7 +8,7 @@
 </head>
 <body>
   <!-- Usually gone before you see it; it stays up if the link is bad. -->
-  <div class="banner">Placeholder: pretend this is <strong>demo.example.com/auth/</strong>, on a different site from the dembrane dashboard.</div>
+  <div class="banner">Placeholder: pretend this is <strong>demo.example.com/auth/</strong>, on a different domain from the dembrane dashboard.</div>
 
   <main class="centered">
     <div class="panel" id="status">Signing you in…</div>
@@ -20,7 +20,7 @@
     // so it stays out of logs and Referer headers.
     const token = new URLSearchParams(location.hash.slice(1)).get("token");
     const ret = new URLSearchParams(location.search).get("return");
-    // Only same-site paths, so the link can't bounce people somewhere else.
+    // Only paths on this host, so the link can't bounce people somewhere else.
     const next = ret && ret.startsWith("/") && !ret.startsWith("//") ? ret : "/demo/";
 
     // Take the token out of the address bar (and browser history) right away.

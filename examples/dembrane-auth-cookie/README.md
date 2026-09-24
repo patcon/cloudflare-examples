@@ -1,6 +1,17 @@
-# dembrane-auth-cookie
+# dembrane-auth-cookie: a Worker inside dembrane's cookie domain, logged in by cookie
 
-[`dembrane-auth`](../dembrane-auth), for when the Worker is on the **same site** as dembrane. The browser then sends dembrane's own session cookie to the Worker, so there's no link, no token handoff and no cookie of the Worker's own.
+A minimal example of gating a Cloudflare Worker and Durable Object on a **dembrane login**, when the Worker is **inside dembrane's cookie domain** (`.dembrane.com`), for example on `demo.dembrane.com`. Directus sets its session cookie for that whole domain, so the browser sends dembrane's own session cookie to the Worker, so there's no link, no token handoff and no cookie of the Worker's own.
+
+It's the simpler version of [`dembrane-auth`](../dembrane-auth), which works when the Worker is outside that cookie domain. The two differ in how the Worker gets your login:
+
+| | [`dembrane-auth`](../dembrane-auth) | [`dembrane-auth-cookie`](../dembrane-auth-cookie) (this one) |
+|---|---|---|
+| **Use it when** | The Worker is **outside dembrane's cookie domain**, such as on `*.workers.dev`. That's the case today, since dembrane.com isn't on Cloudflare DNS | The Worker can be **inside dembrane's cookie domain**, `.dembrane.com`: on a hostname like `demo.dembrane.com` |
+| **How the Worker learns who you are** | The dashboard puts your token in a link. The Worker keeps it in a cookie of its own | The browser sends dembrane's own session cookie. The Worker only reads it |
+| **Staying logged in** | The demo goes back to the dashboard for a fresh link | The demo asks Directus to refresh the session |
+| **Logging out** | Of the demo only | Of dembrane, everywhere: it's one session |
+| **Accounts** | Several, with an account switcher | One per browser |
+| **Open questions for production** | How the real dashboard gets a token to put in the link | Moving the dembrane.com zone to Cloudflare, and allowing the demo's origin in Directus's CORS |
 
 The Worker still verifies the same Directus JWT as dembrane's FastAPI backend, the same way: HS256 with `DIRECTUS_SECRET`, reading `id` and `admin_access`. It routes each user to their own Durable Object. **dembrane's code doesn't change.**
 
@@ -32,7 +43,7 @@ Cookies ignore the port. The cookie that Directus on `localhost:8055` sets is se
  │ POST {directus}/auth/login         │            │ GET  /api/me            │
  │   mode: "session"                  │ ─────────▶ │ GET  /api/users         │
  │ Directus sets dembrane_session_    │            │ POST /api/users/:id/    │
- │ token (httpOnly) for the site      │            │      increment          │
+ │ token (httpOnly) for the domain    │            │      increment          │
  └────────────────────────────────────┘            └────────────┬────────────┘
           ▲                                                     │ the browser sends the cookie;
           └──── no session left to refresh ◀────────────────────┤ the Worker checks the JWT,
@@ -56,11 +67,11 @@ Cookies ignore the port. The cookie that Directus on `localhost:8055` sets is se
 | The dashboard stand-in, with an account switcher and tokens in localStorage | A login page. A browser holds one Directus session, so there's one account at a time |
 | `?handoff=1`: the demo goes back to the dashboard for a fresh token | The demo refreshes the session with Directus itself |
 | Your profile is fetched in `POST /api/session` | Fetched by `GET /api/me` the first time the Worker sees you. There's no login step here to do it in |
-| The Worker's cookie is only ever sent to the Worker's own site | Directus's cookie is sent by every page on the site, so writes need the origin check below |
+| The Worker's cookie is only ever sent to the Worker's own host | Directus's cookie is sent to every host in its domain, so writes need the origin check below |
 
 ### The origin check
 
-The browser attaches the cookie to any request made from the same site. That includes pages on other `*.dembrane.com` hosts, or on other `localhost` ports. `SameSite=Lax` stops other sites, not those. So `requireDirectusSession` turns down a request that changes something (`POST`, `PUT`, …) and is authenticated only by the cookie, unless it comes from the Worker's own origin. It checks this with `Sec-Fetch-Site: same-origin`, or with `Origin` for browsers that don't send that header. Bearer requests skip the check, because another page can't make the browser attach an `Authorization` header.
+The browser attaches the cookie to any request made from a page inside its domain. That includes pages on other `*.dembrane.com` hosts, or on other `localhost` ports. `SameSite=Lax` only stops pages outside the domain, not those. So `requireDirectusSession` turns down a request that changes something (`POST`, `PUT`, …) and is authenticated only by the cookie, unless it comes from the Worker's own origin. It checks this with `Sec-Fetch-Site: same-origin`, or with `Origin` for browsers that don't send that header. Bearer requests skip the check, because another page can't make the browser attach an `Authorization` header.
 
 ## Try it with curl
 
@@ -95,9 +106,9 @@ wrangler.jsonc         Durable Object bindings, static assets, vars
 
 ## Going to production
 
-- **The Worker must be on dembrane.com.** That means a custom domain or route, so the dembrane.com zone has to be on Cloudflare. This is why `dembrane-auth` uses a link instead. Directus must also set its cookie for the whole site (`SESSION_COOKIE_DOMAIN=.dembrane.com`), which production already does.
+- **The Worker must be on dembrane.com.** That means a custom domain or route, so the dembrane.com zone has to be on Cloudflare. This is why `dembrane-auth` uses a link instead. Directus must also set its cookie for the whole domain (`SESSION_COOKIE_DOMAIN=.dembrane.com`), which production already does.
 - **CORS.** `/demo/` calls Directus's `/auth/refresh` and `/auth/logout` itself, so Directus's `CORS_ORIGIN` must include the demo's origin, with `CORS_CREDENTIALS=true`.
 - **Sharing `DIRECTUS_SECRET`.** Anything holding it can create valid dembrane tokens, so the Worker becomes as sensitive as the backend.
 - **Logout is only noticed when the token expires.** The browser forgets the cookie at once, but the Worker checks the JWT locally, so a copied token stays valid until `exp`. Session tokens last a day by default rather than 15 minutes. FastAPI behaves the same way today.
-- **Every host on the site can set the cookie.** Any `*.dembrane.com` page can write a cookie for `.dembrane.com`, so a compromised subdomain could log visitors in to another account. It can't forge one, since the Worker still checks the signature.
+- **Every host in the domain can set the cookie.** Any `*.dembrane.com` page can write a cookie for `.dembrane.com`, so a compromised subdomain could log visitors in to another account. It can't forge one, since the Worker still checks the signature.
 - **Deploy** with `pnpm deploy` after `pnpm wrangler secret put DIRECTUS_SECRET`.

@@ -12,7 +12,7 @@
   </style>
 </head>
 <body>
-  <div class="banner">Placeholder: pretend this is <strong>dashboard.dembrane.com/login</strong>, on the same site as the demo.</div>
+  <div class="banner">Placeholder: pretend this is <strong>dashboard.dembrane.com/login</strong>, in the same cookie domain as the demo.</div>
 
   <main class="centered">
     <section class="panel">
@@ -43,7 +43,7 @@
     const $ = (id) => document.getElementById(id);
     const { directusUrl } = await (await fetch("/api/config")).json();
 
-    // Only same-site paths, so a ?next= can't bounce people somewhere else.
+    // Only paths on this host, so a ?next= can't bounce people somewhere else.
     const nextParam = new URLSearchParams(location.search).get("next");
     const next = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/demo/";
 

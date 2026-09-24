@@ -29,7 +29,7 @@ export function removeAccount(id) {
 export const claimsOf = (token) => JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
 export const secondsLeft = (claims) => claims.exp - Math.floor(Date.now() / 1000);
 
-// Only same-site paths, so a ?next= can't bounce people somewhere else.
+// Only paths on this host, so a ?next= can't bounce people somewhere else.
 export const safePath = (path, fallback) => (path && path.startsWith("/") && !path.startsWith("//") ? path : fallback);
 
 export const loginUrl = (next) => `/dembrane-dashboard/login?next=${encodeURIComponent(next)}`;

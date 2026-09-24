@@ -4,8 +4,8 @@ import { verify } from "hono/jwt";
 
 // Directus's own session cookie (its SESSION_COOKIE_NAME), set when you log in
 // with `mode: "session"`. The Worker never sets it; it only reads it. The
-// browser sends it here because both are on the same site: dembrane.com in
-// production, and localhost locally (cookies ignore the port).
+// browser sends it here because the Worker is inside the cookie's domain:
+// .dembrane.com in production, and localhost locally (cookies ignore the port).
 export const SESSION_COOKIE = "dembrane_session_token";
 
 // The claims Directus puts in its JWTs. dembrane's backend reads `id` and
@@ -35,8 +35,9 @@ export async function verifyDirectusToken(token: string, secret: string) {
 
 export const isAdmin = (claims: DirectusClaims) => claims.admin_access === true;
 
-// The browser attaches the cookie by itself, even to a request another page
-// on the same site starts (another *.dembrane.com, or another localhost port).
+// The browser attaches the cookie by itself, even to a request started by
+// another page in the cookie's domain (another *.dembrane.com host, or another
+// localhost port).
 // So a request that changes something, authenticated by the cookie alone, must
 // come from our own pages. A Bearer token can't be attached that way.
 const isSafeMethod = (method: string) => method === "GET" || method === "HEAD" || method === "OPTIONS";

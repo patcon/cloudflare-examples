@@ -1,10 +1,10 @@
 # directus
 
-A local Directus with **dembrane's schema**, running on SQLite. It's a real Directus to log in to when you're testing the other examples, such as [`dembrane-auth`](../dembrane-auth), without running the full echo stack (Postgres, Redis, Docker).
+A local Directus with **dembrane's schema**, running on SQLite. It's a real Directus to log in to when you're testing the other examples, such as [`dembrane-auth`](../dembrane-auth) and [`dembrane-auth-cookie`](../dembrane-auth-cookie), without running the full echo stack (Postgres, Redis, Docker).
 
 - Directus **11.13.4**, the version echo's image pins (`tractr/directus-sync:11.13.4`)
 - The schema, roles, policies, permissions and flows come from your **dembrane-echo checkout** (`echo/directus/sync`). Nothing is copied into this repo, so pulling echo is enough to update it.
-- Uses the same `SECRET` as `dembrane-auth/.dev.vars`, so its tokens pass that Worker's check with no extra setup.
+- Uses the same `SECRET` as the `.dev.vars` of both auth examples, so its tokens pass their Workers' checks with no extra setup.
 
 ## Run it
 
@@ -42,11 +42,12 @@ It's the same sequence echo's `scripts/remote-dev/up.sh` runs, adjusted for SQLi
 
 You can run steps 2 to 4 again on their own while `pnpm start` is running, for example after pulling echo.
 
-## Using it with dembrane-auth
+## Using it with the auth examples
 
-In [`dembrane-auth`](../dembrane-auth), run `pnpm dev`, then on the dashboard choose **Log in with real Directus…** with `http://localhost:8055` and one of the users above. `.env` already allows the Worker's origin (`CORS_ORIGIN` includes `http://localhost:8787`).
+Both use port 8787, so run one at a time. `.env` already allows that origin (`CORS_ORIGIN` includes `http://localhost:8787`).
 
-For [`dembrane-auth-cookie`](../dembrane-auth-cookie), run its `pnpm dev` instead (it uses the same port). It logs in with `mode: "session"`, and reads the cookie Directus sets, which `.env` names `dembrane_session_token` as in production.
+- **[`dembrane-auth`](../dembrane-auth)** (a Worker outside dembrane's cookie domain, logged in by link): run `pnpm dev`, then log in on its dashboard stand-in with `http://localhost:8055` and one of the users above.
+- **[`dembrane-auth-cookie`](../dembrane-auth-cookie)** (a Worker inside dembrane's cookie domain, logged in by cookie): run `pnpm dev`, then log in on its `/login/` page. It reads the cookie Directus sets, which `.env` names `dembrane_session_token` as in production.
 
 Or with curl:
 

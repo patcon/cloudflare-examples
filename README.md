@@ -4,6 +4,6 @@ Small, standalone examples of using Cloudflare with dembrane. Each example has i
 
 | Example | What it shows |
 |---|---|
-| [`examples/dembrane-auth`](examples/dembrane-auth) | Gating a Worker and a per-user Durable Object on a dembrane (Directus) login |
-| [`examples/dembrane-auth-cookie`](examples/dembrane-auth-cookie) | The same, for a Worker on the same site as dembrane: it reads dembrane's session cookie directly, with no link or handoff |
+| [`examples/dembrane-auth`](examples/dembrane-auth) | Gating a Worker and a per-user Durable Object on a dembrane (Directus) login, **for a Worker outside dembrane's cookie domain** (such as on `*.workers.dev`). The dashboard hands your token to the Worker in a link |
+| [`examples/dembrane-auth-cookie`](examples/dembrane-auth-cookie) | The same demo, **for a Worker inside dembrane's cookie domain** (`.dembrane.com`). The Worker reads dembrane's session cookie, with no link or handoff |
 | [`examples/directus`](examples/directus) | A local Directus on SQLite with dembrane's schema, pulled from a dembrane-echo checkout, to log in to while testing the other examples |

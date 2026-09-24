@@ -3,8 +3,8 @@ import { createMiddleware } from "hono/factory";
 import { verify } from "hono/jwt";
 
 // The Worker's own cookie, set by POST /api/session after the link handoff.
-// (It can't use dembrane's `dembrane_session_token` cookie: that one belongs to
-// another site, so the browser never sends it here.)
+// (It can't use dembrane's `dembrane_session_token` cookie: that one is for
+// .dembrane.com, a different domain, so the browser never sends it here.)
 export const SESSION_COOKIE = "demo_session_cookie";
 
 // The claims Directus puts in its JWTs. dembrane's backend reads `id` and

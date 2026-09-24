@@ -24,8 +24,8 @@
 
   "vars": {
     // The Directus the pages log in to and the Worker asks for profiles:
-    // ../directus. It must be on the same site as the Worker for its session
-    // cookie to reach it.
+    // ../directus. Its session cookie's domain must include the Worker's
+    // host for the cookie to reach it.
     "DIRECTUS_URL": "http://localhost:8055"
   }
   // Secret (not here): DIRECTUS_SECRET — .dev.vars locally, `wrangler secret put` when deployed.
