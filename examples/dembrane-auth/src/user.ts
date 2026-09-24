@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import type { Profile } from "./profile";
+import type { Profile } from "./directus";
 
 // One instance per dembrane user (the Worker picks it with getByName(userId)),
 // holding their counter and their Directus profile.

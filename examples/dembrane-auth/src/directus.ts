@@ -1,6 +1,7 @@
-// User details the token doesn't carry (name, email), fetched from Directus as
-// the user: the Worker passes on their own access token, so Directus applies
-// that user's permissions and the Worker needs no credentials of its own.
+// The Worker's calls to Directus, for user details the token doesn't carry
+// (name, email). Each is made as the user: the Worker passes on their own
+// access token, so Directus applies that user's permissions and the Worker
+// needs no credentials of its own.
 
 export type Profile = { name: string | null; email: string | null };
 

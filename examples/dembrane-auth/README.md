@@ -100,7 +100,7 @@ An admin's list of users works the same way. `GET /api/users` passes the admin's
 ```
 src/index.ts           routes
 src/auth.ts            JWT check, and the raw token to pass on to Directus
-src/profile.ts         Directus users' names and emails: your own (fetched at login)
+src/directus.ts        the Worker's calls to Directus: your profile (fetched at login)
                        and, for admins, everyone's
 src/user.ts            the Durable Object: getCount(), increment(), the saved profile
 public/                the pages (plain HTML, no build step): the dashboard and

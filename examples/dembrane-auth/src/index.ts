@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
 import { type AuthEnv, SESSION_COOKIE, isAdmin, requireAdmin, requireDirectusSession, verifyDirectusToken } from "./auth";
-import { fetchDirectusProfile, fetchDirectusUsers } from "./profile";
+import { fetchDirectusProfile, fetchDirectusUsers } from "./directus";
 
 export { User } from "./user";
 
