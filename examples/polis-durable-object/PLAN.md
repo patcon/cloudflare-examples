@@ -239,4 +239,8 @@ These run under plain Vitest, since both modules are pure. DO integration tests 
 - Polis's base clusters (k = 100) and the k smoother (`group-k-buffer 4`).
 - Weighted statement selection instead of random.
 - Moving the math into a Workflow or Container if it starts to stall voting.
-- Using this repo's react component to render the MVP polis opinion graph. We might need to meet its API. https://github.com/patcon/react-polis-opinion-graph
+- Rendering with [react-polis-opinion-graph](https://github.com/patcon/react-polis-opinion-graph) instead of `Scatter.tsx`. It's a demo app, not a package yet, and it reads Polis's `pca2` math JSON:
+  - A client-side adapter from `MathResult` covers the dots, group hulls and labels: each participant becomes its own base cluster, and group members become their indices.
+  - Its bar charts and "X% of group A agreed" sentence need `group-votes` (agree/disagree/saw counts per group and statement), which the alarm would compute.
+  - Its statement picker needs Polis's `consensus` and `repness` math.
+  - It needs a `selfId` prop (it assumes `pid === 0` is you) and a responsive width (it's fixed at 750px).
