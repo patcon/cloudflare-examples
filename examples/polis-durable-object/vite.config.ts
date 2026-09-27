@@ -4,7 +4,8 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 
 export default defineConfig({
   plugins: [react(), cloudflare()],
-  // Each example has its own port, so they can run side by side.
-  server: { port: 8790 },
-  preview: { port: 8790 },
+  // Each example has its own port, so they can run side by side. strictPort
+  // fails instead of quietly moving to the next free port.
+  server: { port: 8790, strictPort: true },
+  preview: { port: 8790, strictPort: true },
 });

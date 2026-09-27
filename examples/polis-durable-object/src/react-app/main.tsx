@@ -1,14 +1,15 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { Me } from "../shared/types";
 
 function App() {
-  const [hello, setHello] = useState<string>("…");
+  const [me, setMe] = useState<Me | null>(null);
   useEffect(() => {
-    fetch("/api/hello")
-      .then((res) => res.json() as Promise<{ hello: string }>)
-      .then((body) => setHello(body.hello));
+    fetch("/api/demo/me")
+      .then((res) => res.json() as Promise<Me>)
+      .then(setMe);
   }, []);
-  return <h1>Hello, {hello}</h1>;
+  return <h1>Hello, participant {me?.participantId ?? "…"}</h1>;
 }
 
 createRoot(document.getElementById("root")!).render(
