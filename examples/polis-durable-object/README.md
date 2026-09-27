@@ -38,6 +38,10 @@ After a few seconds it prints a link like `https://some-random-words.trycloudfla
 
 `pnpm dev:share` does the same with the development server, which reloads when the code changes: handy for trying a change on your phone, less steady for an event. Without either, press `t` then Enter in a running `pnpm dev` or `pnpm preview` to open a link. This is Cloudflare's [Share a local dev server](https://developers.cloudflare.com/workers/local-development/local-dev-tunnels/).
 
+| `pnpm dev:share` |
+|---|
+| ![The terminal after running pnpm dev:share, showing the public Tunnel link](docs/command-pnpm-dev-share.png) |
+
 ## Try it on real data
 
 Download a Polis report's raw data. For a report at `https://pol.is/report/<report-id>`, the files are at:
