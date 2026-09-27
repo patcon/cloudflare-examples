@@ -4,6 +4,10 @@ A minimal [Polis](https://pol.is)-style conversation, running in one Cloudflare 
 
 There's no login, no moderation and no project or group-chat scope yet. Each is a later layer: see [`PLAN.md`](PLAN.md#later).
 
+| New conversation | Import page | Populated conversation |
+|---|---|---|
+| ![A new, empty conversation](docs/new-conversation.png) | ![The admin page for importing a Polis export](docs/import-page.png) | ![A conversation seeded from a Polis export, with its opinion map](docs/populated-conversation.png) |
+
 ## Run it
 
 ```sh
@@ -86,6 +90,7 @@ src/worker/polis-csv.ts        the CSV parser and Polis export reader, pure func
 src/shared/types.ts            API and WebSocket types, used by the Worker and the page
 src/react-app/                 the pages: Home, Participant (vote card, statement form, map), Admin
 test/                          Vitest tests for math.ts and polis-csv.ts
+docs/                          the README's screenshots
 wrangler.jsonc                 the Durable Object binding and static assets
 PLAN.md                        the plan this was built from, and what comes later
 ```
