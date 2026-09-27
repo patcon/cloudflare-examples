@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { Me, Statement, Vote } from "../shared/types";
+import { Scatter } from "./Scatter";
 import { useConversation } from "./useConversation";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -69,6 +70,7 @@ export function Participant({ convoId }: { convoId: string }) {
       )}
       <VoteCard base={base} statement={statement} onVoted={loadNext} onError={setError} />
       <StatementForm base={base} onAdded={() => statement === null && loadNext()} onError={setError} />
+      <Scatter math={live.math} selfId={me?.participantId} />
     </main>
   );
 }

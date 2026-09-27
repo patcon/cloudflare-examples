@@ -11,6 +11,14 @@
   --error: #c0392b;
   --ok: #2e7d32;
   --code-bg: #f0f0ec;
+  /* Opinion groups A–E, from the dataviz reference palette's slots 1, 2, 3,
+     4 and 8. Only A–C are safe apart by color alone, so each group also has
+     its own marker shape and a letter label. */
+  --group-0: #2a78d6;
+  --group-1: #eb6834;
+  --group-2: #1baf7a;
+  --group-3: #eda100;
+  --group-4: #e34948;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -27,6 +35,11 @@
     --error: #ff7a6b;
     --ok: #7fd18a;
     --code-bg: #2a2a27;
+    --group-0: #3987e5;
+    --group-1: #d95926;
+    --group-2: #199e70;
+    --group-3: #c98500;
+    --group-4: #e66767;
     color-scheme: dark;
   }
 }
@@ -106,3 +119,9 @@ section { margin-bottom: 16px; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .actions .hint { margin-left: auto; }
 form .actions { margin-top: 16px; }
+
+.scatter svg { display: block; width: 100%; height: auto; }
+.scatter .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 0.85rem; }
+.scatter .legend li { display: flex; align-items: center; gap: 6px; }
+.scatter .legend svg { width: 14px; height: 14px; }
+.scatter .debug { margin: 8px 0 0; }
