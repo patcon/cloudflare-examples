@@ -4,8 +4,10 @@
   "description": "A minimal Polis-style conversation in a Cloudflare Durable Object",
   "scripts": {
     "dev": "vite dev",
+    "dev:share": "vite dev --mode share",
     "build": "tsc -b && vite build",
     "preview": "vite build && vite preview",
+    "preview:share": "vite build && vite preview --mode share",
     "deploy": "vite build && wrangler deploy",
     "types": "wrangler types",
     "test": "vitest"

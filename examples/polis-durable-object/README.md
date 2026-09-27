@@ -20,6 +20,24 @@ Open <http://localhost:8790> and start a conversation, or go straight to any pat
 
 Each example has its own port (the auth examples use 8787 to 8789), so you can run them side by side.
 
+## Run it for an event
+
+To let people join from their phones, with nothing deployed, run it on your laptop with a public link:
+
+```sh
+pnpm install
+pnpm preview:share
+```
+
+After a few seconds it prints a link like `https://some-random-words.trycloudflare.com`. Open it, start a conversation, and share that page's address, for example as a QR code on a slide. Everything runs and is stored on your laptop.
+
+- **Keep the laptop awake and online** for the whole event. Stopping the command (Ctrl+C) closes the link.
+- **The link is new every time** you run it, so start it before you make the QR code. A brand-new link can take a minute to work everywhere.
+- **Anyone with the link can join**, and the admin page has no password. Share the conversation's link, not the admin page's.
+- **It suits small and medium events.** The link is a Cloudflare [Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/), which is free and needs no account, but allows 200 requests at once and comes with no uptime guarantee. Each open page keeps a connection open, so expect trouble somewhere around 200 people at once. For bigger events, deploy with `pnpm deploy`.
+
+`pnpm dev:share` does the same with the development server, which reloads when the code changes: handy for trying a change on your phone, less steady for an event. Without either, press `t` then Enter in a running `pnpm dev` or `pnpm preview` to open a link. This is Cloudflare's [Share a local dev server](https://developers.cloudflare.com/workers/local-development/local-dev-tunnels/).
+
 ## Try it on real data
 
 Download a Polis report's raw data. For a report at `https://pol.is/report/<report-id>`, the files are at:
