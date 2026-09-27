@@ -1,0 +1,39 @@
+{
+  "name": "polis-durable-object",
+  "version": "1.0.0",
+  "description": "A minimal Polis-style conversation in a Cloudflare Durable Object",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "tsc -b && vite build",
+    "preview": "vite build && vite preview",
+    "deploy": "vite build && wrangler deploy",
+    "types": "wrangler types",
+    "test": "vitest"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.5",
+  "private": true,
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
+  },
+  "dependencies": {
+    "hono": "^4.13.9",
+    "partysocket": "^1.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.61.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2",
+    "wrangler": "^4.142.0"
+  }
+}
