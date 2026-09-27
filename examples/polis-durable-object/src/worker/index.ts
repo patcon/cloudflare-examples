@@ -3,6 +3,8 @@ import { getCookie, setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import type { Me, Vote } from "../shared/types";
 
+import { PARTICIPANT_HEADER } from "./conversation";
+
 export { Conversation } from "./conversation";
 
 type AppEnv = { Bindings: Env; Variables: { participantId: string } };
@@ -79,6 +81,17 @@ app.post("/votes", async (c) => {
   const ok = await conversation(c).vote(c.get("participantId"), statementId as number, vote as Vote);
   if (!ok) return c.json({ error: "no such statement" }, 404);
   return c.body(null, 204);
+});
+
+// Forwarded to the DO, which accepts the socket. The upgrade is a GET, so
+// the middleware's origin check doesn't cover it: browsers always send
+// Origin on a WebSocket upgrade, so check it here.
+app.get("/ws", async (c) => {
+  if (c.req.header("upgrade") !== "websocket") return c.json({ error: "expected a WebSocket upgrade" }, 426);
+  if (c.req.header("origin") !== new URL(c.req.url).origin) return c.json({ error: "cross-origin request" }, 403);
+  const headers = new Headers(c.req.raw.headers);
+  headers.set(PARTICIPANT_HEADER, c.get("participantId"));
+  return await conversation(c).fetch(new Request(c.req.raw, { headers }));
 });
 
 export default app;

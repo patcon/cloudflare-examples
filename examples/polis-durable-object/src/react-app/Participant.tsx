@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { Me, Statement, Vote } from "../shared/types";
+import { useConversation } from "./useConversation";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
@@ -9,6 +10,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
+
+const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
 const post = (body: unknown): RequestInit => ({
   method: "POST",
@@ -42,11 +45,22 @@ export function Participant({ convoId }: { convoId: string }) {
       .catch((e: Error) => setError(e.message));
   }, [base]);
 
+  const live = useConversation(convoId, me !== null);
+
+  // When someone adds a statement and this participant had run out, fetch one.
+  const statementCount = live.counts?.statements;
+  useEffect(() => {
+    if (statement === null && statementCount) loadNext();
+  }, [statementCount]);
+
   return (
     <main className="centered">
       <h1>Conversation {convoId}</h1>
       <p className="muted hint">
         You're participant <code>{me?.participantId ?? "…"}</code>
+        {live.counts &&
+          ` · ${plural(live.counts.statements, "statement")}, ${plural(live.counts.participants, "participant")}, ${plural(live.counts.votes, "vote")}`}
+        {me && !live.connected && " · reconnecting…"}
       </p>
       {error && (
         <p className="error" role="alert">
@@ -89,8 +103,7 @@ function VoteCard({
     return (
       <section className="panel" role="status">
         <p>You've voted on every statement.</p>
-        <p className="muted">Add one below, or check back when others have.</p>
-        <button onClick={onVoted}>Check again</button>
+        <p className="muted">Add one below. New statements from others will show up here.</p>
       </section>
     );
   }
