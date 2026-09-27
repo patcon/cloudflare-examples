@@ -4,6 +4,10 @@ A minimal Polis-style conversation running in a Durable Object. Participants add
 
 There's no project or group-chat scope, no moderation and no real auth yet. Each is a later layer (see [Later](#later)).
 
+## Suggested Amendments
+
+None for now.
+
 ## Stack
 
 - **Worker:** Hono. It routes requests and checks who the caller is. The DO trusts it, as in `../dembrane-auth-cookie`.
@@ -97,7 +101,7 @@ CREATE TABLE IF NOT EXISTS participants (
 );
 CREATE TABLE IF NOT EXISTS statements (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  author_id TEXT,                    -- nullable: an imported author may never have voted
+  author_id TEXT NOT NULL,           -- always a participants row, even for an imported author who never voted
   text TEXT NOT NULL,
   source TEXT NOT NULL,              -- 'local' | 'polis'
   external_id TEXT UNIQUE,           -- Polis comment-id, so re-importing upserts
@@ -195,6 +199,7 @@ The Worker parses the files, then calls `importPolis`. The columns come from Pol
 
 - **`comments.csv`:** `timestamp, datetime, comment-id, author-id, agrees, disagrees, moderated, [importance], comment-body`
   - `comment-id` → `external_id`, `author-id` → `polis:<id>`, `comment-body` → `text`, `timestamp` (seconds) → `created_at`.
+  - Each author gets a `participants` row, whether or not they voted.
   - Skip `moderated = -1` (rejected in Polis). That's the only moderation we respect.
 - **`votes.csv`:** `timestamp, datetime, comment-id, voter-id, vote, [important]`
   - If a voter has several rows for one comment, the latest `timestamp` wins.
@@ -234,3 +239,4 @@ These run under plain Vitest, since both modules are pure. DO integration tests 
 - Polis's base clusters (k = 100) and the k smoother (`group-k-buffer 4`).
 - Weighted statement selection instead of random.
 - Moving the math into a Workflow or Container if it starts to stall voting.
+- Using this repo's react component to render the MVP polis opinion graph. We might need to meet its API. https://github.com/patcon/react-polis-opinion-graph
