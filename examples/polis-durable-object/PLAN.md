@@ -126,6 +126,8 @@ The latest math result is one `ctx.storage.kv` value: `"math" → MathResult`.
 
 Each write also creates a `participants` row if needed.
 
+Unlike Polis, adding a statement doesn't record an agree vote from its author. Authors get their own statements from `nextStatement` like anyone else, so they can vote differently from how they wrote them.
+
 **After each write:**
 1. Broadcast a `counts` message.
 2. Schedule the math: `if ((await storage.getAlarm()) === null) await storage.setAlarm(Date.now() + 3_000)`. This debounces bursts of votes, and an idle conversation never wakes.
