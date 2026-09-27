@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { Admin } from "./Admin";
 import { Home } from "./Home";
 import { Participant } from "./Participant";
 import "./style.css";
@@ -9,6 +10,7 @@ function App() {
   const segments = location.pathname.split("/").filter(Boolean).map(decodeURIComponent);
   if (segments.length === 0) return <Home />;
   if (segments.length === 1) return <Participant convoId={segments[0]} />;
+  if (segments.length === 2 && segments[1] === "admin") return <Admin convoId={segments[0]} />;
   return (
     <main className="centered">
       <h1>Not found</h1>

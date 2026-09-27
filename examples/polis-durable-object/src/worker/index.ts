@@ -4,6 +4,7 @@ import { createMiddleware } from "hono/factory";
 import type { Me, Vote } from "../shared/types";
 
 import { PARTICIPANT_HEADER } from "./conversation";
+import { parsePolisExport } from "./polis-csv";
 
 export { Conversation } from "./conversation";
 
@@ -81,6 +82,24 @@ app.post("/votes", async (c) => {
   const ok = await conversation(c).vote(c.get("participantId"), statementId as number, vote as Vote);
   if (!ok) return c.json({ error: "no such statement" }, 404);
   return c.body(null, 204);
+});
+
+// Seeds the conversation from a Polis export: a multipart form with the
+// `comments` and `votes` CSV files. No auth, on purpose, for the demo.
+app.post("/import", async (c) => {
+  const form = await c.req.parseBody().catch(() => null);
+  const comments = form?.comments;
+  const votes = form?.votes;
+  if (!(comments instanceof File) || !(votes instanceof File)) {
+    return c.json({ error: "attach both comments.csv and votes.csv" }, 400);
+  }
+  let data;
+  try {
+    data = parsePolisExport({ comments: await comments.text(), votes: await votes.text() });
+  } catch (e) {
+    return c.json({ error: (e as Error).message }, 400);
+  }
+  return c.json(await conversation(c).importPolis(data));
 });
 
 // Forwarded to the DO, which accepts the socket. The upgrade is a GET, so

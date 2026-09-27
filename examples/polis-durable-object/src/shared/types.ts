@@ -7,6 +7,9 @@ export type Statement = { id: number; text: string };
 
 export type Me = { participantId: string };
 
+// How many rows a Polis import brought in.
+export type ImportResult = { statements: number; participants: number; votes: number };
+
 export type Counts = { statements: number; participants: number; votes: number };
 
 // The latest opinion groups, recomputed by the DO's alarm.

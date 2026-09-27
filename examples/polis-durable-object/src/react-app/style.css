@@ -105,3 +105,4 @@ section { margin-bottom: 16px; }
 .statement { font-size: 1.2rem; margin: 0 0 16px; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .actions .hint { margin-left: auto; }
+form .actions { margin-top: 16px; }

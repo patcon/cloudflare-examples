@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
-import type { Counts, MathResult, ServerMessage, Statement, Vote } from "../shared/types";
+import type { Counts, ImportResult, MathResult, ServerMessage, Statement, Vote } from "../shared/types";
 import { computeMath, type VoteRow } from "./math";
+import type { PolisImport } from "./polis-csv";
 
 // One instance per conversation (the Worker picks it with getByName(convoId)).
 // It trusts the participantId the Worker passes in, including in the
@@ -102,6 +103,46 @@ export class Conversation extends DurableObject<Env> {
     );
     await this.afterWrite();
     return true;
+  }
+
+  // Seeds the conversation from a parsed Polis export, in one transaction.
+  // Re-importing the same export upserts, so nothing is duplicated.
+  async importPolis(data: PolisImport): Promise<ImportResult> {
+    const sql = this.ctx.storage.sql;
+    this.ctx.storage.transactionSync(() => {
+      for (const p of data.participants) {
+        sql.exec("INSERT OR IGNORE INTO participants (id, source, created_at) VALUES (?, 'polis', ?)", p.id, p.createdAt);
+      }
+      for (const s of data.statements) {
+        sql.exec(
+          `INSERT INTO statements (author_id, text, source, external_id, created_at) VALUES (?, ?, 'polis', ?, ?)
+           ON CONFLICT (external_id) DO UPDATE SET text = excluded.text`,
+          s.authorId,
+          s.text,
+          s.externalId,
+          s.createdAt,
+        );
+      }
+      const statementIds = new Map(
+        sql
+          .exec<{ id: number; external_id: string }>("SELECT id, external_id FROM statements WHERE external_id IS NOT NULL")
+          .toArray()
+          .map((row) => [row.external_id, row.id]),
+      );
+      for (const v of data.votes) {
+        sql.exec(
+          `INSERT INTO votes (participant_id, statement_id, vote, updated_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT (participant_id, statement_id) DO UPDATE SET vote = excluded.vote, updated_at = excluded.updated_at`,
+          v.participantId,
+          statementIds.get(v.externalId)!,
+          v.vote,
+          v.updatedAt,
+        );
+      }
+    });
+    this.broadcast({ type: "counts", counts: this.counts() });
+    await this.ctx.storage.setAlarm(Date.now()); // the math, right away
+    return { statements: data.statements.length, participants: data.participants.length, votes: data.votes.length };
   }
 
   // Recompute the opinion groups. It only reads the current votes and
