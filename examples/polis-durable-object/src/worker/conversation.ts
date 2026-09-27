@@ -1,10 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Counts, MathResult, ServerMessage, Statement, Vote } from "../shared/types";
+import { computeMath, type VoteRow } from "./math";
 
 // One instance per conversation (the Worker picks it with getByName(convoId)).
 // It trusts the participantId the Worker passes in, including in the
 // X-Participant-Id header on the WebSocket upgrade.
 export const PARTICIPANT_HEADER = "x-participant-id";
+
+// How long after a write the math runs. Debounces bursts of votes.
+const MATH_DELAY_MS = 3_000;
 
 export class Conversation extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
@@ -66,7 +70,7 @@ export class Conversation extends DurableObject<Env> {
     return rows[0] ?? null;
   }
 
-  addStatement(participantId: string, text: string): Statement {
+  async addStatement(participantId: string, text: string): Promise<Statement> {
     const now = Date.now();
     this.ensureParticipant(participantId, now);
     const statement = this.ctx.storage.sql
@@ -78,12 +82,12 @@ export class Conversation extends DurableObject<Env> {
         now,
       )
       .one();
-    this.afterWrite();
+    await this.afterWrite();
     return statement;
   }
 
   // Upserts, so the last vote wins. Returns false if there's no such statement.
-  vote(participantId: string, statementId: number, vote: Vote): boolean {
+  async vote(participantId: string, statementId: number, vote: Vote): Promise<boolean> {
     const exists = this.ctx.storage.sql.exec("SELECT 1 FROM statements WHERE id = ?", statementId).toArray().length > 0;
     if (!exists) return false;
     const now = Date.now();
@@ -96,12 +100,31 @@ export class Conversation extends DurableObject<Env> {
       vote,
       now,
     );
-    this.afterWrite();
+    await this.afterWrite();
     return true;
   }
 
-  private afterWrite() {
+  // Recompute the opinion groups. It only reads the current votes and
+  // overwrites one value, so running it twice is harmless; if it throws, the
+  // runtime retries the alarm.
+  async alarm() {
+    const votes = this.ctx.storage.sql
+      .exec<VoteRow>("SELECT participant_id AS participantId, statement_id AS statementId, vote FROM votes")
+      .toArray();
+    const statementIds = this.ctx.storage.sql
+      .exec<{ id: number }>("SELECT id FROM statements ORDER BY id")
+      .toArray()
+      .map((row) => row.id);
+    const math = computeMath(votes, statementIds);
+    this.ctx.storage.kv.put("math", math);
+    this.broadcast({ type: "math", math });
+  }
+
+  private async afterWrite() {
     this.broadcast({ type: "counts", counts: this.counts() });
+    // Only if none is pending, so a burst of writes runs the math once, and
+    // an idle conversation never wakes.
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + MATH_DELAY_MS);
   }
 
   private counts(): Counts {
