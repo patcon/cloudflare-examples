@@ -1,12 +1,12 @@
 # polis-durable-object: a Polis-style conversation in a Durable Object
 
-A minimal [Polis](https://pol.is)-style conversation, running in one Cloudflare Durable Object per conversation. Participants add statements and vote agree, disagree or pass. An alarm recomputes the opinion groups a few seconds after the votes come in, and a live map of every participant updates over a WebSocket. An admin page seeds a conversation from a Polis CSV export, so you can try it on real data.
+A minimal [Polis](https://pol.is)-style conversation, running in one Cloudflare Durable Object per conversation. Participants add statements and vote agree, disagree or pass. An alarm recomputes the opinion groups a few seconds after the votes come in, and a live map of every participant updates over a WebSocket. Below the map, Polis's representative statements show what sets each group apart, and its consensus statements show what most people agree or disagree on. An admin page seeds a conversation from a Polis CSV export, so you can try it on real data.
 
 There's no login, no moderation and no project or group-chat scope yet. Each is a later layer: see [`PLAN.md`](PLAN.md#later).
 
-| New conversation | Import page | Populated conversation |
-|---|---|---|
-| ![A new, empty conversation](docs/new-conversation.png) | ![The admin page for importing a Polis export](docs/import-page.png) | ![A conversation seeded from a Polis export, with its opinion map](docs/populated-conversation.png) |
+| New conversation | Import page | Populated conversation | Statement explorer |
+|---|---|---|---|
+| ![A new, empty conversation](docs/new-conversation.png) | ![The admin page for importing a Polis export](docs/import-page.png) | ![A conversation seeded from a Polis export, with its opinion map](docs/populated-conversation.png) | ![The statements most people agree or disagree on, then what sets each opinion group apart](docs/statement-explorer.png) |
 
 ## Run it
 
@@ -67,7 +67,7 @@ Open `/transport` to see the map, and vote alongside the imported participants. 
 - **Who you are:** the Worker gives each browser a random secret in a `polis_participant` cookie (`HttpOnly`, a year long). Your public participant ID is a hash of it, because the IDs are sent to everyone for the map and mustn't work as credentials. A cookie also works on the WebSocket upgrade, where a page can't set headers. Requests that change something must come from the page's own origin.
 - **The Conversation DO** keeps `participants`, `statements` and `votes` in its SQLite storage. Votes are 1 (agree), −1 (disagree) and 0 (pass), as in Polis's `votes.csv`, and voting again replaces your vote. Unlike Polis, adding a statement doesn't vote for you, so you can vote on your own statements.
 - **Live updates:** the page opens a WebSocket (with [partysocket](https://github.com/partykit/partykit/tree/main/packages/partysocket), which reconnects by itself), and the DO accepts it with the hibernation API. A new socket gets a snapshot; after every write, every socket gets the new counts. Pages never send over the socket: all writes go through HTTP.
-- **The math:** each write schedules an alarm 3 seconds out, unless one is pending, so a burst of votes runs the math once and an idle conversation never wakes. The alarm runs `computeMath`, saves the result and sends it to every socket.
+- **The math:** each write schedules an alarm 3 seconds out, unless one is pending, so a burst of votes runs the math once and an idle conversation never wakes. The alarm runs `computeMath`, saves the result and sends it to every socket. The result includes vote counts for each statement, for everyone and for each group, but never anyone's individual votes.
 
 ## The math, and how it differs from Polis
 
@@ -79,6 +79,15 @@ Open `/transport` to see the map, and vote alongside the imported participants. 
 4. **k-means** for k = 2 to 5, keeping the k with the best silhouette score.
 
 Polis also clusters its participants into 100 base clusters first, and smooths k so it only changes after it's been better for a while. We leave both out, so **the number of groups can jump** from one recompute to the next, and it won't always match a Polis report. On the #TransportNewNormal export, Polis's report shows 3 groups; this shows 4, with silhouettes of 0.315 (k = 2), 0.252 (3), 0.325 (4) and 0.280 (5), and a few new votes tip it to 3. The map's footer shows `k` and the silhouettes, to make this easy to watch.
+
+## Representative and consensus statements
+
+`src/shared/repness.ts` ports Polis's statement selection (`select-rep-comments` and `select-consensus-comments` in `math/src/polismath/math/repness.clj`). The page runs it on the vote counts in each `math` message. It has no imports, so it could move into the alarm, or into a library, unchanged.
+
+- **Representative statements, for each group:** up to 5 statements the group agrees (or disagrees) with both more than half the time and more than the other groups do, each at 90% confidence. The group's best agreed-on statement goes first, so every group shows something it agrees on.
+- **Consensus statements:** up to 5 that more than half of everyone agrees with, and up to 5 that more than half disagree with, at 90% confidence. They use every voter, not just the clustered ones, so they show before there are any groups.
+
+It follows the Clojure rules without matching every edge case. Where they differ, it reports the best agreed-on statement as an agree, where Clojure calls it a disagree when every group agrees. On a real Polis conversation (`test/fixtures/polis-below-100-ptpts`), it picks the same statements as Polis given Polis's groups. Here the groups come from our own clustering, so the lists won't always match a Polis report.
 
 ## The CSV import
 
@@ -95,6 +104,7 @@ Polis also clusters its participants into 100 base clusters first, and smooths k
 |---|---|
 | `GET /api/:convoId/me` | `{ participantId }`, and sets the cookie |
 | `GET /api/:convoId/next` | A random statement you haven't voted on, or `null` |
+| `GET /api/:convoId/statements` | Every statement, `{ id, text }`, by ID |
 | `POST /api/:convoId/statements` | `{ text }` (1–1,000 characters) → the new statement |
 | `POST /api/:convoId/votes` | `{ statementId, vote: -1 \| 0 \| 1 }` → 204 |
 | `GET /api/:convoId/ws` | The WebSocket: `snapshot`, `counts` and `math` messages |
@@ -109,9 +119,10 @@ src/worker/index.ts            routes, the participant cookie, the origin checks
 src/worker/conversation.ts     the Conversation Durable Object: schema, RPC methods, WebSockets, alarm
 src/worker/math.ts             PCA and k-means, pure functions
 src/worker/polis-csv.ts        the CSV parser and Polis export reader, pure functions
+src/shared/repness.ts          representative and consensus statements from vote counts, pure functions
 src/shared/types.ts            API and WebSocket types, used by the Worker and the page
-src/react-app/                 the pages: Home, Participant (vote card, statement form, map), Admin
-test/                          Vitest tests for math.ts and polis-csv.ts
+src/react-app/                 the pages: Home, Participant (vote card, statement form, map, statements), Admin
+test/                          Vitest tests for math.ts, repness.ts and polis-csv.ts, and a Polis fixture
 docs/                          the README's screenshots
 wrangler.jsonc                 the Durable Object binding and static assets
 PLAN.md                        the plan this was built from, and what comes later
