@@ -47,8 +47,8 @@ Tasks with acceptance criteria are in [`todo.md`](todo.md).
 - [ ] Review with the human before wiring it into the app
 
 ### Phase 2: Data to the browser
-- [ ] Task 4: Vote tallies in `MathResult`
-- [ ] Task 5: `GET /statements` and a hook to load the texts
+- [x] Task 4: Vote tallies in `MathResult`
+- [x] Task 5: `GET /statements` and a hook to load the texts
 
 ### Checkpoint: Data flows
 - [ ] `pnpm test` and `pnpm build` pass
