@@ -26,7 +26,8 @@ After a few seconds it prints a link like `https://some-random-words.trycloudfla
 ## How it works
 
 - **One Durable Object per PIN.** Both devices open a socket to `/teleporter/<pin>`. The Worker sends the upgrade to `TELEPORTER.getByName(pin)`, so both land in the same `Teleporter` instance.
-- **A dumb relay.** `Teleporter` accepts each socket with the hibernation API (`ctx.acceptWebSocket`) and passes every message to every *other* socket on the same PIN (`ctx.getWebSockets()`). It stores nothing, and it can sleep between messages while the sockets stay open.
+- **A dumb relay.** `Teleporter` accepts each socket with the hibernation API (`ctx.acceptWebSocket`) and passes every message to the *other* socket on the same PIN (`ctx.getWebSockets()`). It stores nothing, and it can sleep between messages while the sockets stay open.
+- **Two devices per PIN.** A transfer is between two devices, so `Teleporter` turns away a third socket. It accepts it and closes it straight away with code `4000`, because a refused upgrade only reaches the browser as a generic error. The client tells PartySocket not to reconnect on that code (`shouldReconnectOnClose`) and shows "PIN … is already in use by two devices". When a device disconnects, its place is free again.
 - **The protocol lives in the client.** The receiver sends `{ "type": "request_session" }`, and the sender answers `{ "type": "session_payload", "payload": { "sessionId": "…" } }`.
 
 | PartyKit | Here |
@@ -40,8 +41,8 @@ After a few seconds it prints a link like `https://some-random-words.trycloudfla
 | Route | Does |
 |---|---|
 | `GET /` | The page (static assets from `public/`) |
-| `GET /teleporter/:pin` | WebSocket for a 6-digit PIN. Returns 426 without an upgrade, and 404 for anything that isn't 6 digits |
+| `GET /teleporter/:pin` | WebSocket for a 6-digit PIN. A third socket on a PIN is closed with code `4000`. Returns 426 without an upgrade, and 404 for anything that isn't 6 digits |
 
 ## Caveats
 
-It's a proof of concept, as the original was. Anyone who knows or guesses a PIN while it's open can ask for the session, and the session ID crosses the relay in plain text. The original repo's to-do list (choosing to send or receive, seeing who's connected, confirming before overwriting a session) still applies.
+It's a proof of concept, as the original was. Anyone who knows or guesses a PIN while it's open, and gets there before the real second device, can ask for the session, and the session ID crosses the relay in plain text. The original repo's to-do list (choosing to send or receive, seeing who's connected, confirming before overwriting a session) still applies.

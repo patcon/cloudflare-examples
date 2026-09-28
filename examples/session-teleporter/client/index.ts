@@ -20,10 +20,25 @@ function randomPin(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Close code the server sends when a PIN already has two devices (see
+// PIN_FULL in src/teleporter.ts).
+const PIN_FULL = 4000;
+
 // The Worker serves the page and the sockets, so connect to wherever the page
 // came from: ws(s)://<host>/teleporter/<pin>.
 function connect(pin: string): PartySocket {
-  return new PartySocket({ host: location.host, basePath: `teleporter/${pin}` });
+  const ws = new PartySocket({
+    host: location.host,
+    basePath: `teleporter/${pin}`,
+    // Retrying a full PIN would never work.
+    shouldReconnectOnClose: (evt) => evt.code !== PIN_FULL,
+  });
+  ws.addEventListener('close', (evt) => {
+    if (evt.code !== PIN_FULL) return;
+    pinSection.classList.remove('hidden');
+    status.textContent = `PIN ${pin} is already in use by two devices.`;
+  });
+  return ws;
 }
 
 // --- Generate session ID immediately on page load ---
