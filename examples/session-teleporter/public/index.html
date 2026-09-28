@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Session Teleporter</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <h1>Session Teleporter</h1>
+
+  <p>This page simulates transferring a session ID from one device to another, relayed by a Cloudflare Durable Object.</p>
+
+<div id="sessionInfo">
+  <p><strong>Session ID:</strong> <span id="sessionId"></span></p>
+</div>
+
+  <div>
+    <button id="generate">Generate Transfer Link</button>
+    <button id="showPinBtn">Have a PIN?</button>
+
+    <div id="linkArea" class="hidden">
+      <p><strong>Transfer URL:</strong> <span id="joinUrl"></span></p>
+      <canvas id="qr"></canvas>
+    </div>
+
+    <div id="pinSection" class="hidden">
+      <input id="pinInput" placeholder="Enter PIN" />
+      <button id="joinByPin">Initiate Transfer</button>
+      <p id="status"></p>
+    </div>
+  </div>
+
+  <script type="module" src="./dist/client.js"></script>
+</body>
+</html>

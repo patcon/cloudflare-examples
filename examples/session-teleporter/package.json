@@ -1,0 +1,33 @@
+{
+  "name": "session-teleporter",
+  "version": "1.0.0",
+  "description": "Move a session between devices by PIN or QR code, relayed by a Cloudflare Durable Object",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "esbuild client/index.ts --bundle --format=esm --outfile=public/dist/client.js",
+    "typecheck": "wrangler types && tsc && tsc -p client",
+    "types": "wrangler types"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.5",
+  "dependencies": {
+    "hono": "^4.13.8",
+    "partysocket": "^1.0.2",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "esbuild": "^0.25.0",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.137.0"
+  },
+  "private": true,
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
+  }
+}

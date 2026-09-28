@@ -1,0 +1,25 @@
+body {
+  font-family: sans-serif;
+  padding: 1rem;
+}
+
+#qr {
+  margin-top: 1rem;
+}
+
+.hidden {
+  display: none;
+}
+
+input {
+  padding: 0.3rem;
+}
+
+button {
+  padding: 0.4rem 0.7rem;
+  margin-right: 0.5rem;
+}
+
+#pinSection {
+  margin-top: 1rem;
+}
