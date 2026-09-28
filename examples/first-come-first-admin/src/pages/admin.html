@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .badge { background: var(--accent); color: var(--accent-text); border-radius: 999px; padding: 1px 8px; font-size: 0.75rem; margin-left: 6px; vertical-align: middle; }
+    section + section { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+    form { display: flex; gap: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 8px 6px; border-top: 1px solid var(--border); vertical-align: middle; }
+    td.count { font-variant-numeric: tabular-nums; text-align: right; width: 4ch; }
+    td.action { text-align: right; width: 1%; white-space: nowrap; }
+    #error:empty, #done:empty { display: none; }
+  </style>
+</head>
+<body>
+  <main class="centered">
+    <header>
+      <h1>Admin</h1>
+      <a id="back" href="#">← Back to the room</a>
+    </header>
+
+    <div class="panel">
+      <p class="muted">Only this room's admins can open this page. To everyone else, <code id="path"></code> is a 404.</p>
+      <p class="error" id="error"></p>
+      <p class="ok" id="done"></p>
+
+      <section>
+        <h2>Title</h2>
+        <form id="title-form">
+          <input id="title" maxlength="100" required aria-label="Title">
+          <button class="primary">Save</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Counters</h2>
+        <button id="reset">Reset all counters</button>
+      </section>
+
+      <section>
+        <h2>Users</h2>
+        <p class="muted hint">Admins can't be demoted, so choose carefully.</p>
+        <table><tbody id="rows"></tbody></table>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    const roomId = location.pathname.split("/")[1];
+    const api = `/api/rooms/${roomId}`;
+    document.getElementById("back").href = `/${roomId}`;
+    document.getElementById("path").textContent = location.pathname;
+
+    const esc = (text) => String(text).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+    const errorEl = document.getElementById("error");
+    const doneEl = document.getElementById("done");
+    const titleInput = document.getElementById("title");
+
+    // Every admin call answers with the room as it is now.
+    async function call(what, path, init) {
+      errorEl.textContent = doneEl.textContent = "";
+      const res = await fetch(api + path, init);
+      const body = await res.json();
+      if (!res.ok) {
+        errorEl.textContent = `Couldn't ${what}: ${res.status} ${body.error}`;
+        return false;
+      }
+      render(body);
+      return true;
+    }
+
+    let me;
+    function render({ title, users }) {
+      titleInput.value = title;
+      document.getElementById("rows").innerHTML = users
+        .map((user) => `<tr>
+          <td>${esc(user.name)}${user.id === me.id ? " (you)" : ""} <code>${esc(user.id)}</code></td>
+          <td class="count">${user.count}</td>
+          <td class="action">${
+            user.isAdmin
+              ? '<span class="badge">admin</span>'
+              : `<button data-id="${esc(user.id)}" data-name="${esc(user.name)}">Make admin</button>`
+          }</td>
+        </tr>`)
+        .join("");
+    }
+
+    document.getElementById("title-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const ok = await call("save the title", "/title", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: titleInput.value }),
+      });
+      if (ok) doneEl.textContent = "Title saved.";
+    });
+
+    document.getElementById("reset").addEventListener("click", async () => {
+      if (!confirm("Set everyone's counter back to 0?")) return;
+      if (await call("reset the counters", "/reset", { method: "POST" })) doneEl.textContent = "Counters reset.";
+    });
+
+    document.getElementById("rows").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-id]");
+      if (!button) return;
+      const { id, name } = button.dataset;
+      if (!confirm(`Make ${name} an admin? This can't be undone.`)) return;
+      button.disabled = true;
+      if (await call("make them an admin", `/users/${encodeURIComponent(id)}/admin`, { method: "POST" })) {
+        doneEl.textContent = `${name} is now an admin.`;
+      }
+    });
+
+    const res = await fetch(api);
+    const room = await res.json();
+    me = room.me;
+    render(room);
+  </script>
+</body>
+</html>

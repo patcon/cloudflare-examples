@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>first-come-first-admin</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .badge { background: var(--accent); color: var(--accent-text); border-radius: 999px; padding: 1px 8px; font-size: 0.75rem; margin-left: 6px; vertical-align: middle; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 10px 6px; border-top: 1px solid var(--border); vertical-align: middle; }
+    td.count { font-size: 1.4rem; font-variant-numeric: tabular-nums; text-align: right; width: 4ch; }
+    td.action { text-align: right; width: 1%; white-space: nowrap; }
+    tr.me td:first-child { font-weight: 600; }
+    #error:empty { display: none; }
+    #admin-link[hidden] { display: none; } /* otherwise .button's display: inline-block overrides `hidden` */
+  </style>
+</head>
+<body>
+  <main class="centered">
+    <header>
+      <h1 id="title">…</h1>
+      <a id="admin-link" class="button primary" hidden>Admin page →</a>
+    </header>
+
+    <div class="panel">
+      <p id="whoami">Loading…</p>
+      <p class="muted">The first person to open this URL became its admin. Everyone after them is a regular user, until an admin makes them one too. Share the link to invite others. You can only increment your own counter.</p>
+      <p class="error" id="error"></p>
+      <table><tbody id="rows"></tbody></table>
+    </div>
+  </main>
+
+  <script type="module">
+    const roomId = location.pathname.split("/")[1];
+    const api = `/api/rooms/${roomId}`;
+    const esc = (text) => String(text).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+    const badge = (user) => (user.isAdmin ? '<span class="badge">admin</span>' : "");
+    const errorEl = document.getElementById("error");
+    const showError = async (what, res) => {
+      errorEl.textContent = `Couldn't ${what}: ${res.status} ${(await res.json()).error}`;
+    };
+
+    function render({ me, title, users }) {
+      document.title = title;
+      document.getElementById("title").textContent = title;
+      document.getElementById("whoami").innerHTML = `You are <strong>${esc(me.name)}</strong> <code>${esc(me.id)}</code>${badge(me)}`;
+      const link = document.getElementById("admin-link");
+      link.href = `/${roomId}/admin`;
+      link.hidden = !me.isAdmin;
+      document.getElementById("rows").innerHTML = users
+        .map((user) => {
+          const mine = user.id === me.id;
+          return `<tr class="${mine ? "me" : ""}">
+            <td>${esc(user.name)}${mine ? " (you)" : ""} ${badge(user)}</td>
+            <td class="count" data-id="${esc(user.id)}">${user.count}</td>
+            <td class="action">${mine ? '<button class="primary" id="increment">+1</button>' : ""}</td>
+          </tr>`;
+        })
+        .join("");
+      document.getElementById("increment").addEventListener("click", increment);
+    }
+
+    // Joins you on your first visit: if the room was empty, you're its admin.
+    async function load() {
+      const res = await fetch(api);
+      if (!res.ok) return showError("load the room", res);
+      errorEl.textContent = "";
+      render(await res.json());
+    }
+
+    async function increment(event) {
+      const button = event.currentTarget;
+      button.disabled = true;
+      const res = await fetch(`${api}/increment`, { method: "POST" });
+      button.disabled = false;
+      if (!res.ok) return showError("increment", res);
+      const { id, count } = await res.json();
+      document.querySelector(`td.count[data-id="${CSS.escape(id)}"]`).textContent = count;
+    }
+
+    // No live updates: see what others did (or an admin changed) when you come back.
+    addEventListener("focus", load);
+    await load();
+  </script>
+</body>
+</html>
