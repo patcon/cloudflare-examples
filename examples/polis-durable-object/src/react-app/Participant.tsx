@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { Me, Statement, Vote } from "../shared/types";
 import { Scatter } from "./Scatter";
+import { StatementExplorer } from "./StatementExplorer";
 import { useConversation } from "./useConversation";
+import { useStatements } from "./useStatements";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
@@ -47,6 +49,7 @@ export function Participant({ convoId }: { convoId: string }) {
   }, [base]);
 
   const live = useConversation(convoId, me !== null);
+  const texts = useStatements(base, me !== null, live.counts?.statements);
 
   // When someone adds a statement and this participant had run out, fetch one.
   const statementCount = live.counts?.statements;
@@ -71,6 +74,7 @@ export function Participant({ convoId }: { convoId: string }) {
       <VoteCard base={base} statement={statement} onVoted={loadNext} onError={setError} />
       <StatementForm base={base} onAdded={() => statement === null && loadNext()} onError={setError} />
       <Scatter math={live.math} selfId={me?.participantId} />
+      <StatementExplorer math={live.math} texts={texts} />
     </main>
   );
 }

@@ -125,3 +125,10 @@ form .actions { margin-top: 16px; }
 .scatter .legend li { display: flex; align-items: center; gap: 6px; }
 .scatter .legend svg { width: 14px; height: 14px; }
 .scatter .debug { margin: 8px 0 0; }
+
+.explorer h3 { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; margin: 16px 0 4px; }
+.explorer h3 svg { width: 14px; height: 14px; flex: none; }
+.explorer ul { margin: 0; padding: 0; list-style: none; }
+.explorer li { padding: 8px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.explorer li:first-child { border-top: none; }
+.explorer li .hint { display: block; }

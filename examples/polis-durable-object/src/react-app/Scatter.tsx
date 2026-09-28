@@ -9,11 +9,11 @@ const PAD = 20;
 const R = 4;
 
 type Shape = "circle" | "square" | "triangle" | "diamond" | "plus";
-const SHAPES: Shape[] = ["circle", "square", "triangle", "diamond", "plus"];
-const groupLetter = (group: number) => String.fromCharCode(65 + group);
-const groupColor = (group: number) => `var(--group-${group})`;
+export const SHAPES: Shape[] = ["circle", "square", "triangle", "diamond", "plus"];
+export const groupLetter = (group: number) => String.fromCharCode(65 + group);
+export const groupColor = (group: number) => `var(--group-${group})`;
 
-function Marker({ shape, x, y, r, fill }: { shape: Shape; x: number; y: number; r: number; fill: string }) {
+export function Marker({ shape, x, y, r, fill }: { shape: Shape; x: number; y: number; r: number; fill: string }) {
   // A ring in the panel color keeps overlapping markers apart.
   const ring = { fill, stroke: "var(--panel)", strokeWidth: 1.5 };
   if (shape === "circle") return <circle cx={x} cy={y} r={r} {...ring} />;
