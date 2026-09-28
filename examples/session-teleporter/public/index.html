@@ -4,48 +4,113 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Session Teleporter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;800&display=swap">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <h1>Session Teleporter</h1>
+  <!-- Icons, used with <svg><use href="#i-…"/></svg> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="14" rx="2"/><path d="M14 10l7-7M15 3h6v6"/></symbol>
+      <symbol id="i-get" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="14" rx="2"/><path d="M21 3l-7 7M14 4v6h6"/></symbol>
+      <symbol id="i-keypad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 5h.01M12 5h.01M18 5h.01M6 11h.01M12 11h.01M18 11h.01M6 17h.01M12 17h.01M18 17h.01"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></symbol>
+      <symbol id="i-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></symbol>
+    </defs>
+  </svg>
 
-  <p>This page simulates moving a session ID between two devices, relayed by a Cloudflare Durable Object. Pair two devices, then either one can send its session or ask for the other's.</p>
+  <header class="brand">
+    <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="2"/><rect x="14" y="14" width="8" height="8" rx="2"/><path d="M10 10l4 4" /></svg>
+    Session teleporter
+  </header>
 
-  <div id="sessionInfo">
-    <p><strong>Session ID:</strong> <span id="sessionId"></span></p>
-    <p id="previousInfo" class="hidden">
-      <strong>Previous:</strong> <span id="previousId"></span>
-      <button id="switchBack">Switch back</button>
-    </p>
-  </div>
+  <main class="panel">
+    <!-- This device's session, always visible -->
+    <section class="identity" aria-live="polite">
+      <div id="glyph" class="glyph" aria-hidden="true"></div>
+      <div class="identity-text">
+        <p class="identity-label">This device's session</p>
+        <p id="sessionId" class="session-id"></p>
+        <p id="previousInfo" class="previous" hidden>
+          Replaced <span id="previousId"></span>.
+          <button id="switchBack" class="link"><svg class="icon"><use href="#i-undo"/></svg>Switch back</button>
+        </p>
+      </div>
+    </section>
 
-  <div>
-    <button id="generate">Generate Transfer Link</button>
-    <button id="showPinBtn">Have a PIN?</button>
+    <!-- 1. What do you want to do? -->
+    <section id="screen-home" class="screen">
+      <h1>Move your session</h1>
+      <p class="lede">Your session is how this site knows it's you, without a login. Move it to your phone, or bring it here from another device.</p>
+      <div class="choices">
+        <button id="chooseSend" class="choice">
+          <svg class="choice-icon"><use href="#i-send"/></svg>
+          <span><strong>Move to another device</strong><span>You'll get a code to scan or type on the other device</span></span>
+        </button>
+        <button id="chooseGet" class="choice">
+          <svg class="choice-icon"><use href="#i-get"/></svg>
+          <span><strong>Bring to this device</strong><span>You'll get a code to scan or type on the device that has it</span></span>
+        </button>
+      </div>
+      <button id="chooseEnter" class="link"><svg class="icon"><use href="#i-keypad"/></svg>Got a code from another device? Enter it</button>
+    </section>
 
-    <div id="linkArea" class="hidden">
-      <p><strong>Transfer URL:</strong> <span id="joinUrl"></span></p>
-      <canvas id="qr"></canvas>
-    </div>
+    <!-- 2a. Show a code for the other device -->
+    <section id="screen-code" class="screen" hidden>
+      <h1 id="codeTitle"></h1>
+      <p class="lede">On your other device, scan this with the camera, or go to <strong id="hostName"></strong> and enter the code.</p>
+      <div class="code">
+        <canvas id="qr" aria-label="QR code of the link"></canvas>
+        <p class="pin" id="pinDisplay"></p>
+      </div>
+      <p id="codeStatus" class="status"></p>
+      <button class="secondary" data-action="start-over">Cancel</button>
+    </section>
 
-    <div id="pinSection" class="hidden">
-      <input id="pinInput" placeholder="Enter PIN" />
-      <button id="joinByPin">Pair</button>
-    </div>
+    <!-- 2b. Enter the other device's code -->
+    <section id="screen-enter" class="screen" hidden>
+      <h1>Enter the code</h1>
+      <p class="lede">Type the 6-digit code shown on your other device.</p>
+      <form id="pinForm" class="pin-form">
+        <input id="pinInput" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required aria-label="6-digit code" placeholder="000000" />
+        <button class="primary" type="submit">Connect</button>
+      </form>
+      <p id="enterError" class="status" hidden></p>
+      <button class="link" data-action="start-over">Back</button>
+    </section>
 
-    <p id="status"></p>
+    <!-- 3. Connected: the transfer itself -->
+    <section id="screen-connected" class="screen" hidden>
+      <p id="connStatus" class="status"></p>
 
-    <div id="pairedActions" class="hidden">
-      <button id="sendMine">Send my session →</button>
-      <button id="askTheirs">← Ask for theirs</button>
-    </div>
+      <div id="prompt" class="prompt" hidden>
+        <div id="promptGlyph" class="glyph small" aria-hidden="true"></div>
+        <div class="prompt-text">
+          <p id="promptTitle" class="prompt-title"></p>
+          <p id="promptId" class="session-id"></p>
+        </div>
+        <div class="prompt-actions">
+          <button id="promptYes" class="primary"></button>
+          <button id="promptNo" class="secondary"></button>
+        </div>
+      </div>
 
-    <div id="prompt" class="hidden">
-      <p id="promptText"></p>
-      <button id="promptYes"></button>
-      <button id="promptNo"></button>
-    </div>
-  </div>
+      <details id="moreActions" class="more">
+        <summary>Send or get a session yourself</summary>
+        <div class="more-actions">
+          <button id="sendMine" class="secondary"><svg class="icon"><use href="#i-send"/></svg>Send this device's session</button>
+          <button id="askTheirs" class="secondary"><svg class="icon"><use href="#i-get"/></svg>Get the other device's session</button>
+        </div>
+      </details>
+
+      <button class="link" data-action="start-over">Disconnect</button>
+    </section>
+  </main>
+
+  <footer class="footnote">Both devices connect to the code's own Cloudflare Durable Object, which passes messages between them and stores nothing.</footer>
 
   <script type="module" src="./dist/client.js"></script>
 </body>
