@@ -182,4 +182,4 @@ Each row shows the statement text, and "n of m agreed" or "disagreed" (`nSuccess
 
 ## Checkpoint: Complete
 - [x] All acceptance criteria met; `pnpm test` and `pnpm build` pass
-- [x] Ready for review
+- [ ] Ready for review
