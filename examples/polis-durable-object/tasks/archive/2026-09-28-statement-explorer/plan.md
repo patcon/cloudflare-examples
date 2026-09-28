@@ -60,7 +60,7 @@ Tasks with acceptance criteria are in [`todo.md`](todo.md).
 
 ### Checkpoint: Complete
 - [x] Imported Polis export shows consensus and per-group lists; a fresh conversation shows consensus before groups exist
-- [ ] Ready for review
+- [x] Ready for review
 
 ## Risks and Mitigations
 
