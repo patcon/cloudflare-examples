@@ -11,7 +11,7 @@ describe("computeMath", () => {
   it("returns no groups when nobody has voted", () => {
     const result = computeMath([], statementIds(3), NOW);
 
-    expect(result).toEqual({ computedAt: NOW, k: null, silhouettes: {}, participants: [], groups: [] });
+    expect(result).toEqual({ computedAt: NOW, k: null, silhouettes: {}, participants: [], groups: [], tallies: [] });
   });
 
   it("finds two groups for two opposed voting blocs", () => {
@@ -105,6 +105,45 @@ describe("computeMath", () => {
     expect(result.k).not.toBeNull();
     for (let i = 0; i < 16; i++) expect(groupOf(result, `heavy${i}`)).not.toBeNull();
     for (let i = 0; i < 3; i++) expect(groupOf(result, `light${i}`)).toBeNull();
+  });
+
+  it("tallies each statement for everyone, and for each group's members only", () => {
+    // 16 clustered voters on statements 1–8, 3 unclustered ones who agree
+    // with statement 1, and a statement 9 nobody voted on.
+    const votes: VoteRow[] = [];
+    for (let i = 0; i < 16; i++) {
+      for (const s of statementIds(8)) {
+        votes.push({ participantId: `heavy${i}`, statementId: s, vote: (s + i) % 3 === 0 ? -1 : 1 });
+      }
+    }
+    for (let i = 0; i < 3; i++) votes.push({ participantId: `light${i}`, statementId: 1, vote: 1 });
+
+    const result = computeMath(votes, statementIds(9), NOW);
+
+    expect(result.tallies.map((t) => t.statementId)).toEqual(statementIds(8));
+    const first = result.tallies[0];
+    const heavyAgrees = votes.filter((v) => v.statementId === 1 && v.vote === 1 && v.participantId.startsWith("heavy")).length;
+    expect(first.all).toEqual({ agree: heavyAgrees + 3, disagree: 16 - heavyAgrees, seen: 19 });
+    expect(first.groups).toHaveLength(result.groups.length);
+    expect(first.groups.reduce((a, g) => a + g.seen, 0)).toBe(16);
+    // Each group's count matches its members' votes.
+    result.groups.forEach(({ id }, g) => {
+      const members = result.participants.filter((p) => p.group === id).map((p) => p.id);
+      const agrees = votes.filter((v) => v.statementId === 1 && v.vote === 1 && members.includes(v.participantId)).length;
+      expect(first.groups[g].agree).toBe(agrees);
+    });
+  });
+
+  it("tallies everyone, with no groups, when there are too few to cluster", () => {
+    const votes: VoteRow[] = [
+      { participantId: "p", statementId: 1, vote: 1 },
+      { participantId: "q", statementId: 1, vote: 0 },
+    ];
+
+    const result = computeMath(votes, statementIds(2), NOW);
+
+    expect(result.k).toBeNull();
+    expect(result.tallies).toEqual([{ statementId: 1, all: { agree: 1, disagree: 0, seen: 2 }, groups: [] }]);
   });
 
   it("pushes sparse voters out from the center", () => {

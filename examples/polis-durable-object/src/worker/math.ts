@@ -1,8 +1,9 @@
+import { tallyVotes } from "../shared/repness";
 import type { MathResult, Vote } from "../shared/types";
 
 // A simplified port of Polis's Clojure math (math/src/polismath/math/): PCA
-// for the 2D map, then k-means for the opinion groups. No base clusters and
-// no k smoothing. Pure, with no dependencies, so it's easy to test and could
+// for the 2D map, then k-means for the opinion groups, then vote tallies for
+// each group. No base clusters and no k smoothing. Pure, with no dependencies, so it's easy to test and could
 // move into a Workflow or Container later.
 
 export type VoteRow = { participantId: string; statementId: number; vote: Vote };
@@ -32,7 +33,7 @@ export function computeMath(votes: VoteRow[], statementIds: number[], computedAt
   const rows = ids.map((id) => ratings.get(id)!);
   const nVotes = rows.map((row) => row.filter((v) => v !== null).length);
 
-  if (ids.length === 0) return { computedAt, k: null, silhouettes: {}, participants: [], groups: [] };
+  if (ids.length === 0) return { computedAt, k: null, silhouettes: {}, participants: [], groups: [], tallies: [] };
 
   // 2. Each statement's average vote. Filling missing votes with it and then
   // centering (conversation.clj:352-377) leaves 0 wherever someone didn't vote.
@@ -80,12 +81,21 @@ export function computeMath(votes: VoteRow[], statementIds: number[], computedAt
     groups = [...renumber].map(([c, id]) => ({ id, center: best.centers[c], members: sizes[c] }));
   }
 
+  // 8. Vote counts for each statement: everyone's, and each group's members'.
+  const groupOf = new Map(ids.map((id, i) => [id, group[i]]));
+  const tallies = tallyVotes(
+    votes.filter((v) => column.has(v.statementId)),
+    (id) => groupOf.get(id),
+    groups.length,
+  );
+
   return {
     computedAt,
     k: best ? groups.length : null,
     silhouettes,
     participants: ids.map((id, i) => ({ id, x: points[i][0], y: points[i][1], group: group[i], nVotes: nVotes[i] })),
     groups,
+    tallies,
   };
 }
 

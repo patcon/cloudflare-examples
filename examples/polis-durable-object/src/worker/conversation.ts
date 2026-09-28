@@ -50,11 +50,13 @@ export class Conversation extends DurableObject<Env> {
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ participantId });
-    this.send(server, {
-      type: "snapshot",
-      counts: this.counts(),
-      math: this.ctx.storage.kv.get<MathResult>("math") ?? null,
-    });
+    const math = this.ctx.storage.kv.get<MathResult>("math") ?? null;
+    this.send(server, { type: "snapshot", counts: this.counts(), math });
+    // Math saved before MathResult had tallies: recompute it now, rather
+    // than waiting for the next vote, which might never come.
+    if (math && !math.tallies && (await this.ctx.storage.getAlarm()) === null) {
+      await this.ctx.storage.setAlarm(Date.now());
+    }
     return new Response(null, { status: 101, webSocket: client });
   }
 

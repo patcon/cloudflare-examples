@@ -1,5 +1,7 @@
 // Types shared by the Worker and the React app.
 
+import type { StatementTally } from "./repness";
+
 // 1 = agree, -1 = disagree, 0 = pass, as in Polis's votes.csv.
 export type Vote = -1 | 0 | 1;
 
@@ -19,6 +21,10 @@ export type MathResult = {
   silhouettes: Record<number, number>; // silhouette for each k tried, for debugging
   participants: { id: string; x: number; y: number; group: number | null; nVotes: number }[];
   groups: { id: number; center: [number, number]; members: number }[];
+  // Vote counts for each statement with a vote, for everyone and for each
+  // group, from which the browser picks representative and consensus
+  // statements (repness.ts).
+  tallies: StatementTally[];
 };
 
 // Sent by the DO over the WebSocket. Clients never send anything: all writes
