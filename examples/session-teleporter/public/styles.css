@@ -23,3 +23,10 @@ button {
 #pinSection {
   margin-top: 1rem;
 }
+
+#prompt {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  background: #fffbe6;
+}

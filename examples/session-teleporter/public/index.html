@@ -9,11 +9,15 @@
 <body>
   <h1>Session Teleporter</h1>
 
-  <p>This page simulates transferring a session ID from one device to another, relayed by a Cloudflare Durable Object.</p>
+  <p>This page simulates moving a session ID between two devices, relayed by a Cloudflare Durable Object. Pair two devices, then either one can send its session or ask for the other's.</p>
 
-<div id="sessionInfo">
-  <p><strong>Session ID:</strong> <span id="sessionId"></span></p>
-</div>
+  <div id="sessionInfo">
+    <p><strong>Session ID:</strong> <span id="sessionId"></span></p>
+    <p id="previousInfo" class="hidden">
+      <strong>Previous:</strong> <span id="previousId"></span>
+      <button id="switchBack">Switch back</button>
+    </p>
+  </div>
 
   <div>
     <button id="generate">Generate Transfer Link</button>
@@ -26,8 +30,20 @@
 
     <div id="pinSection" class="hidden">
       <input id="pinInput" placeholder="Enter PIN" />
-      <button id="joinByPin">Initiate Transfer</button>
-      <p id="status"></p>
+      <button id="joinByPin">Pair</button>
+    </div>
+
+    <p id="status"></p>
+
+    <div id="pairedActions" class="hidden">
+      <button id="sendMine">Send my session →</button>
+      <button id="askTheirs">← Ask for theirs</button>
+    </div>
+
+    <div id="prompt" class="hidden">
+      <p id="promptText"></p>
+      <button id="promptYes"></button>
+      <button id="promptNo"></button>
     </div>
   </div>
 
