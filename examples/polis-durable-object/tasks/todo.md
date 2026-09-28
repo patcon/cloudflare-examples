@@ -99,7 +99,7 @@ The DO's `fetch()` schedules the alarm right away if the stored math has no `tal
 **Acceptance criteria:**
 - [x] For the two-bloc test data, `groups[a].agree` and `groups[b].agree` match the votes, and an unclustered voter counts in `all` but in no group.
 - [x] A statement nobody voted on has no entry; with no votes at all, `tallies` is `[]`.
-- [ ] A stored math value without `tallies` gets recomputed when the next socket connects. (Implemented, but not tested by hand.)
+- [x] A stored math value without `tallies` gets recomputed when the next socket connects. (Checked by saving math without tallies, then reconnecting: a `math` message with tallies follows the snapshot, and the next connect doesn't recompute again.)
 
 **Verification:**
 - [x] Tests pass: `pnpm test math`.
