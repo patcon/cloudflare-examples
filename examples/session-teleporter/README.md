@@ -4,6 +4,14 @@ A minimal example of **handing a session from one device to another** without lo
 
 It's a port of [patcon/partykit-teleport-session](https://github.com/patcon/partykit-teleport-session) from PartyKit to a Hono Worker and a Durable Object. The client still uses [PartySocket](https://www.npmjs.com/package/partysocket), which is just a reconnecting WebSocket, so it barely changed.
 
+| select option | scan QR |
+|---|---|
+| ![select option](docs/select-option.png) | ![scan QR](docs/scan-qr.png) |
+
+| confirm move | review details |
+|---|---|
+| ![confirm move](docs/confirm-move.png) | ![review details](docs/review-details.png) |
+
 ## Run it
 
 ```sh
