@@ -4,9 +4,9 @@ A minimal example of **roles without a login**. The first person to open a URL l
 
 It's modelled on the counter demo in [`dembrane-auth-cookie`](../dembrane-auth-cookie), minus dembrane: nobody logs in. The Worker gives each browser an anonymous cookie, and each room is a Durable Object that remembers who got there first.
 
-| A room, as its admin | The same room, as a regular user | The admin page |
+| admin claims room first | accesses admin page | user sees changes |
 |---|---|---|
-| ![The room as its admin, with an Admin page link](docs/room-as-admin.png) | ![The room as a regular user, with no Admin page link](docs/room-as-regular-user.png) | ![The admin page: title, reset, and Make admin buttons](docs/admin-page.png) |
+| ![admin claims room first](docs/admin-claims-room-first.png) | ![accesses admin page](docs/accesses-admin-page.png) | ![user sees changes](docs/user-sees-changes.png) |
 
 ## Run it
 
