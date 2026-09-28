@@ -43,23 +43,23 @@ Tasks with acceptance criteria are in [`todo.md`](todo.md).
 - [x] Task 3: Representative and consensus selection
 
 ### Checkpoint: The library works
-- [ ] `pnpm test` passes, including the fixture snapshot, and the snapshot looks sensible when read
-- [ ] Review with the human before wiring it into the app
+- [x] `pnpm test` passes, including the fixture snapshot, and the snapshot looks sensible when read
+- [x] Review with the human before wiring it into the app
 
 ### Phase 2: Data to the browser
 - [x] Task 4: Vote tallies in `MathResult`
 - [x] Task 5: `GET /statements` and a hook to load the texts
 
 ### Checkpoint: Data flows
-- [ ] `pnpm test` and `pnpm build` pass
-- [ ] A `math` message over the WebSocket carries `tallies`
+- [x] `pnpm test` and `pnpm build` pass
+- [x] A `math` message over the WebSocket carries `tallies`
 
 ### Phase 3: UI and docs
-- [ ] Task 6: Statement explorer below the scatter plot
-- [ ] Task 7: Update PLAN.md and README
+- [x] Task 6: Statement explorer below the scatter plot
+- [x] Task 7: Update PLAN.md and README
 
 ### Checkpoint: Complete
-- [ ] Imported Polis export shows consensus and per-group lists; a fresh conversation shows consensus before groups exist
+- [x] Imported Polis export shows consensus and per-group lists; a fresh conversation shows consensus before groups exist
 - [ ] Ready for review
 
 ## Risks and Mitigations

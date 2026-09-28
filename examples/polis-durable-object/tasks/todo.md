@@ -84,8 +84,8 @@ The file has no imports.
 **Estimated scope:** M
 
 ## Checkpoint: The library works
-- [ ] `pnpm test` passes, including the `below-100-ptpts` snapshot
-- [ ] Review with the human before wiring into the app
+- [x] `pnpm test` passes, including the `below-100-ptpts` snapshot
+- [x] Review with the human before wiring into the app
 
 ## Task 4: Vote tallies in `MathResult`
 
@@ -120,7 +120,7 @@ The DO's `fetch()` schedules the alarm right away if the stored math has no `tal
 
 **Acceptance criteria:**
 - [x] The route returns every statement, imported or local, and `[]` for a new conversation.
-- [ ] Adding a statement in another tab updates the list without a reload. (Checked in Task 6, once the hook is used.)
+- [x] Adding a statement in another tab updates the list without a reload. (Checked in Task 6.)
 - [x] It runs after `/me`, like the other requests, so it doesn't create a second identity.
 
 **Verification:**
@@ -134,8 +134,8 @@ The DO's `fetch()` schedules the alarm right away if the stored math has no `tal
 **Estimated scope:** S
 
 ## Checkpoint: Data flows
-- [ ] `pnpm test` and `pnpm build` pass
-- [ ] `math` messages carry `tallies`; statement texts load and refresh
+- [x] `pnpm test` and `pnpm build` pass
+- [x] `math` messages carry `tallies`; statement texts load and refresh
 
 ## Task 6: Statement explorer below the scatter plot
 
@@ -146,14 +146,14 @@ The DO's `fetch()` schedules the alarm right away if the stored math has no `tal
 Each row shows the statement text, and "n of m agreed" or "disagreed" (`nSuccess` / `nTrials`).
 
 **Acceptance criteria:**
-- [ ] With votes but no groups, only consensus shows, or an "not enough agreement yet" note if nothing qualifies.
-- [ ] With groups, each group lists at most 5 statements, marked agree or disagree. Best-agree needs no special mark yet.
-- [ ] Text for statement IDs the hook hasn't loaded yet falls back to "Statement {id}", with no crash.
-- [ ] It works at phone width, and the group heading isn't shown by color alone (it has the letter).
+- [x] With votes but no groups, only consensus shows, or an "not enough agreement yet" note if nothing qualifies.
+- [x] With groups, each group lists at most 5 statements, marked agree or disagree. Best-agree needs no special mark yet.
+- [x] Text for statement IDs the hook hasn't loaded yet falls back to "Statement {id}", with no crash.
+- [x] It works at phone width, and the group heading isn't shown by color alone (it has the letter).
 
 **Verification:**
-- [ ] Build succeeds: `pnpm build`.
-- [ ] Manual check: import a Polis export on `/:convoId/admin` and see consensus and per-group lists. In a fresh conversation, vote from two browsers and see consensus appear before any groups.
+- [x] Build succeeds: `pnpm build`.
+- [x] Manual check: import a Polis export on `/:convoId/admin` and see consensus and per-group lists. In a fresh conversation, vote from two browsers and see consensus appear before any groups.
 
 **Dependencies:** Tasks 3, 4, 5
 
@@ -168,11 +168,11 @@ Each row shows the statement text, and "n of m agreed" or "disagreed" (`nSuccess
 - Add a line and screenshot to the README if the UI changed visibly.
 
 **Acceptance criteria:**
-- [ ] PLAN.md describes what's built, not what was planned, and cites the Clojure functions.
-- [ ] Screenshots follow the README's table convention.
+- [x] PLAN.md describes what's built, not what was planned, and cites the Clojure functions.
+- [x] Screenshots follow the README's table convention.
 
 **Verification:**
-- [ ] Manual check: read it through; the links and paths resolve.
+- [x] Manual check: read it through; the links and paths resolve.
 
 **Dependencies:** Task 6
 
@@ -181,5 +181,5 @@ Each row shows the statement text, and "n of m agreed" or "disagreed" (`nSuccess
 **Estimated scope:** S
 
 ## Checkpoint: Complete
-- [ ] All acceptance criteria met; `pnpm test` and `pnpm build` pass
-- [ ] Ready for review
+- [x] All acceptance criteria met; `pnpm test` and `pnpm build` pass
+- [x] Ready for review
