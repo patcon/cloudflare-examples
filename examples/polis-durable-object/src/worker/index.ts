@@ -66,6 +66,8 @@ app.get("/me", (c) => c.json<Me>({ participantId: c.get("participantId") }));
 
 app.get("/next", async (c) => c.json(await conversation(c).nextStatement(c.get("participantId"))));
 
+app.get("/statements", async (c) => c.json(await conversation(c).listStatements()));
+
 app.post("/statements", async (c) => {
   const body = await jsonBody(c.req.raw);
   const text = typeof body?.text === "string" ? body.text.trim() : "";

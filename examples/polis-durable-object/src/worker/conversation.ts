@@ -73,6 +73,11 @@ export class Conversation extends DurableObject<Env> {
     return rows[0] ?? null;
   }
 
+  // Every statement, by ID, for the statement explorer.
+  listStatements(): Statement[] {
+    return this.ctx.storage.sql.exec<Statement>("SELECT id, text FROM statements ORDER BY id").toArray();
+  }
+
   async addStatement(participantId: string, text: string): Promise<Statement> {
     const now = Date.now();
     this.ensureParticipant(participantId, now);
