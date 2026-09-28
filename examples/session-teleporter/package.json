@@ -4,6 +4,7 @@
   "description": "Move a session between devices by PIN or QR code, relayed by a Cloudflare Durable Object",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:share": "wrangler dev --tunnel",
     "deploy": "wrangler deploy",
     "build": "esbuild client/index.ts --bundle --format=esm --outfile=public/dist/client.js",
     "typecheck": "wrangler types && tsc && tsc -p client",

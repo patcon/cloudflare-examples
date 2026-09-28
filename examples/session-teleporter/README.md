@@ -13,6 +13,14 @@ pnpm dev        # http://localhost:8792
 
 Open <http://localhost:8792> and click **Generate Transfer Link**, then open the link in another tab. The second tab shows `Received session: …` with the first tab's session ID. Or click **Have a PIN?** in the second tab and type the PIN.
 
+To try it with a real phone, scanning the QR code, the page needs a public address:
+
+```sh
+pnpm dev:share
+```
+
+After a few seconds it prints a link like `https://some-random-words.trycloudflare.com`, and a QR code of it in the terminal. Open that link on your laptop, generate a transfer link, and scan the page's QR code with your phone. The link is a free Cloudflare [Quick Tunnel](https://developers.cloudflare.com/workers/local-development/local-dev-tunnels/) to your laptop, so everything still runs locally. Without it, press `t` then Enter in a running `pnpm dev` to open one.
+
 `pnpm dev` runs `pnpm build` first (the `build` in `wrangler.jsonc`), which bundles `client/` into `public/dist/client.js` with esbuild, and it rebuilds when `client/` changes.
 
 ## How it works
