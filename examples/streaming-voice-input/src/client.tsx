@@ -312,7 +312,7 @@ function GeminiSettings({
           type="number"
           min={0}
           step={100}
-          label="Silence to end a segment (ms)"
+          label="Minimum pause to end segments (ms)"
           placeholder="Default"
           value={detection.silenceDurationMs ?? ""}
           onChange={(e) =>
@@ -325,7 +325,7 @@ function GeminiSettings({
           type="number"
           min={0}
           step={20}
-          label="Speech to start a segment (ms)"
+          label="Minimum speech to start segments (ms)"
           placeholder="Default"
           value={detection.prefixPaddingMs ?? ""}
           onChange={(e) =>
