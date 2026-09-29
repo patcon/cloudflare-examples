@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { _buildConnectionUrl, _buildSetupMessage, GeminiLiveSTT } from "../src/index";
+import { _buildConnectionUrl, _buildSetupMessage, GeminiLiveSTT } from "../src/live";
 
 class MockWebSocket extends EventTarget {
   accept = vi.fn();

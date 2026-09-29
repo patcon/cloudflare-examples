@@ -6,13 +6,14 @@ Voice-to-text dictation example using the `useVoiceInput` hook from `agents/voic
 |---|---|
 | ![Dictating with Gemini 3.5 Transcribe Live](docs/gemini-transcribe-live-streaming.png) | ![Dictating with Nova 3, each speaker's words highlighted in their own color](docs/nova-3-streaming-diarization.png) |
 
-Captures microphone audio, streams it to an Agent Durable Object for real-time speech-to-text, and displays the transcript in a text area. Pick one of these speech-to-text models to compare them:
+Captures microphone audio, streams it to an Agent Durable Object for real-time speech-to-text, and displays the transcript in a text area. `gemini-3.5-transcribe-preview` is the exception: it transcribes the whole recording once you stop. Pick one of these speech-to-text models to compare them:
 
 | Model | Provider | Region |
 |---|---|---|
 | `nova-3` | Workers AI (Deepgram Nova 3) | Cloudflare |
 | `flux` | Workers AI (Deepgram Flux) | Cloudflare |
 | `gemini-3.5-transcribe-live-preview` | Vertex AI, Gemini Live API | `global` only |
+| `gemini-3.5-transcribe-preview` | Vertex AI, `generateContent`, once you stop | `global` only |
 
 The other Gemini Live models only answer with audio, so they're left out for now. That includes the only one served from the EU. See [Gemini Live models in the EU](#gemini-live-models-in-the-eu).
 
@@ -59,6 +60,20 @@ With Nova 3 picked, **Tell speakers apart (diarization)** turns on Nova 3's [`di
 
 The built-in `WorkersAINova3STT` doesn't pass `diarize`, and `useVoiceInput` only passes on text. So `src/nova3-diarized.ts` is a copy of the built-in transcriber that asks for diarization, and marks each speaker change in the text with "[Speaker N]". The page splits the text on those markers (`src/speakers.ts`).
 
+### Transcribing after you stop, with Gemini 3.5 Transcribe
+
+`gemini-3.5-transcribe-preview` doesn't stream. While you dictate, the page only records. Once you press **Stop**, the page asks the agent for the transcript, and the agent sends the whole recording to Vertex's `generateContent` in a single request.
+
+Gemini Live can't tell speakers apart. So with Gemini 3.5 Transcribe Live picked, **Tell speakers apart (diarization)** sends the recording to `gemini-3.5-transcribe-preview` once you stop. Its diarized transcript then replaces that session's live text. With the batch model picked, the same checkbox asks it to diarize. Either way, each speaker's words are colored as they are for Nova 3.
+
+Diarization is `generationConfig.audioTranscriptionConfig: { mode: "VERBATIM", diarization: true }`, from Vertex's [`AudioTranscriptionConfig`](https://aiplatform.googleapis.com/$discovery/rest?version=v1beta1). Each speaker's stretch comes back as its own part, labeled `spk:0`, `spk:1`, and so on.
+
+These were checked from the `patcon-local-cli` project on 29 September 2026:
+
+- **Where it's served.** Vertex only serves the model from `global`. europe-west1, europe-west4 and us-central1 said it wasn't found.
+- **Gemini API docs.** The Gemini API's [transcription docs](https://ai.google.dev/gemini-api/docs/transcribe) configure it through the Interactions API, with `transcription_config.mode.diarization_mode`. Vertex's Interactions API answered "Unsupported model interaction" for this model, so this example uses `generateContent`.
+- **Long recordings.** A 10-minute recording, the most **Last audio** keeps, is 19MB of WAV, or 25MB once base64-encoded. It went through inline and came back diarized in about 71 seconds. The page waits up to 2 minutes.
+
 ### Downloading the last audio
 
 **Last audio** downloads the last session's audio as a 16kHz mono WAV: exactly what the model heard, after the browser's noise suppression, echo cancellation and auto gain control. Each model keeps its own last recording, of up to 10 minutes, in its Durable Object's SQLite. Use it to replay a noisy recording against different settings.
@@ -102,12 +117,14 @@ export class VoiceInputAgent extends InputAgent<Env> {
 }
 ```
 
-Each model is its own agent instance, named after the model: the page's menu passes the model as `useVoiceInput({ name })`. `createTranscriber()` reads `this.name` and returns that model's transcriber: `WorkersAINova3STT`, or the diarizing `WorkersAINova3DiarizedSTT` when that's turned on, `WorkersAIFluxSTT`, or `GeminiLiveSTT`. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
+Each model is its own agent instance, named after the model: the page's menu passes the model as `useVoiceInput({ name })`. `createTranscriber()` reads `this.name` and returns that model's transcriber: `WorkersAINova3STT`, or the diarizing `WorkersAINova3DiarizedSTT` when that's turned on, `WorkersAIFluxSTT`, or `GeminiLiveSTT`. For `gemini-3.5-transcribe-preview`, it returns a transcriber that ignores the audio, so the audio is only recorded. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
 
 `GeminiLiveSTT` implements the SDK's `Transcriber` interface. It's a package of its own, in [`packages/voice-gemini`](packages/voice-gemini), laid out like the providers in [cloudflare/agents `voice-providers/`](https://github.com/cloudflare/agents/tree/main/voice-providers) so it can move there later. Its tests run with `pnpm test`. Each session opens a WebSocket to Vertex's `BidiGenerateContent` with a text-only response, and streams the 16kHz PCM up as base64. Vertex sends back three things:
 - `interimInputTranscription`: everything heard so far this turn, shown as interim text.
 - `inputTranscription`: the whole turn, once, when Gemini's voice activity detection decides you've stopped. This becomes the final transcript.
 - `voiceActivity`: `ACTIVITY_START` when you start speaking.
+
+`GeminiBatchSTT`, in the same package, transcribes a finished recording with `generateContent`. It isn't a `Transcriber`, because the SDK drops anything a transcriber sends after you stop. The agent calls it from `transcribeLastAudio()`, a `@callable()` method that transcribes the last recording and marks each speaker change with "[Speaker N]". The page calls it when you stop, over the connection it already has open for settings. `@callable()` needs the `agents/vite` plugin in `vite.config.ts`.
 
 ### Client (`src/client.tsx`)
 

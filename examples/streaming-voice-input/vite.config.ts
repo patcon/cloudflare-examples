@@ -1,6 +1,7 @@
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import agents from "agents/vite";
 import { defineConfig } from "vite";
 
 // `--mode share` (pnpm dev:share) also opens a public link to this machine,
@@ -9,6 +10,8 @@ import { defineConfig } from "vite";
 // https://developers.cloudflare.com/workers/local-development/local-dev-tunnels/
 export default defineConfig(({ mode }) => ({
   plugins: [
+    // Compiles `@callable()`, which Vite can't yet.
+    agents(),
     react(),
     cloudflare({ tunnel: { autoStart: mode === "share" } }),
     tailwindcss()

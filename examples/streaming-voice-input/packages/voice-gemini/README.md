@@ -1,10 +1,24 @@
 # @cloudflare/voice-gemini
 
-Gemini Live streaming speech-to-text provider for the [Cloudflare Agents](https://github.com/cloudflare/agents) voice pipeline, over Vertex AI's `BidiGenerateContent` WebSocket.
+Gemini speech-to-text for the [Cloudflare Agents](https://github.com/cloudflare/agents) voice pipeline, over Vertex AI:
+
+- `GeminiLiveSTT` streams, over the `BidiGenerateContent` WebSocket. It's a `Transcriber`.
+- `GeminiBatchSTT` transcribes a finished recording with `generateContent`, and can tell speakers apart.
 
 It's shaped like the providers in [cloudflare/agents `voice-providers/`](https://github.com/cloudflare/agents/tree/main/voice-providers), so it can move there later. For now it's `private` and only used by this example, through a pnpm workspace. It isn't built: `exports` points at the TypeScript source, which Vite bundles.
 
 It needs no Workers AI binding. It only opens an outbound WebSocket with `fetch`, so it works in any Worker or Durable Object that can reach `aiplatform.googleapis.com`.
+
+## Layout
+
+| File | What's in it |
+|---|---|
+| `src/index.ts` | The public exports |
+| `src/live.ts` | `GeminiLiveSTT`, a streaming `Transcriber` |
+| `src/batch.ts` | `GeminiBatchSTT`, for a finished recording |
+| `src/vertex.ts` | What both share: options, host, access token |
+
+Tests are split the same way, in `tests/live.test.ts` and `tests/batch.test.ts`.
 
 ## Usage
 
@@ -25,7 +39,26 @@ export class MyAgent extends InputAgent<Env> {
 
 It works with `withVoice` too, for a full voice agent, alongside any TTS provider.
 
+### Batch
+
+`GeminiBatchSTT` isn't a `Transcriber`. The pipeline drops anything a session sends after the call ends, so call it yourself once the recording is finished, such as from a `@callable()` method:
+
+```typescript
+import { GeminiBatchSTT } from "@cloudflare/voice-gemini";
+
+const stt = new GeminiBatchSTT({
+  accessToken: this.env.GOOGLE_ACCESS_TOKEN,
+  project: this.env.GOOGLE_CLOUD_PROJECT
+});
+// [{ speaker: 0, text: "Hello." }, { speaker: 1, text: "Hi there." }]
+const segments = await stt.transcribe(wav, { diarize: true });
+```
+
+Speakers are numbered from 0, in the order they're first heard. Without `diarize`, `speaker` is `null`. It takes the same `accessToken`, `project` and `location` options as `GeminiLiveSTT`. `model` defaults to `"gemini-3.5-transcribe-preview"`, which Vertex only serves from `global`.
+
 ## Options
+
+For `GeminiLiveSTT`:
 
 | Option              | Default                                | Description                                                                                  |
 | ------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------- |
