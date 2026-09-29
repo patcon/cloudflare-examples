@@ -1,7 +1,13 @@
 import { createRoot } from "react-dom/client";
 import { useEffect, useState } from "react";
 import { useVoiceInput } from "agents/voice/react";
-import { Button, Surface, Text, PoweredByCloudflare } from "@cloudflare/kumo";
+import {
+  Button,
+  Select,
+  Surface,
+  Text,
+  PoweredByCloudflare
+} from "@cloudflare/kumo";
 import {
   MicrophoneIcon,
   MicrophoneSlashIcon,
@@ -13,7 +19,35 @@ import {
   MoonIcon,
   SunIcon
 } from "@phosphor-icons/react";
+import { isModelId, MODELS, type ModelId } from "./models";
 import "./styles.css";
+
+// "default" connects to the default agent instance, which uses STT_MODEL.
+type ModelChoice = ModelId | "default";
+
+const MODEL_ITEMS: Record<ModelChoice, string> = {
+  default: "STT_MODEL (from .dev.vars)",
+  ...Object.fromEntries(
+    Object.entries(MODELS).map(([id, { label }]) => [id, label])
+  )
+} as Record<ModelChoice, string>;
+
+// The model is kept in the URL (?model=…), so a link opens the same one.
+function useModelChoice() {
+  const [model, setModel] = useState<ModelChoice>(() => {
+    const param = new URLSearchParams(location.search).get("model") ?? "";
+    return isModelId(param) ? param : "default";
+  });
+
+  useEffect(() => {
+    const url = new URL(location.href);
+    if (model === "default") url.searchParams.delete("model");
+    else url.searchParams.set("model", model);
+    history.replaceState(null, "", url);
+  }, [model]);
+
+  return [model, setModel] as const;
+}
 
 function AudioLevelBar({ level }: { level: number }) {
   return (
@@ -49,6 +83,7 @@ function ModeToggle() {
 }
 
 function App() {
+  const [model, setModel] = useModelChoice();
   const {
     transcript,
     interimTranscript,
@@ -60,7 +95,12 @@ function App() {
     stop,
     toggleMute,
     clear
-  } = useVoiceInput({ agent: "VoiceInputAgent" });
+  } = useVoiceInput({
+    agent: "VoiceInputAgent",
+    // Each model is its own agent instance. Nothing connects to the model
+    // itself until you start dictating.
+    name: model === "default" ? undefined : model
+  });
 
   const [copied, setCopied] = useState(false);
 
@@ -91,7 +131,19 @@ function App() {
             </Text>
           </span>
         </div>
-        <ModeToggle />
+        <div className="flex items-center gap-2">
+          <Select
+            size="sm"
+            aria-label="Speech-to-text model"
+            items={MODEL_ITEMS}
+            value={model}
+            onValueChange={(value) => {
+              if (value) setModel(value as ModelChoice);
+            }}
+            disabled={isListening}
+          />
+          <ModeToggle />
+        </div>
       </header>
 
       {/* Main content */}
@@ -111,8 +163,9 @@ function App() {
               <span className="mt-1 block">
                 <Text size="xs" variant="secondary">
                   Click the microphone to start dictating. Your speech is
-                  transcribed in real time using Workers AI and displayed in the
-                  text area below. Uses the useVoiceInput hook from
+                  transcribed in real time by {MODEL_ITEMS[model]} and
+                  displayed in the text area below. Pick another model at the
+                  top to compare. Uses the useVoiceInput hook from
                   agents/voice.
                 </Text>
               </span>

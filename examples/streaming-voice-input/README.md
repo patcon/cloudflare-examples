@@ -33,7 +33,7 @@ pnpm google-token                # puts `gcloud auth print-access-token` in .dev
 
 The token lasts about an hour, so run `pnpm google-token` again when it expires. When Gemini fails to start, the page only says "Speech recognition failed to start". The reason Vertex gave, such as an expired token, is in the terminal.
 
-`STT_MODEL` in `.dev.vars` picks the model. The terminal logs each final transcript with the model's name, such as `[nova-3] Transcribed: "…"`.
+Pick the model from the menu at the top of the page. It's kept in the URL, such as `?model=nova-3`, so a link opens the same one. With no model in the URL, `STT_MODEL` in `.dev.vars` picks it. The terminal logs each final transcript with the model's name, such as `[nova-3] Transcribed: "…"`.
 
 ## How it works
 
@@ -56,7 +56,7 @@ export class VoiceInputAgent extends InputAgent<Env> {
 }
 ```
 
-For the Gemini model, `createTranscriber()` returns a `GeminiLiveSTT` instead. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
+Each model is its own agent instance, named after the model: the page's menu passes the model as `useVoiceInput({ name })`. For the Gemini model, `createTranscriber()` reads `this.name` and returns a `GeminiLiveSTT` instead. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
 
 `GeminiLiveSTT` (`src/gemini-live.ts`) implements the SDK's `Transcriber` interface. Each session opens a WebSocket to Vertex's `BidiGenerateContent` with a text-only response, and streams the 16kHz PCM up as base64. Vertex sends back three things:
 - `interimInputTranscription`: everything heard so far this turn, shown as interim text.
