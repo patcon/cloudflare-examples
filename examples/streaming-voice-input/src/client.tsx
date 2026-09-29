@@ -160,6 +160,8 @@ interface Replacement {
   /** Where the session's text starts and ends in the live transcript. */
   start: number;
   end: number;
+  /** Interim text that was never made final, because you stopped mid-speech. */
+  tail: string | null;
   /** The batch transcripts, or null while they're being transcribed. */
   result: AfterStopText | null;
 }
@@ -168,14 +170,20 @@ interface Replacement {
 type TranscriptView = "diarized" | "original";
 
 /**
- * For sessions transcribed after you stop, asks the agent for the batch
- * transcripts, and puts the one `view` picks in place of that session's live
- * text. The original is the batch model's own transcript, or the live text
- * for a streaming model. `useVoiceInput` owns the live transcript, and drops
- * anything sent after you stop, so this keeps the replacements beside it.
+ * What each session's text becomes once you stop. `useVoiceInput` owns the
+ * live transcript, and drops anything sent after you stop, so this keeps
+ * each session's changes beside it:
+ *
+ * - Interim text left when you stop mid-speech, which `useVoiceInput` clears
+ *   and never makes final, is kept at the end of the session's live text.
+ * - For sessions transcribed after you stop, it asks the agent for the batch
+ *   transcripts, and puts the one `view` picks in place of the live text.
+ *   The original is the batch model's own transcript, or the live text for
+ *   a streaming model.
  */
 function useTranscriptAfterStop(
   transcript: string,
+  interimTranscript: string | null,
   isListening: boolean,
   afterStop: boolean,
   transcribe: () => Promise<AfterStopText>
@@ -184,27 +192,41 @@ function useTranscriptAfterStop(
   const [view, setView] = useState<TranscriptView>("diarized");
   const [error, setError] = useState<string | null>(null);
   const sessionStart = useRef<number | null>(null);
+  const lastInterim = useRef<string | null>(null);
+
+  // Stopping clears the interim text in the same render that stops
+  // listening, so this only follows it while listening, keeping what was
+  // there just before you stopped. A final clears it too, so text that did
+  // become final isn't kept twice.
+  useEffect(() => {
+    if (isListening) lastInterim.current = interimTranscript;
+  }, [interimTranscript, isListening]);
 
   useEffect(() => {
     if (isListening) {
       sessionStart.current = transcript.length;
+      lastInterim.current = null;
       setError(null);
       return;
     }
     const start = sessionStart.current;
     sessionStart.current = null;
-    if (start === null || !afterStop) return;
+    const tail = lastInterim.current?.trim() || null;
+    lastInterim.current = null;
+    if (start === null || (!afterStop && !tail)) return;
     const end = transcript.length;
-    const settle = (result: AfterStopText | null) =>
+    if (!afterStop) {
+      setReplacements((all) => [...all, { start, end, tail, result: {} }]);
+      return;
+    }
+    const settle = (result: AfterStopText) =>
       setReplacements((all) =>
-        all.flatMap((r) =>
-          r.start !== start ? [r] : result === null ? [] : [{ ...r, result }]
-        )
+        all.map((r) => (r.start === start ? { ...r, result } : r))
       );
-    setReplacements((all) => [...all, { start, end, result: null }]);
+    setReplacements((all) => [...all, { start, end, tail, result: null }]);
     transcribe().then(settle, (e: Error) => {
       // Keeps the live text, if there was any.
-      settle(null);
+      settle({});
       setError(`Transcribing after you stopped failed: ${e.message}`);
     });
   }, [isListening]);
@@ -222,8 +244,10 @@ function useTranscriptAfterStop(
       view === "diarized"
         ? (r.result?.diarized ?? r.result?.original)
         : r.result?.original;
-    if (chosen === undefined) text += transcript.slice(r.start, r.end);
-    else if (chosen) text += (text ? " " : "") + chosen;
+    if (chosen === undefined) {
+      text += transcript.slice(r.start, r.end);
+      if (r.tail) text += " " + r.tail;
+    } else if (chosen) text += (text ? " " : "") + chosen;
     position = r.end;
   }
   text = (text + transcript.slice(position)).trimStart();
@@ -437,6 +461,7 @@ function App() {
   const plan = afterStop(model, settings);
   const redone = useTranscriptAfterStop(
     transcript,
+    interimTranscript,
     isListening,
     !!plan,
     // A long recording can take a while.
