@@ -10,6 +10,7 @@ Small, standalone examples of using Cloudflare with dembrane. Each example has i
 | [`examples/polis-durable-object`](examples/polis-durable-object) | A **Polis-style conversation** in a Durable Object: statements, votes, opinion groups recomputed by an alarm, and a live map over WebSockets. Seeds from a Polis CSV export |
 | [`examples/first-come-first-admin`](examples/first-come-first-admin) | **Roles without a login**: the first visitor to a URL becomes its admin, with an admin page only they can open, to retitle the room, reset everyone's counter and make other users admins
 | [`examples/session-teleporter`](examples/session-teleporter) | **Moving a session between devices** by PIN or QR code: one Durable Object per PIN relays messages over WebSockets between PartySocket clients. A port of a PartyKit app |
+| [`examples/streaming-voice-input`](examples/streaming-voice-input) | **Streaming speech-to-text** from the mic with `agents/voice`, comparing Workers AI Nova 3 with Gemini Live's transcription model. A port of a cloudflare/agents example |
 | `examples/statement-extraction-agent` | _Planned._ An **agent that pulls atomic, Polis-style statements** out of speech from a mic, an audio file, or pasted text |
 | `examples/proxy-vote-agent` | _Planned._ TBD |
 | [`examples/directus`](examples/directus) | A local Directus on SQLite with dembrane's schema, pulled from a dembrane-echo checkout, with seeded users, organisations and projects, to log in to while testing the other examples |
