@@ -31,6 +31,8 @@ import {
   isModelId,
   isStreaming,
   MODELS,
+  type AfterStop,
+  type AfterStopText,
   type ModelId,
   type Settings
 } from "./models";
@@ -111,6 +113,13 @@ function useSettings(instance: string) {
   return [settings, update, agent] as const;
 }
 
+/** The models transcribing once you stop, such as "a and b". */
+function afterStopModels(plan: AfterStop | null) {
+  return [...new Set([plan?.original, plan?.diarized])]
+    .filter(Boolean)
+    .join(" and ");
+}
+
 type UpdateSettings = (change: Partial<Settings>) => void;
 
 function DiarizeSettings({
@@ -124,8 +133,8 @@ function DiarizeSettings({
   update: UpdateSettings;
   disabled: boolean;
 }) {
-  // A streaming model that can't diarize has its transcript redone.
-  const redone = isStreaming(model) && !MODELS[model].diarizes;
+  // A model that can't diarize has the recording diarized by DIARIZER too.
+  const redone = !MODELS[model].diarizes;
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line">
       <Checkbox
@@ -137,7 +146,7 @@ function DiarizeSettings({
       <span className="mt-1 block">
         <Text size="xs" variant="secondary">
           {redone
-            ? `Once you stop, sends the recording to ${DIARIZER}, and replaces the live text with its transcript. `
+            ? `Once you stop, also sends the recording to ${DIARIZER}, and shows its transcript. The ${isStreaming(model) ? "live" : "model's own"} one is kept, to switch back to. `
             : ""}
           Highlights each speaker's words in their own color, for up to 8
           speakers. Applies the next time you start dictating.
@@ -151,23 +160,28 @@ interface Replacement {
   /** Where the session's text starts and ends in the live transcript. */
   start: number;
   end: number;
-  /** The batch transcript, or null while it's being transcribed. */
-  text: string | null;
+  /** The batch transcripts, or null while they're being transcribed. */
+  result: AfterStopText | null;
 }
 
+/** Which of a session's transcripts to show, when it has both. */
+type TranscriptView = "diarized" | "original";
+
 /**
- * For models that transcribe after you stop, asks the agent for each
- * session's batch transcript, and puts it in place of that session's live
- * text. `useVoiceInput` owns the live transcript, and drops anything sent
- * after you stop, so this keeps the replacements beside it.
+ * For sessions transcribed after you stop, asks the agent for the batch
+ * transcripts, and puts the one `view` picks in place of that session's live
+ * text. The original is the batch model's own transcript, or the live text
+ * for a streaming model. `useVoiceInput` owns the live transcript, and drops
+ * anything sent after you stop, so this keeps the replacements beside it.
  */
 function useTranscriptAfterStop(
   transcript: string,
   isListening: boolean,
   afterStop: boolean,
-  transcribe: () => Promise<string>
+  transcribe: () => Promise<AfterStopText>
 ) {
   const [replacements, setReplacements] = useState<Replacement[]>([]);
+  const [view, setView] = useState<TranscriptView>("diarized");
   const [error, setError] = useState<string | null>(null);
   const sessionStart = useRef<number | null>(null);
 
@@ -181,13 +195,13 @@ function useTranscriptAfterStop(
     sessionStart.current = null;
     if (start === null || !afterStop) return;
     const end = transcript.length;
-    const settle = (text: string | null) =>
+    const settle = (result: AfterStopText | null) =>
       setReplacements((all) =>
         all.flatMap((r) =>
-          r.start !== start ? [r] : text === null ? [] : [{ ...r, text }]
+          r.start !== start ? [r] : result === null ? [] : [{ ...r, result }]
         )
       );
-    setReplacements((all) => [...all, { start, end, text: null }]);
+    setReplacements((all) => [...all, { start, end, result: null }]);
     transcribe().then(settle, (e: Error) => {
       // Keeps the live text, if there was any.
       settle(null);
@@ -202,15 +216,29 @@ function useTranscriptAfterStop(
   let position = 0;
   for (const r of replacements) {
     text += transcript.slice(position, r.start);
-    if (r.text === null) text += transcript.slice(r.start, r.end);
-    else if (r.text) text += (text ? " " : "") + r.text;
+    // Undefined keeps the live text: still transcribing, or the original of
+    // a streaming model.
+    const chosen =
+      view === "diarized"
+        ? (r.result?.diarized ?? r.result?.original)
+        : r.result?.original;
+    if (chosen === undefined) text += transcript.slice(r.start, r.end);
+    else if (chosen) text += (text ? " " : "") + chosen;
     position = r.end;
   }
   text = (text + transcript.slice(position)).trimStart();
 
   return {
     text,
-    transcribing: replacements.some((r) => r.text === null),
+    transcribing: replacements.some((r) => r.result === null),
+    // A diarized transcript from another model, beside the original.
+    hasBoth: replacements.some(
+      (r) =>
+        r.result?.diarized !== undefined &&
+        r.result.diarized !== r.result.original
+    ),
+    view,
+    setView,
     error,
     reset: () => {
       setReplacements([]);
@@ -412,7 +440,10 @@ function App() {
     isListening,
     !!plan,
     // A long recording can take a while.
-    () => agent.call<string>("transcribeLastAudio", [], { timeout: 120_000 })
+    () =>
+      agent.call<AfterStopText>("transcribeLastAudio", [], {
+        timeout: 120_000
+      })
   );
   const finalText = redone.text;
   const batchOnly = !isStreaming(model);
@@ -494,14 +525,12 @@ function App() {
           </div>
         </Surface>
 
-        {model !== "flux" && (
-          <DiarizeSettings
-            model={model}
-            settings={settings}
-            update={updateSettings}
-            disabled={isListening}
-          />
-        )}
+        <DiarizeSettings
+          model={model}
+          settings={settings}
+          update={updateSettings}
+          disabled={isListening}
+        />
 
         {MODELS[model].provider === "gemini" && !batchOnly && (
           <GeminiSettings
@@ -514,6 +543,19 @@ function App() {
         {/* Text area */}
         <Surface className="rounded-xl ring ring-kumo-line flex-1 flex flex-col min-h-[300px]">
           <div className="flex-1 p-4">
+            {redone.hasBoth && (
+              <div className="mb-3 w-48">
+                <Select
+                  size="sm"
+                  label="Transcript"
+                  items={{ diarized: "Diarized", original: "Original" }}
+                  value={redone.view}
+                  onValueChange={(value) =>
+                    redone.setView(value as TranscriptView)
+                  }
+                />
+              </div>
+            )}
             {diarized ? (
               <>
                 <SpeakerLegend text={displayText} />
@@ -548,7 +590,7 @@ function App() {
             )}
             {redone.transcribing && (
               <span className="mt-2 block text-kumo-subtle text-sm italic">
-                Transcribing with {plan?.diarized ?? plan?.original}...
+                Transcribing with {afterStopModels(plan)}...
               </span>
             )}
           </div>

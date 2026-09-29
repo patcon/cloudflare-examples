@@ -64,7 +64,7 @@ The built-in `WorkersAINova3STT` doesn't pass `diarize`, and `useVoiceInput` onl
 
 `gemini-3.5-transcribe-preview` doesn't stream. While you dictate, the page only records. Once you press **Stop**, the page asks the agent for the transcript, and the agent sends the whole recording to Vertex's `generateContent` in a single request.
 
-Gemini Live can't tell speakers apart. So with Gemini 3.5 Transcribe Live picked, **Tell speakers apart (diarization)** sends the recording to `gemini-3.5-transcribe-preview` once you stop. Its diarized transcript then replaces that session's live text. With the batch model picked, the same checkbox asks it to diarize. Either way, each speaker's words are colored as they are for Nova 3.
+Gemini Live and Flux can't tell speakers apart. So with either picked, **Tell speakers apart (diarization)** sends the recording to `gemini-3.5-transcribe-preview` once you stop. Its diarized transcript is then shown in place of that session's live text, and a **Transcript** menu switches back to the original. With the batch model picked, the same checkbox asks it to diarize. Either way, each speaker's words are colored as they are for Nova 3.
 
 Diarization is `generationConfig.audioTranscriptionConfig: { mode: "VERBATIM", diarization: true }`, from Vertex's [`AudioTranscriptionConfig`](https://aiplatform.googleapis.com/$discovery/rest?version=v1beta1). Each speaker's stretch comes back as its own part, labeled `spk:0`, `spk:1`, and so on.
 

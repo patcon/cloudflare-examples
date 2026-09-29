@@ -4,6 +4,8 @@ import {
   afterStop,
   isModelId,
   isStreaming,
+  type AfterStopText,
+  type BatchModelId,
   type ModelId,
   type Settings
 } from "./models";
@@ -60,23 +62,36 @@ export class VoiceInputAgent extends InputAgent<Env, Settings> {
    * marking each speaker change when diarizing. See `./speakers.ts`.
    */
   @callable()
-  async transcribeLastAudio(): Promise<string> {
+  async transcribeLastAudio(): Promise<AfterStopText> {
     const plan = afterStop(this.model, this.state);
     if (!plan) throw new Error(`${this.model} doesn't transcribe after you stop`);
     const wav = this.recorder.wav();
-    if (!wav) return "";
-    const batchModel = (plan.diarized ?? plan.original)!;
-    const segments = await BATCH[batchModel](this.env).transcribe(wav, {
-      diarize: !!plan.diarized
-    });
-    const text = segments
-      .map(({ speaker, text }) =>
-        speaker === null ? text : `${speakerMarker(speaker)} ${text}`
-      )
-      .join(" ");
-    const via = batchModel === this.model ? "" : ` → ${batchModel}`;
-    console.log(`[${this.model}${via}] Transcribed: "${text}"`);
-    return text;
+    if (!wav) return {};
+
+    const transcribe = async (model: BatchModelId, diarize: boolean) => {
+      const segments = await BATCH[model](this.env).transcribe(wav, {
+        diarize
+      });
+      const text = segments
+        .map(({ speaker, text }) =>
+          speaker === null ? text : `${speakerMarker(speaker)} ${text}`
+        )
+        .join(" ");
+      const via = model === this.model ? "" : ` → ${model}`;
+      console.log(`[${this.model}${via}] Transcribed: "${text}"`);
+      return text;
+    };
+
+    // A batch model that diarizes gives both at once.
+    if (plan.original && plan.original === plan.diarized) {
+      const text = await transcribe(plan.original, true);
+      return { original: text, diarized: text };
+    }
+    const [original, diarized] = await Promise.all([
+      plan.original && transcribe(plan.original, false),
+      plan.diarized && transcribe(plan.diarized, true)
+    ]);
+    return { original, diarized };
   }
 
   onRequest(request: Request) {

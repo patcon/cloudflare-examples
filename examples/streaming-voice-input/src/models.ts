@@ -71,6 +71,9 @@ export interface AfterStop {
   diarized?: BatchModelId;
 }
 
+/** The transcripts `afterStop()` asked for, as `transcribeLastAudio()` returns them. */
+export type AfterStopText = { [K in keyof AfterStop]?: string };
+
 /**
  * What's transcribed once you stop, or null when the text you saw while
  * recording is final.
