@@ -100,6 +100,21 @@ it("turns server messages into speech start, interim and final transcripts", asy
   expect(events).toEqual(["start", "interim:Hello", "final:Hello there."]);
 });
 
+it("ends the audio stream before closing", async () => {
+  const { ws } = stubSocket();
+  const session = new GeminiLiveSTT(options).createSession();
+  await vi.waitFor(() => expect(ws.send).toHaveBeenCalled());
+  serverMessage(ws, { setupComplete: {} });
+  await session.waitUntilReady?.();
+
+  session.close();
+
+  expect(JSON.parse(ws.send.mock.lastCall![0])).toEqual({
+    realtimeInput: { audioStreamEnd: true }
+  });
+  expect(ws.close).toHaveBeenCalled();
+});
+
 it("rejects readiness and reports a fatal error when the socket upgrade fails", async () => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.stubGlobal(

@@ -204,8 +204,15 @@ class GeminiLiveSession implements TranscriberSession {
     this.#closed = true;
     this.#pendingChunks = [];
     this.#pendingBytes = 0;
-    // TODO: send `realtimeInput.audioStreamEnd` first, and wait briefly for
-    // the last turn's transcript, so stopping mid-sentence doesn't lose it.
+    // Tell Gemini the audio has ended, as Deepgram's `CloseStream` does. The
+    // SDK's `close()` can't wait, so a transcript sent in reply is dropped.
+    if (this.#ws && this.#connected) {
+      try {
+        this.#ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+      } catch {
+        // ignore
+      }
+    }
     try {
       this.#ws?.close();
     } catch {
