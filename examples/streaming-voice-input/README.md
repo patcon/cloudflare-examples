@@ -98,7 +98,7 @@ export class VoiceInputAgent extends InputAgent<Env> {
 }
 ```
 
-Each model is its own agent instance, named after the model: the page's menu passes the model as `useVoiceInput({ name })`. For the Gemini model, `createTranscriber()` reads `this.name` and returns a `GeminiLiveSTT` instead. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
+Each model is its own agent instance, named after the model: the page's menu passes the model as `useVoiceInput({ name })`. `createTranscriber()` reads `this.name` and returns that model's transcriber: `WorkersAINova3STT`, or the diarizing `WorkersAINova3DiarizedSTT` when that's turned on, `WorkersAIFluxSTT`, or `GeminiLiveSTT`. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
 
 `GeminiLiveSTT` implements the SDK's `Transcriber` interface. It's a package of its own, in [`packages/voice-gemini`](packages/voice-gemini), laid out like the providers in [cloudflare/agents `voice-providers/`](https://github.com/cloudflare/agents/tree/main/voice-providers) so it can move there later. Its tests run with `pnpm test`. Each session opens a WebSocket to Vertex's `BidiGenerateContent` with a text-only response, and streams the 16kHz PCM up as base64. Vertex sends back three things:
 - `interimInputTranscription`: everything heard so far this turn, shown as interim text.
