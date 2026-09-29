@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import { useVoiceInput } from "agents/voice/react";
 import {
@@ -25,7 +25,14 @@ import {
   SunIcon
 } from "@phosphor-icons/react";
 import type { ActivityDetection } from "@cloudflare/voice-gemini";
-import { isModelId, MODELS, type ModelId, type Settings } from "./models";
+import {
+  BATCH_MODEL,
+  isModelId,
+  MODELS,
+  transcribesAfterStop,
+  type ModelId,
+  type Settings
+} from "./models";
 import {
   hasSpeakers,
   labelSpeakers,
@@ -100,17 +107,24 @@ function useSettings(instance: string) {
   });
   const update = (change: Partial<Settings>) =>
     agent.setState({ ...settings, ...change });
-  return [settings, update] as const;
+  return [settings, update, agent] as const;
 }
 
-function Nova3Settings({
-  instance,
+type UpdateSettings = (change: Partial<Settings>) => void;
+
+function DiarizeSettings({
+  model,
+  settings,
+  update,
   disabled
 }: {
-  instance: string;
+  model: ModelId;
+  settings: Settings;
+  update: UpdateSettings;
   disabled: boolean;
 }) {
-  const [settings, update] = useSettings(instance);
+  // Gemini Live can't diarize, so the batch model redoes its transcript.
+  const redone = MODELS[model].provider === "gemini" && model !== BATCH_MODEL;
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line">
       <Checkbox
@@ -121,6 +135,9 @@ function Nova3Settings({
       />
       <span className="mt-1 block">
         <Text size="xs" variant="secondary">
+          {redone
+            ? `Once you stop, sends the recording to ${BATCH_MODEL}, and replaces the live text with its transcript. `
+            : ""}
           Highlights each speaker's words in their own color, for up to 8
           speakers. Applies the next time you start dictating.
         </Text>
@@ -129,15 +146,88 @@ function Nova3Settings({
   );
 }
 
+interface Replacement {
+  /** Where the session's text starts and ends in the live transcript. */
+  start: number;
+  end: number;
+  /** The batch transcript, or null while it's being transcribed. */
+  text: string | null;
+}
+
+/**
+ * For models that transcribe after you stop, asks the agent for each
+ * session's batch transcript, and puts it in place of that session's live
+ * text. `useVoiceInput` owns the live transcript, and drops anything sent
+ * after you stop, so this keeps the replacements beside it.
+ */
+function useTranscriptAfterStop(
+  transcript: string,
+  isListening: boolean,
+  afterStop: boolean,
+  transcribe: () => Promise<string>
+) {
+  const [replacements, setReplacements] = useState<Replacement[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const sessionStart = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isListening) {
+      sessionStart.current = transcript.length;
+      setError(null);
+      return;
+    }
+    const start = sessionStart.current;
+    sessionStart.current = null;
+    if (start === null || !afterStop) return;
+    const end = transcript.length;
+    const settle = (text: string | null) =>
+      setReplacements((all) =>
+        all.flatMap((r) =>
+          r.start !== start ? [r] : text === null ? [] : [{ ...r, text }]
+        )
+      );
+    setReplacements((all) => [...all, { start, end, text: null }]);
+    transcribe().then(settle, (e: Error) => {
+      // Keeps the live text, if there was any.
+      settle(null);
+      setError(`Transcribing after you stopped failed: ${e.message}`);
+    });
+  }, [isListening]);
+
+  // The live transcript was reset, such as by switching models.
+  if (replacements.some((r) => r.end > transcript.length)) setReplacements([]);
+
+  let text = "";
+  let position = 0;
+  for (const r of replacements) {
+    text += transcript.slice(position, r.start);
+    if (r.text === null) text += transcript.slice(r.start, r.end);
+    else if (r.text) text += (text ? " " : "") + r.text;
+    position = r.end;
+  }
+  text = (text + transcript.slice(position)).trimStart();
+
+  return {
+    text,
+    transcribing: replacements.some((r) => r.text === null),
+    error,
+    reset: () => {
+      setReplacements([]);
+      setError(null);
+    }
+  };
+}
+
 // Gemini's voice activity detection.
 function GeminiSettings({
-  instance,
+  settings,
+  update: updateSettings,
   disabled
 }: {
-  instance: string;
+  settings: Settings;
+  update: UpdateSettings;
   disabled: boolean;
 }) {
-  const [settings, updateSettings] = useSettings(instance);
   const detection = settings.activityDetection;
 
   const update = (change: Partial<ActivityDetection>) => {
@@ -298,11 +388,23 @@ function App() {
     name: model
   });
 
+  const [settings, updateSettings, agent] = useSettings(model);
+  const afterStop = transcribesAfterStop(model, settings);
+  const redone = useTranscriptAfterStop(
+    transcript,
+    isListening,
+    afterStop,
+    // A long recording can take a while.
+    () => agent.call<string>("transcribeLastAudio", [], { timeout: 120_000 })
+  );
+  const finalText = redone.text;
+  const batchOnly = model === BATCH_MODEL;
+
   const [copied, setCopied] = useState(false);
 
   const displayText =
-    transcript +
-    (interimTranscript ? (transcript ? " " : "") + interimTranscript : "");
+    finalText +
+    (interimTranscript ? (finalText ? " " : "") + interimTranscript : "");
 
   // Nova 3 marks speakers in the text when diarizing.
   const diarized = hasSpeakers(displayText);
@@ -364,8 +466,9 @@ function App() {
               <span className="mt-1 block">
                 <Text size="xs" variant="secondary">
                   Click the microphone to start dictating. Your speech is
-                  transcribed in real time by {MODEL_ITEMS[model]} and
-                  displayed in the text area below. Pick another model at the
+                  transcribed {batchOnly ? "once you stop" : "in real time"}{" "}
+                  by {MODEL_ITEMS[model]} and displayed in the text area
+                  below. Pick another model at the
                   top to compare. Uses the useVoiceInput hook from
                   agents/voice.
                 </Text>
@@ -374,12 +477,21 @@ function App() {
           </div>
         </Surface>
 
-        {model === "nova-3" && (
-          <Nova3Settings instance={model} disabled={isListening} />
+        {model !== "flux" && (
+          <DiarizeSettings
+            model={model}
+            settings={settings}
+            update={updateSettings}
+            disabled={isListening}
+          />
         )}
 
-        {MODELS[model].provider === "gemini" && (
-          <GeminiSettings instance={model} disabled={isListening} />
+        {MODELS[model].provider === "gemini" && !batchOnly && (
+          <GeminiSettings
+            settings={settings}
+            update={updateSettings}
+            disabled={isListening}
+          />
         )}
 
         {/* Text area */}
@@ -389,10 +501,10 @@ function App() {
               <>
                 <SpeakerLegend text={displayText} />
                 <span className="whitespace-pre-wrap text-kumo-default text-sm leading-relaxed">
-                  <SpeakerText text={transcript} />
+                  <SpeakerText text={finalText} />
                   {interimTranscript && (
                     <span className="text-kumo-subtle italic">
-                      {transcript ? " " : ""}
+                      {finalText ? " " : ""}
                       <SpeakerText text={interimTranscript} />
                     </span>
                   )}
@@ -400,19 +512,26 @@ function App() {
               </>
             ) : displayText ? (
               <span className="whitespace-pre-wrap text-kumo-default text-sm leading-relaxed">
-                {transcript}
+                {finalText}
                 {interimTranscript && (
                   <span className="text-kumo-subtle italic">
-                    {transcript ? " " : ""}
+                    {finalText ? " " : ""}
                     {interimTranscript}
                   </span>
                 )}
               </span>
-            ) : (
+            ) : redone.transcribing ? null : (
               <span className="text-kumo-subtle text-sm italic">
                 {isListening
-                  ? "Listening... start speaking"
+                  ? batchOnly
+                    ? "Recording... the transcript comes once you stop"
+                    : "Listening... start speaking"
                   : "Click the microphone button to start dictating"}
+              </span>
+            )}
+            {redone.transcribing && (
+              <span className="mt-2 block text-kumo-subtle text-sm italic">
+                Transcribing with {BATCH_MODEL}...
               </span>
             )}
           </div>
@@ -495,8 +614,11 @@ function App() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={clear}
-                disabled={!transcript}
+                onClick={() => {
+                  clear();
+                  redone.reset();
+                }}
+                disabled={!finalText}
                 aria-label="Clear text"
               >
                 <TrashIcon size={16} weight="bold" />
@@ -507,9 +629,9 @@ function App() {
         </Surface>
 
         {/* Error display */}
-        {error && (
+        {(error || redone.error) && (
           <Surface className="p-3 rounded-xl ring ring-red-500/30 bg-red-500/10">
-            <Text size="xs">{error}</Text>
+            <Text size="xs">{error || redone.error}</Text>
           </Surface>
         )}
       </main>

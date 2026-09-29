@@ -6,8 +6,8 @@
  */
 
 /**
- * Nova 3 tells apart up to 8 speakers here, colored with ColorBrewer's Set2
- * palette. Speakers past the 8th reuse its colors.
+ * Nova 3 and Gemini tell apart up to 8 speakers here, colored with
+ * ColorBrewer's Set2 palette. Speakers past the 8th reuse its colors.
  */
 export const SPEAKER_COLORS = [
   "#66c2a5",
@@ -24,9 +24,12 @@ export function speakerColor(speaker: number) {
   return SPEAKER_COLORS[(speaker - 1) % SPEAKER_COLORS.length];
 }
 
-/** Marks where a speaker starts. Nova 3 numbers speakers from 0. */
-export function speakerMarker(nova3Speaker: number) {
-  return `[Speaker ${nova3Speaker + 1}]`;
+/**
+ * Marks where a speaker starts. Nova 3 and Gemini both number speakers from
+ * 0.
+ */
+export function speakerMarker(speaker: number) {
+  return `[Speaker ${speaker + 1}]`;
 }
 
 export interface SpeakerRun {
