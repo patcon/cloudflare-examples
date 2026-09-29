@@ -1,7 +1,8 @@
 /**
- * @cloudflare/voice-gemini — Gemini Live streaming STT provider for the
- * Cloudflare Agents voice pipeline, over Vertex AI's `BidiGenerateContent`.
- * See README.md for options.
+ * @cloudflare/voice-gemini — Gemini speech-to-text for the Cloudflare Agents
+ * voice pipeline, over Vertex AI: `GeminiLiveSTT` streams over
+ * `BidiGenerateContent`, and `GeminiBatchSTT` transcribes a whole recording
+ * with `generateContent`. See README.md for options.
  */
 
 import type {
@@ -366,6 +367,174 @@ class GeminiLiveSession implements TranscriberSession {
     });
     this.#onFatalError?.(error);
   }
+}
+
+export interface GeminiBatchSTTOptions {
+  /** OAuth access token for Vertex AI, or a function that returns one. */
+  accessToken: string | (() => string | Promise<string>);
+  /** Google Cloud project with Vertex AI enabled. */
+  project: string;
+  /**
+   * Vertex location. The transcribe model is only served from `global`.
+   * @default "global"
+   */
+  location?: string;
+  /** Model ID. @default "gemini-3.5-transcribe-preview" */
+  model?: string;
+}
+
+export interface TranscribeOptions {
+  /** Tell speakers apart. */
+  diarize?: boolean;
+}
+
+/** One stretch of a batch transcript, by one speaker. */
+export interface TranscriptSegment {
+  /**
+   * Numbered from 0, in the order speakers are first heard, or null when
+   * not diarizing.
+   */
+  speaker: number | null;
+  text: string;
+}
+
+/**
+ * Gemini speech-to-text for a whole recording at once, over Vertex's
+ * `generateContent`.
+ *
+ * It isn't a `Transcriber`: those stream, and the voice pipeline drops
+ * anything a session sends after the call ends. Call `transcribe()` with
+ * the recording once it's finished instead, such as from a `@callable()`.
+ *
+ * @example
+ * ```typescript
+ * const stt = new GeminiBatchSTT({
+ *   accessToken: env.GOOGLE_ACCESS_TOKEN,
+ *   project: env.GOOGLE_CLOUD_PROJECT
+ * });
+ * const segments = await stt.transcribe(wav, { diarize: true });
+ * ```
+ */
+export class GeminiBatchSTT {
+  #options: GeminiBatchSTTOptions;
+
+  constructor(options: GeminiBatchSTTOptions) {
+    this.#options = options;
+  }
+
+  /** Transcribes a WAV file. */
+  async transcribe(
+    wav: Uint8Array<ArrayBuffer>,
+    options: TranscribeOptions = {}
+  ): Promise<TranscriptSegment[]> {
+    const config = this.#options;
+    const accessToken =
+      typeof config.accessToken === "function"
+        ? await config.accessToken()
+        : config.accessToken;
+    if (!accessToken) {
+      throw new VoiceProviderError("Gemini access token is empty");
+    }
+    const resp = await fetch(_buildGenerateContentUrl(config), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(
+        _buildTranscribeRequest(arrayBufferToBase64(wav.buffer), options)
+      )
+    });
+    if (!resp.ok) {
+      // Vertex puts the reason, such as an expired token, in the body.
+      const body = await resp.text();
+      const error = new VoiceProviderError(
+        `Gemini transcription failed (${resp.status}): ${body}`,
+        { status: resp.status }
+      );
+      logVoiceError({
+        component: "GeminiBatchSTT",
+        stage: "request",
+        message: error.message,
+        error
+      });
+      throw error;
+    }
+    return _parseTranscribeResponse(await resp.json());
+  }
+}
+
+/** Underscore-prefixed: internal helper, exported only for unit tests. */
+export function _buildGenerateContentUrl(opts: GeminiBatchSTTOptions): string {
+  const location = opts.location ?? "global";
+  const model = opts.model ?? "gemini-3.5-transcribe-preview";
+  const host =
+    location === "global"
+      ? "aiplatform.googleapis.com"
+      : `${location}-aiplatform.googleapis.com`;
+  return `https://${host}/v1beta1/projects/${opts.project}/locations/${location}/publishers/google/models/${model}:generateContent`;
+}
+
+/**
+ * Underscore-prefixed: internal helper, exported only for unit tests.
+ * `audioTranscriptionConfig` is Vertex's `AudioTranscriptionConfig`.
+ */
+export function _buildTranscribeRequest(
+  base64Wav: string,
+  options: TranscribeOptions
+) {
+  return {
+    contents: [
+      {
+        role: "user",
+        parts: [{ inlineData: { mimeType: "audio/wav", data: base64Wav } }]
+      }
+    ],
+    // Diarization needs VERBATIM, which is also the default.
+    ...(options.diarize
+      ? {
+          generationConfig: {
+            audioTranscriptionConfig: { mode: "VERBATIM", diarization: true }
+          }
+        }
+      : {})
+  };
+}
+
+interface GenerateContentResponse {
+  candidates?: {
+    content?: {
+      parts?: {
+        text?: string;
+        audioTranscription?: { text?: string; speakerLabel?: string };
+      }[];
+    };
+  }[];
+}
+
+/**
+ * Underscore-prefixed: internal helper, exported only for unit tests.
+ * Each speaker's stretch comes back as its own part, labeled like `spk:0`.
+ */
+export function _parseTranscribeResponse(
+  response: GenerateContentResponse
+): TranscriptSegment[] {
+  const parts = response.candidates?.[0]?.content?.parts ?? [];
+  // Numbered by first appearance, whatever the labels look like.
+  const speakers = new Map<string, number>();
+  const segments: TranscriptSegment[] = [];
+  for (const part of parts) {
+    const text = (part.audioTranscription?.text ?? part.text ?? "").trim();
+    if (!text) continue;
+    const label = part.audioTranscription?.speakerLabel;
+    let speaker: number | null = null;
+    if (label !== undefined) {
+      if (!speakers.has(label)) speakers.set(label, speakers.size);
+      speaker = speakers.get(label)!;
+    }
+    segments.push({ speaker, text });
+  }
+  return segments;
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
