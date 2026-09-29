@@ -139,9 +139,13 @@ class GeminiLiveSession implements TranscriberSession {
       ws.addEventListener("close", (event) => {
         if (this.#closed) return;
         // Vertex puts the reason, such as "model not found", in the close.
+        const reason = event.reason || "no reason given";
+        const hint = /authentication credentials/i.test(reason)
+          ? " The access token has expired or been revoked: run `pnpm google-token`."
+          : "";
         this.#fail(
           new Error(
-            `Gemini Live closed the connection (${event.code}): ${event.reason || "no reason given"}`
+            `Gemini Live closed the connection (${event.code}): ${reason}${hint}`
           )
         );
       });
