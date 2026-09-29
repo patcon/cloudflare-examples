@@ -13,6 +13,23 @@ export interface GeminiLiveSTTOptions {
   location: string;
   /** Model ID, such as "gemini-3.5-transcribe-live-preview". */
   model: string;
+  /** Tunes Gemini's voice activity detection. Unset fields keep its defaults. */
+  activityDetection?: ActivityDetection;
+}
+
+/**
+ * Gemini's `realtimeInputConfig.automaticActivityDetection`, which decides
+ * where a turn starts and ends.
+ */
+export interface ActivityDetection {
+  /** HIGH ends a turn more readily, which helps when noise hides pauses. */
+  endOfSpeechSensitivity?: "END_SENSITIVITY_HIGH" | "END_SENSITIVITY_LOW";
+  /** LOW makes background noise less likely to count as speech. */
+  startOfSpeechSensitivity?: "START_SENSITIVITY_HIGH" | "START_SENSITIVITY_LOW";
+  /** How long a pause has to last to end the turn. */
+  silenceDurationMs?: number;
+  /** How much speech must be heard before a turn starts. */
+  prefixPaddingMs?: number;
 }
 
 /**
@@ -102,7 +119,8 @@ class GeminiLiveSession implements TranscriberSession {
   }
 
   async #connect(config: GeminiLiveSTTOptions): Promise<void> {
-    const { accessToken, project, location, model } = config;
+    const { accessToken, project, location, model, activityDetection } =
+      config;
     try {
       if (!accessToken) {
         throw new Error(
@@ -158,7 +176,14 @@ class GeminiLiveSession implements TranscriberSession {
           setup: {
             model: `projects/${project}/locations/${location}/publishers/google/models/${model}`,
             generationConfig: { responseModalities: ["TEXT"] },
-            inputAudioTranscription: {}
+            inputAudioTranscription: {},
+            ...(activityDetection && Object.keys(activityDetection).length
+              ? {
+                  realtimeInputConfig: {
+                    automaticActivityDetection: activityDetection
+                  }
+                }
+              : {})
           }
         })
       );

@@ -1,8 +1,11 @@
 import { createRoot } from "react-dom/client";
 import { useEffect, useState } from "react";
+import { useAgent } from "agents/react";
 import { useVoiceInput } from "agents/voice/react";
 import {
   Button,
+  Input,
+  LinkButton,
   Select,
   Surface,
   Text,
@@ -14,12 +17,14 @@ import {
   StopIcon,
   TrashIcon,
   CopyIcon,
+  DownloadSimpleIcon,
   CheckIcon,
   InfoIcon,
   MoonIcon,
   SunIcon
 } from "@phosphor-icons/react";
-import { isModelId, MODELS, type ModelId } from "./models";
+import type { ActivityDetection } from "./gemini-live";
+import { isModelId, MODELS, type ModelId, type Settings } from "./models";
 import "./styles.css";
 
 // "default" connects to the default agent instance, which uses STT_MODEL.
@@ -82,6 +87,117 @@ function ModeToggle() {
   );
 }
 
+// Gemini's voice activity detection, kept in the agent instance's state.
+// Changes apply the next time you start dictating.
+function GeminiSettings({
+  instance,
+  disabled
+}: {
+  instance: string;
+  disabled: boolean;
+}) {
+  const [settings, setSettings] = useState<Settings>({
+    activityDetection: {}
+  });
+  const agent = useAgent<Settings>({
+    agent: "VoiceInputAgent",
+    name: instance,
+    onStateUpdate: (state) => setSettings(state)
+  });
+  const detection = settings.activityDetection;
+
+  const update = (change: Partial<ActivityDetection>) => {
+    const next: Record<string, unknown> = { ...detection, ...change };
+    // An unset field keeps Gemini's default.
+    for (const key of Object.keys(next)) {
+      if (next[key] === undefined) delete next[key];
+    }
+    agent.setState({ activityDetection: next as ActivityDetection });
+  };
+
+  const sensitivity = (prefix: "START" | "END") => ({
+    default: "Default",
+    [`${prefix}_SENSITIVITY_HIGH`]: "High",
+    [`${prefix}_SENSITIVITY_LOW`]: "Low"
+  });
+
+  const milliseconds = (value: string) =>
+    value === "" || Number.isNaN(Number(value)) ? undefined : Number(value);
+
+  return (
+    <Surface className="p-4 rounded-xl ring ring-kumo-line">
+      <Text size="sm" bold>
+        Gemini voice detection
+      </Text>
+      <span className="mt-1 mb-3 block">
+        <Text size="xs" variant="secondary">
+          Decides where each turn ends, and so when interim text becomes
+          final. Blank or Default keeps Gemini's own setting. Applies the next
+          time you start dictating.
+        </Text>
+      </span>
+      <div className="grid grid-cols-2 gap-3">
+        <Select
+          size="sm"
+          label="End of speech sensitivity"
+          items={sensitivity("END")}
+          value={detection.endOfSpeechSensitivity ?? "default"}
+          onValueChange={(value) =>
+            update({
+              endOfSpeechSensitivity:
+                value === "default"
+                  ? undefined
+                  : (value as ActivityDetection["endOfSpeechSensitivity"])
+            })
+          }
+          disabled={disabled}
+        />
+        <Select
+          size="sm"
+          label="Start of speech sensitivity"
+          items={sensitivity("START")}
+          value={detection.startOfSpeechSensitivity ?? "default"}
+          onValueChange={(value) =>
+            update({
+              startOfSpeechSensitivity:
+                value === "default"
+                  ? undefined
+                  : (value as ActivityDetection["startOfSpeechSensitivity"])
+            })
+          }
+          disabled={disabled}
+        />
+        <Input
+          size="sm"
+          type="number"
+          min={0}
+          step={100}
+          label="Silence to end a turn (ms)"
+          placeholder="Default"
+          value={detection.silenceDurationMs ?? ""}
+          onChange={(e) =>
+            update({ silenceDurationMs: milliseconds(e.target.value) })
+          }
+          disabled={disabled}
+        />
+        <Input
+          size="sm"
+          type="number"
+          min={0}
+          step={20}
+          label="Speech to start a turn (ms)"
+          placeholder="Default"
+          value={detection.prefixPaddingMs ?? ""}
+          onChange={(e) =>
+            update({ prefixPaddingMs: milliseconds(e.target.value) })
+          }
+          disabled={disabled}
+        />
+      </div>
+    </Surface>
+  );
+}
+
 function App() {
   const [model, setModel] = useModelChoice();
   const {
@@ -103,6 +219,8 @@ function App() {
   });
 
   const [copied, setCopied] = useState(false);
+  // useVoiceInput's instance when it's given no name.
+  const instance = model === "default" ? "default" : model;
 
   const displayText =
     transcript +
@@ -172,6 +290,10 @@ function App() {
             </div>
           </div>
         </Surface>
+
+        {model !== "nova-3" && (
+          <GeminiSettings instance={instance} disabled={isListening} />
+        )}
 
         {/* Text area */}
         <Surface className="rounded-xl ring ring-kumo-line flex-1 flex flex-col min-h-[300px]">
@@ -258,6 +380,18 @@ function App() {
                 )}
                 {copied ? "Copied" : "Copy"}
               </Button>
+              {/* The server records what it sends to the model. */}
+              {!isListening && (
+                <LinkButton
+                  size="sm"
+                  variant="secondary"
+                  href={`/agents/voice-input-agent/${instance}/last-audio.wav`}
+                  download
+                  icon={<DownloadSimpleIcon size={16} weight="bold" />}
+                >
+                  Last audio
+                </LinkButton>
+              )}
               <Button
                 size="sm"
                 variant="secondary"

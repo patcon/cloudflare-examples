@@ -35,6 +35,23 @@ The token lasts about an hour, so run `pnpm google-token` again when it expires.
 
 Pick the model from the menu at the top of the page. It's kept in the URL, such as `?model=nova-3`, so a link opens the same one. With no model in the URL, `STT_MODEL` in `.dev.vars` picks it. The terminal logs each final transcript with the model's name, such as `[nova-3] Transcribed: "…"`.
 
+### Tuning Gemini's voice detection
+
+Gemini decides where each turn ends, and so when interim text becomes final, with its own voice activity detection. Steady background noise, such as an air conditioner, can hide the pauses, so a turn never ends. With a Gemini model picked, the page shows these settings, which go into the setup message's [`realtimeInputConfig.automaticActivityDetection`](https://cloud.google.com/vertex-ai/generative-ai/docs/live-api):
+
+| Setting | Field | Try |
+|---|---|---|
+| End of speech sensitivity | `endOfSpeechSensitivity` | High, to end turns more readily |
+| Start of speech sensitivity | `startOfSpeechSensitivity` | Low, so noise is less likely to count as speech |
+| Silence to end a turn | `silenceDurationMs` | 500–800 |
+| Speech to start a turn | `prefixPaddingMs` | |
+
+Blank or Default keeps Gemini's own setting. They're saved in the model's agent instance, so they survive a reload, and apply the next time you start dictating. The terminal logs the ones each session starts with.
+
+### Downloading the last audio
+
+**Last audio** downloads the last session's audio as a 16kHz mono WAV: exactly what the model heard, after the browser's noise suppression, echo cancellation and auto gain control. Each model keeps its own last recording, of up to 10 minutes, in its Durable Object's SQLite. Use it to replay a noisy recording against different settings.
+
 ## How it works
 
 ### Server (`src/server.ts`)
