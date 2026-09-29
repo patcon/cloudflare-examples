@@ -4,6 +4,7 @@
   "description": "The first visitor to a URL becomes its admin, in a Cloudflare Durable Object",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:share": "wrangler dev --tunnel",
     "deploy": "wrangler deploy",
     "typecheck": "wrangler types && tsc",
     "types": "wrangler types"

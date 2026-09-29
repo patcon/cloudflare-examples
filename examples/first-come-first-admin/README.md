@@ -17,6 +17,14 @@ pnpm dev        # http://localhost:8791
 
 Open <http://localhost:8791>. It sends you to a new room with a random id, so you're its admin. Open the same URL in a private window, or another browser, to join as a regular user. Each example has its own port, so you can run them side by side.
 
+To join from a phone, or to hand the room to people around you, the Worker needs a public address:
+
+```sh
+pnpm dev:share
+```
+
+After a few seconds it prints a link like `https://some-random-words.trycloudflare.com`, and a QR code of it in the terminal. Open it yourself first to claim the room, then share the room's URL, not its `/admin` page. The link is a free Cloudflare [Quick Tunnel](https://developers.cloudflare.com/workers/local-development/local-dev-tunnels/) to your laptop, so everything still runs locally, and it's new every time. Without it, press `t` then Enter in a running `pnpm dev` to open one.
+
 ## How it works
 
 - **Who you are.** On your first request the Worker sets `ffa_token`, a random secret, in an `HttpOnly; SameSite=Lax` cookie. Your **public id** is part of the SHA-256 of that token. Admins see it and use it to make you an admin, but it can't be turned back into your cookie, so knowing it doesn't let anyone act as you. The same cookie works in every room.
