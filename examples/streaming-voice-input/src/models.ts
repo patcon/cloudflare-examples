@@ -1,4 +1,4 @@
-import type { ActivityDetection } from "./gemini-live";
+import type { ActivityDetection } from "@cloudflare/voice-gemini";
 
 /**
  * The speech-to-text models to compare. Each one is also the name of its

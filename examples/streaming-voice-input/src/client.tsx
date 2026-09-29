@@ -23,7 +23,7 @@ import {
   MoonIcon,
   SunIcon
 } from "@phosphor-icons/react";
-import type { ActivityDetection } from "./gemini-live";
+import type { ActivityDetection } from "@cloudflare/voice-gemini";
 import { isModelId, MODELS, type ModelId, type Settings } from "./models";
 import "./styles.css";
 

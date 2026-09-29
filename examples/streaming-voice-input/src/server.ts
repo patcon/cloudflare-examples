@@ -4,7 +4,7 @@ import {
   WorkersAINova3STT,
   type Transcriber
 } from "agents/voice";
-import { GeminiLiveSTT } from "./gemini-live";
+import { GeminiLiveSTT } from "@cloudflare/voice-gemini";
 import { isModelId, MODELS, type ModelId, type Settings } from "./models";
 import { AudioRecorder } from "./recording";
 
