@@ -8,13 +8,13 @@ export const MODELS = {
   "nova-3": { label: "Workers AI Nova 3", provider: "workers-ai" },
   flux: { label: "Workers AI Flux", provider: "workers-ai" },
   "gemini-3.5-transcribe-live-preview": {
-    label: "Gemini 3.5 Transcribe Live (preview)",
+    label: "Gemini 3.5 Transcribe Live (streaming)",
     provider: "gemini",
     // Vertex only serves this model from the global endpoint.
     location: "global"
   },
   "gemini-3.5-transcribe-preview": {
-    label: "Gemini 3.5 Transcribe (preview, after you stop)",
+    label: "Gemini 3.5 Transcribe (batch)",
     provider: "gemini",
     location: "global",
     // Transcribes the whole recording once you stop, rather than streaming.
