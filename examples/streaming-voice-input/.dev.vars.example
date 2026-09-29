@@ -1,5 +1,5 @@
-# Which model to use when the page doesn't pick one: nova-3 or
-# gemini-3.5-transcribe-live-preview.
+# Which model to use when the page doesn't pick one: nova-3, flux
+# or gemini-3.5-transcribe-live-preview.
 STT_MODEL=nova-3
 
 # For the Gemini model: a Google Cloud project with Vertex AI enabled, and an

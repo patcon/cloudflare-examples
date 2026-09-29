@@ -7,6 +7,7 @@ Captures microphone audio, streams it to an Agent Durable Object for real-time s
 | Model (`STT_MODEL`) | Provider | Region |
 |---|---|---|
 | `nova-3` | Workers AI (Deepgram Nova 3) | Cloudflare |
+| `flux` | Workers AI (Deepgram Flux) | Cloudflare |
 | `gemini-3.5-transcribe-live-preview` | Vertex AI, Gemini Live API | `global` only |
 
 The other Gemini Live models only answer with audio, so they're left out for now. That includes `gemini-live-2.5-flash-native-audio`, the only one served from the EU (europe-west1).
@@ -22,7 +23,7 @@ pnpm dev
 
 Then open <http://localhost:8793>. `pnpm dev:share` also prints a public link, to try it from a phone.
 
-Nova 3 needs no API keys. It uses Workers AI, bound in `wrangler.jsonc`. The binding is remote, so you need to be logged in with `pnpm wrangler login`.
+Nova 3 and Flux need no API keys. It uses Workers AI, bound in `wrangler.jsonc`. The binding is remote, so you need to be logged in with `pnpm wrangler login`.
 
 For Gemini, you need a Google Cloud project with Vertex AI enabled and `gcloud` logged in to it:
 

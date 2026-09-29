@@ -291,7 +291,7 @@ function App() {
           </div>
         </Surface>
 
-        {model !== "nova-3" && (
+        {(model === "default" || MODELS[model].provider === "gemini") && (
           <GeminiSettings instance={instance} disabled={isListening} />
         )}
 

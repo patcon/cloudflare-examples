@@ -1,6 +1,7 @@
 import { Agent, routeAgentRequest, type Connection } from "agents";
 import {
   withVoiceInput,
+  WorkersAIFluxSTT,
   WorkersAINova3STT,
   type Transcriber
 } from "agents/voice";
@@ -24,6 +25,7 @@ const InputAgent = withVoiceInput(Agent);
 export class VoiceInputAgent extends InputAgent<Env, Settings> {
   initialState: Settings = { activityDetection: {} };
   transcriber = new WorkersAINova3STT(this.env.AI);
+  flux = new WorkersAIFluxSTT(this.env.AI);
   recorder = new AudioRecorder(this.ctx.storage.sql);
 
   get model(): ModelId {
@@ -36,6 +38,7 @@ export class VoiceInputAgent extends InputAgent<Env, Settings> {
   createTranscriber(_connection: Connection): Transcriber | null {
     const model = this.model;
     if (model === "nova-3") return this.recorder.wrap(this.transcriber);
+    if (model === "flux") return this.recorder.wrap(this.flux);
     console.log(
       `[${model}] Starting with voice detection`,
       JSON.stringify(this.state.activityDetection)
