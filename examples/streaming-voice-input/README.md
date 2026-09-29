@@ -49,6 +49,12 @@ Gemini decides where each turn ends, and so when interim text becomes final, wit
 
 Blank or Default keeps Gemini's own setting. They're saved in the model's agent instance, so they survive a reload, and apply the next time you start dictating. The terminal logs the ones each session starts with.
 
+### Telling speakers apart with Nova 3
+
+With Nova 3 picked, **Tell speakers apart (diarization)** turns on Nova 3's [`diarize`](https://developers.cloudflare.com/workers-ai/models/nova-3/) option, which numbers each word's speaker. The page highlights each speaker's words in their own color, from ColorBrewer's 8-color Set2 palette, and **Copy** puts each speaker's turn in its own paragraph, labeled "Speaker N:".
+
+The built-in `WorkersAINova3STT` doesn't pass `diarize`, and `useVoiceInput` only passes on text. So `src/nova3-diarized.ts` is a copy of the built-in transcriber that asks for diarization, and marks each speaker change in the text with "[Speaker N]". The page splits the text on those markers (`src/speakers.ts`).
+
 ### Downloading the last audio
 
 **Last audio** downloads the last session's audio as a 16kHz mono WAV: exactly what the model heard, after the browser's noise suppression, echo cancellation and auto gain control. Each model keeps its own last recording, of up to 10 minutes, in its Durable Object's SQLite. Use it to replay a noisy recording against different settings.

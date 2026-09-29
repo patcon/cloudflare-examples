@@ -7,6 +7,7 @@ import {
 } from "agents/voice";
 import { GeminiLiveSTT } from "@cloudflare/voice-gemini";
 import { isModelId, MODELS, type ModelId, type Settings } from "./models";
+import { WorkersAINova3DiarizedSTT } from "./nova3-diarized";
 import { AudioRecorder } from "./recording";
 
 const InputAgent = withVoiceInput(Agent);
@@ -36,7 +37,13 @@ export class VoiceInputAgent extends InputAgent<Env, Settings> {
   // only while recording.
   createTranscriber(_connection: Connection): Transcriber | null {
     const model = this.model;
-    if (model === "nova-3") return this.recorder.wrap(this.transcriber);
+    if (model === "nova-3") {
+      return this.recorder.wrap(
+        this.state.diarize
+          ? new WorkersAINova3DiarizedSTT(this.env.AI)
+          : this.transcriber
+      );
+    }
     if (model === "flux") return this.recorder.wrap(this.flux);
     console.log(
       `[${model}] Starting with voice detection`,

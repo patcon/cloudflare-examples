@@ -25,4 +25,6 @@ export function isModelId(id: string | undefined): id is ModelId {
 export interface Settings {
   /** Gemini's voice activity detection. Empty keeps Gemini's defaults. */
   activityDetection: ActivityDetection;
+  /** Whether Nova 3 tells speakers apart. */
+  diarize?: boolean;
 }

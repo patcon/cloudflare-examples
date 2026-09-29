@@ -4,6 +4,7 @@ import { useAgent } from "agents/react";
 import { useVoiceInput } from "agents/voice/react";
 import {
   Button,
+  Checkbox,
   Input,
   LinkButton,
   Select,
@@ -25,6 +26,12 @@ import {
 } from "@phosphor-icons/react";
 import type { ActivityDetection } from "@cloudflare/voice-gemini";
 import { isModelId, MODELS, type ModelId, type Settings } from "./models";
+import {
+  hasSpeakers,
+  labelSpeakers,
+  speakerColor,
+  splitBySpeaker
+} from "./speakers";
 import "./styles.css";
 
 const MODEL_ITEMS = Object.fromEntries(
@@ -80,15 +87,9 @@ function ModeToggle() {
   );
 }
 
-// Gemini's voice activity detection, kept in the agent instance's state.
-// Changes apply the next time you start dictating.
-function GeminiSettings({
-  instance,
-  disabled
-}: {
-  instance: string;
-  disabled: boolean;
-}) {
+// A model's settings, kept in its agent instance's state. Changes apply the
+// next time you start dictating.
+function useSettings(instance: string) {
   const [settings, setSettings] = useState<Settings>({
     activityDetection: {}
   });
@@ -97,6 +98,46 @@ function GeminiSettings({
     name: instance,
     onStateUpdate: (state) => setSettings(state)
   });
+  const update = (change: Partial<Settings>) =>
+    agent.setState({ ...settings, ...change });
+  return [settings, update] as const;
+}
+
+function Nova3Settings({
+  instance,
+  disabled
+}: {
+  instance: string;
+  disabled: boolean;
+}) {
+  const [settings, update] = useSettings(instance);
+  return (
+    <Surface className="p-4 rounded-xl ring ring-kumo-line">
+      <Checkbox
+        label="Tell speakers apart (diarization)"
+        checked={settings.diarize ?? false}
+        onCheckedChange={(checked) => update({ diarize: checked })}
+        disabled={disabled}
+      />
+      <span className="mt-1 block">
+        <Text size="xs" variant="secondary">
+          Highlights each speaker's words in their own color, for up to 8
+          speakers. Applies the next time you start dictating.
+        </Text>
+      </span>
+    </Surface>
+  );
+}
+
+// Gemini's voice activity detection.
+function GeminiSettings({
+  instance,
+  disabled
+}: {
+  instance: string;
+  disabled: boolean;
+}) {
+  const [settings, updateSettings] = useSettings(instance);
   const detection = settings.activityDetection;
 
   const update = (change: Partial<ActivityDetection>) => {
@@ -105,7 +146,7 @@ function GeminiSettings({
     for (const key of Object.keys(next)) {
       if (next[key] === undefined) delete next[key];
     }
-    agent.setState({ activityDetection: next as ActivityDetection });
+    updateSettings({ activityDetection: next as ActivityDetection });
   };
 
   const sensitivity = (prefix: "START" | "END") => ({
@@ -191,6 +232,52 @@ function GeminiSettings({
   );
 }
 
+// Diarized text, with each speaker's words on their own color.
+function SpeakerText({ text }: { text: string }) {
+  return splitBySpeaker(text).map((run, i) => (
+    <span key={i}>
+      {i > 0 && " "}
+      {run.speaker === null ? (
+        run.text
+      ) : (
+        <mark
+          title={`Speaker ${run.speaker}`}
+          className="rounded px-0.5 text-inherit box-decoration-clone"
+          style={{
+            backgroundColor: `color-mix(in srgb, ${speakerColor(run.speaker)} 45%, transparent)`
+          }}
+        >
+          {run.text}
+        </mark>
+      )}
+    </span>
+  ));
+}
+
+function SpeakerLegend({ text }: { text: string }) {
+  const speakers = [
+    ...new Set(splitBySpeaker(text).map((run) => run.speaker))
+  ]
+    .filter((speaker) => speaker !== null)
+    .sort((a, b) => a - b);
+  return (
+    <div className="mb-3 flex flex-wrap gap-2">
+      {speakers.map((speaker) => (
+        <span
+          key={speaker}
+          className="flex items-center gap-1.5 text-xs text-kumo-subtle"
+        >
+          <span
+            className="size-3 rounded-sm"
+            style={{ backgroundColor: speakerColor(speaker) }}
+          />
+          Speaker {speaker}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function App() {
   const [model, setModel] = useModelChoice();
   const {
@@ -217,9 +304,14 @@ function App() {
     transcript +
     (interimTranscript ? (transcript ? " " : "") + interimTranscript : "");
 
+  // Nova 3 marks speakers in the text when diarizing.
+  const diarized = hasSpeakers(displayText);
+
   const handleCopy = async () => {
     if (!displayText) return;
-    await navigator.clipboard.writeText(displayText);
+    await navigator.clipboard.writeText(
+      diarized ? labelSpeakers(displayText) : displayText
+    );
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -282,6 +374,10 @@ function App() {
           </div>
         </Surface>
 
+        {model === "nova-3" && (
+          <Nova3Settings instance={model} disabled={isListening} />
+        )}
+
         {MODELS[model].provider === "gemini" && (
           <GeminiSettings instance={model} disabled={isListening} />
         )}
@@ -289,7 +385,20 @@ function App() {
         {/* Text area */}
         <Surface className="rounded-xl ring ring-kumo-line flex-1 flex flex-col min-h-[300px]">
           <div className="flex-1 p-4">
-            {displayText ? (
+            {diarized ? (
+              <>
+                <SpeakerLegend text={displayText} />
+                <span className="whitespace-pre-wrap text-kumo-default text-sm leading-relaxed">
+                  <SpeakerText text={transcript} />
+                  {interimTranscript && (
+                    <span className="text-kumo-subtle italic">
+                      {transcript ? " " : ""}
+                      <SpeakerText text={interimTranscript} />
+                    </span>
+                  )}
+                </span>
+              </>
+            ) : displayText ? (
               <span className="whitespace-pre-wrap text-kumo-default text-sm leading-relaxed">
                 {transcript}
                 {interimTranscript && (
