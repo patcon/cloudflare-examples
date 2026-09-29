@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite dev",
     "dev:share": "vite dev --mode share",
+    "google-token": "node scripts/google-token.mjs",
     "deploy": "vite build && wrangler deploy",
     "types": "wrangler types env.d.ts --include-runtime false"
   },

@@ -2,7 +2,14 @@
 
 Voice-to-text dictation example using the `useVoiceInput` hook from `agents/voice`.
 
-Captures microphone audio, streams it to an Agent Durable Object for real-time speech-to-text using Workers AI, and displays the transcript in a text area.
+Captures microphone audio, streams it to an Agent Durable Object for real-time speech-to-text, and displays the transcript in a text area. It adds a second speech-to-text model to compare with Workers AI:
+
+| Model (`STT_MODEL`) | Provider | Region |
+|---|---|---|
+| `nova-3` | Workers AI (Deepgram Nova 3) | Cloudflare |
+| `gemini-3.5-transcribe-live-preview` | Vertex AI, Gemini Live API | `global` only |
+
+The other Gemini Live models only answer with audio, so they're left out for now. That includes `gemini-live-2.5-flash-native-audio`, the only one served from the EU (europe-west1).
 
 It's a port of [cloudflare/agents `examples/voice-input`](https://github.com/cloudflare/agents/tree/11f87b5332f6cf4dfff71d8249621b28f539280f/examples/voice-input), made standalone: it installs `agents` from npm instead of the monorepo's workspace.
 
@@ -15,7 +22,18 @@ pnpm dev
 
 Then open <http://localhost:8793>. `pnpm dev:share` also prints a public link, to try it from a phone.
 
-No API keys needed — uses Workers AI (bound via `wrangler.jsonc`). The binding is remote, so you need to be logged in with `pnpm wrangler login`.
+Nova 3 needs no API keys. It uses Workers AI, bound in `wrangler.jsonc`. The binding is remote, so you need to be logged in with `pnpm wrangler login`.
+
+For Gemini, you need a Google Cloud project with Vertex AI enabled and `gcloud` logged in to it:
+
+```bash
+cp .dev.vars.example .dev.vars   # STT_MODEL and GOOGLE_CLOUD_PROJECT
+pnpm google-token                # puts `gcloud auth print-access-token` in .dev.vars
+```
+
+The token lasts about an hour, so run `pnpm google-token` again when it expires. When Gemini fails to start, the page only says "Speech recognition failed to start". The reason Vertex gave, such as an expired token, is in the terminal.
+
+`STT_MODEL` in `.dev.vars` picks the model. The terminal logs each final transcript with the model's name, such as `[nova-3] Transcribed: "…"`.
 
 ## How it works
 
@@ -37,6 +55,13 @@ export class VoiceInputAgent extends InputAgent<Env> {
   }
 }
 ```
+
+For the Gemini model, `createTranscriber()` returns a `GeminiLiveSTT` instead. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
+
+`GeminiLiveSTT` (`src/gemini-live.ts`) implements the SDK's `Transcriber` interface. Each session opens a WebSocket to Vertex's `BidiGenerateContent` with a text-only response, and streams the 16kHz PCM up as base64. Vertex sends back three things:
+- `interimInputTranscription`: everything heard so far this turn, shown as interim text.
+- `inputTranscription`: the whole turn, once, when Gemini's voice activity detection decides you've stopped. This becomes the final transcript.
+- `voiceActivity`: `ACTIVITY_START` when you start speaking.
 
 ### Client (`src/client.tsx`)
 
