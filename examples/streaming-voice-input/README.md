@@ -2,6 +2,10 @@
 
 Voice-to-text dictation example using the `useVoiceInput` hook from `agents/voice`.
 
+| gemini-3.5-transcribe-live (streaming) | @cf/deepgram/nova-3 (streaming) with diarization |
+|---|---|
+| ![Dictating with Gemini 3.5 Transcribe Live](docs/gemini-transcribe-live-streaming.png) | ![Dictating with Nova 3, each speaker's words highlighted in their own color](docs/nova-3-streaming-diarization.png) |
+
 Captures microphone audio, streams it to an Agent Durable Object for real-time speech-to-text, and displays the transcript in a text area. Pick one of these speech-to-text models to compare them:
 
 | Model | Provider | Region |
