@@ -5,8 +5,8 @@ import type { ActivityDetection } from "@cloudflare/voice-gemini";
  * own agent instance, so the page picks a model by connecting to it.
  */
 export const MODELS = {
-  "nova-3": { label: "Workers AI Nova 3", provider: "workers-ai" },
-  flux: { label: "Workers AI Flux", provider: "workers-ai" },
+  "nova-3": { label: "Workers AI Nova 3 (streaming)", provider: "workers-ai" },
+  flux: { label: "Workers AI Flux (streaming)", provider: "workers-ai" },
   "gemini-3.5-transcribe-live-preview": {
     label: "Gemini 3.5 Transcribe Live (streaming)",
     provider: "gemini",
