@@ -15,7 +15,7 @@ const InputAgent = withVoiceInput(Agent);
  * Voice-to-text input agent.
  *
  * Transcribes speech in real time with the model named by this instance's
- * name (the page's model picker), or `STT_MODEL` for the default instance.
+ * name (the page's model picker), or Nova 3 for any other name.
  * No TTS or LLM pipeline — each utterance is transcribed and sent back to the
  * client immediately.
  *
@@ -29,8 +29,7 @@ export class VoiceInputAgent extends InputAgent<Env, Settings> {
   recorder = new AudioRecorder(this.ctx.storage.sql);
 
   get model(): ModelId {
-    if (isModelId(this.name)) return this.name;
-    return isModelId(this.env.STT_MODEL) ? this.env.STT_MODEL : "nova-3";
+    return isModelId(this.name) ? this.name : "nova-3";
   }
 
   // Called when recording starts, so only the chosen model is connected, and

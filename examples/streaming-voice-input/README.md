@@ -4,7 +4,7 @@ Voice-to-text dictation example using the `useVoiceInput` hook from `agents/voic
 
 Captures microphone audio, streams it to an Agent Durable Object for real-time speech-to-text, and displays the transcript in a text area. It adds a second speech-to-text model to compare with Workers AI:
 
-| Model (`STT_MODEL`) | Provider | Region |
+| Model | Provider | Region |
 |---|---|---|
 | `nova-3` | Workers AI (Deepgram Nova 3) | Cloudflare |
 | `flux` | Workers AI (Deepgram Flux) | Cloudflare |
@@ -28,13 +28,13 @@ Nova 3 and Flux need no API keys. It uses Workers AI, bound in `wrangler.jsonc`.
 For Gemini, you need a Google Cloud project with Vertex AI enabled and `gcloud` logged in to it:
 
 ```bash
-cp .dev.vars.example .dev.vars   # STT_MODEL and GOOGLE_CLOUD_PROJECT
+cp .dev.vars.example .dev.vars   # set GOOGLE_CLOUD_PROJECT
 pnpm google-token                # puts `gcloud auth print-access-token` in .dev.vars
 ```
 
 The token lasts about an hour, so run `pnpm google-token` again when it expires. When Gemini fails to start, the page only says "Speech recognition failed to start". The reason Vertex gave, such as an expired token, is in the terminal.
 
-Pick the model from the menu at the top of the page. It's kept in the URL, such as `?model=nova-3`, so a link opens the same one. With no model in the URL, `STT_MODEL` in `.dev.vars` picks it. The terminal logs each final transcript with the model's name, such as `[nova-3] Transcribed: "…"`.
+Pick the model from the menu at the top of the page. It's kept in the URL, such as `?model=nova-3`, so a link opens the same one. With no model in the URL, it uses Nova 3. The terminal logs each final transcript with the model's name, such as `[nova-3] Transcribed: "…"`.
 
 ### Tuning Gemini's voice detection
 

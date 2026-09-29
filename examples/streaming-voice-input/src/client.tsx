@@ -27,27 +27,20 @@ import type { ActivityDetection } from "@cloudflare/voice-gemini";
 import { isModelId, MODELS, type ModelId, type Settings } from "./models";
 import "./styles.css";
 
-// "default" connects to the default agent instance, which uses STT_MODEL.
-type ModelChoice = ModelId | "default";
-
-const MODEL_ITEMS: Record<ModelChoice, string> = {
-  default: "STT_MODEL (from .dev.vars)",
-  ...Object.fromEntries(
-    Object.entries(MODELS).map(([id, { label }]) => [id, label])
-  )
-} as Record<ModelChoice, string>;
+const MODEL_ITEMS = Object.fromEntries(
+  Object.entries(MODELS).map(([id, { label }]) => [id, label])
+) as Record<ModelId, string>;
 
 // The model is kept in the URL (?model=…), so a link opens the same one.
 function useModelChoice() {
-  const [model, setModel] = useState<ModelChoice>(() => {
+  const [model, setModel] = useState<ModelId>(() => {
     const param = new URLSearchParams(location.search).get("model") ?? "";
-    return isModelId(param) ? param : "default";
+    return isModelId(param) ? param : "nova-3";
   });
 
   useEffect(() => {
     const url = new URL(location.href);
-    if (model === "default") url.searchParams.delete("model");
-    else url.searchParams.set("model", model);
+    url.searchParams.set("model", model);
     history.replaceState(null, "", url);
   }, [model]);
 
@@ -215,12 +208,10 @@ function App() {
     agent: "VoiceInputAgent",
     // Each model is its own agent instance. Nothing connects to the model
     // itself until you start dictating.
-    name: model === "default" ? undefined : model
+    name: model
   });
 
   const [copied, setCopied] = useState(false);
-  // useVoiceInput's instance when it's given no name.
-  const instance = model === "default" ? "default" : model;
 
   const displayText =
     transcript +
@@ -256,7 +247,7 @@ function App() {
             items={MODEL_ITEMS}
             value={model}
             onValueChange={(value) => {
-              if (value) setModel(value as ModelChoice);
+              if (value) setModel(value as ModelId);
             }}
             disabled={isListening}
           />
@@ -291,8 +282,8 @@ function App() {
           </div>
         </Surface>
 
-        {(model === "default" || MODELS[model].provider === "gemini") && (
-          <GeminiSettings instance={instance} disabled={isListening} />
+        {MODELS[model].provider === "gemini" && (
+          <GeminiSettings instance={model} disabled={isListening} />
         )}
 
         {/* Text area */}
@@ -385,7 +376,7 @@ function App() {
                 <LinkButton
                   size="sm"
                   variant="secondary"
-                  href={`/agents/voice-input-agent/${instance}/last-audio.wav`}
+                  href={`/agents/voice-input-agent/${model}/last-audio.wav`}
                   download
                   icon={<DownloadSimpleIcon size={16} weight="bold" />}
                 >
