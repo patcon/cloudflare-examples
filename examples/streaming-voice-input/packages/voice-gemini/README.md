@@ -9,6 +9,17 @@ It's shaped like the providers in [cloudflare/agents `voice-providers/`](https:/
 
 It needs no Workers AI binding. It only opens an outbound WebSocket with `fetch`, so it works in any Worker or Durable Object that can reach `aiplatform.googleapis.com`.
 
+## Layout
+
+| File | What's in it |
+|---|---|
+| `src/index.ts` | The public exports |
+| `src/live.ts` | `GeminiLiveSTT`, a streaming `Transcriber` |
+| `src/batch.ts` | `GeminiBatchSTT`, for a finished recording |
+| `src/vertex.ts` | What both share: options, host, access token |
+
+Tests are split the same way, in `tests/live.test.ts` and `tests/batch.test.ts`.
+
 ## Usage
 
 ```typescript
