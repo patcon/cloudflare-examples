@@ -115,6 +115,29 @@ it("ends the audio stream before closing", async () => {
   expect(ws.close).toHaveBeenCalled();
 });
 
+it("marks the whole session as one segment when detection is disabled", async () => {
+  const { ws } = stubSocket();
+  const session = new GeminiLiveSTT({
+    ...options,
+    activityDetection: { disabled: true }
+  }).createSession();
+  await vi.waitFor(() => expect(ws.send).toHaveBeenCalled());
+  expect(JSON.parse(ws.send.mock.calls[0][0]).setup).toMatchObject({
+    realtimeInputConfig: { automaticActivityDetection: { disabled: true } }
+  });
+
+  serverMessage(ws, { setupComplete: {} });
+  await session.waitUntilReady?.();
+  session.close();
+
+  const sent = ws.send.mock.calls.slice(1).map(([m]) => JSON.parse(m));
+  expect(sent).toEqual([
+    { realtimeInput: { activityStart: {} } },
+    { realtimeInput: { activityEnd: {} } },
+    { realtimeInput: { audioStreamEnd: true } }
+  ]);
+});
+
 it("rejects readiness and reports a fatal error when the socket upgrade fails", async () => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.stubGlobal(

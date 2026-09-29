@@ -66,7 +66,7 @@ For `GeminiLiveSTT`:
 | `project`           | (required)                             | Google Cloud project with Vertex AI enabled                                                  |
 | `location`          | `"global"`                             | Vertex location. Each model is only served from some.                                        |
 | `model`             | `"gemini-3.5-transcribe-live-preview"` | Model ID. It must answer with text, since only its input transcription is used.             |
-| `activityDetection` | Gemini's defaults                      | `realtimeInputConfig.automaticActivityDetection`: sensitivities, silence and prefix padding |
+| `activityDetection` | Gemini's defaults                      | `realtimeInputConfig.automaticActivityDetection`: sensitivities, silence and prefix padding, or `disabled` to make the whole session one segment |
 
 ## How it works
 

@@ -251,15 +251,31 @@ function GeminiSettings({
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line">
       <Text size="sm" bold>
-        Gemini voice detection
+        Gemini voice segment detection
       </Text>
       <span className="mt-1 mb-3 block">
         <Text size="xs" variant="secondary">
-          Decides where each turn ends, and so when interim text becomes
+          Decides where each segment ends, and so when interim text becomes
           final. Blank or Default keeps Gemini's own setting. Applies the next
           time you start dictating.
         </Text>
       </span>
+      <div className="mb-3">
+        <Checkbox
+          label="Turn off Gemini's voice segment detection"
+          checked={detection.disabled ?? false}
+          onCheckedChange={(checked) =>
+            update({ disabled: checked || undefined })
+          }
+          disabled={disabled}
+        />
+        <span className="mt-1 block">
+          <Text size="xs" variant="secondary">
+            Treats the whole recording as one segment, so text stays interim
+            until you stop.
+          </Text>
+        </span>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Select
           size="sm"
@@ -274,7 +290,7 @@ function GeminiSettings({
                   : (value as ActivityDetection["endOfSpeechSensitivity"])
             })
           }
-          disabled={disabled}
+          disabled={disabled || !!detection.disabled}
         />
         <Select
           size="sm"
@@ -289,33 +305,33 @@ function GeminiSettings({
                   : (value as ActivityDetection["startOfSpeechSensitivity"])
             })
           }
-          disabled={disabled}
+          disabled={disabled || !!detection.disabled}
         />
         <Input
           size="sm"
           type="number"
           min={0}
           step={100}
-          label="Silence to end a turn (ms)"
+          label="Silence to end a segment (ms)"
           placeholder="Default"
           value={detection.silenceDurationMs ?? ""}
           onChange={(e) =>
             update({ silenceDurationMs: milliseconds(e.target.value) })
           }
-          disabled={disabled}
+          disabled={disabled || !!detection.disabled}
         />
         <Input
           size="sm"
           type="number"
           min={0}
           step={20}
-          label="Speech to start a turn (ms)"
+          label="Speech to start a segment (ms)"
           placeholder="Default"
           value={detection.prefixPaddingMs ?? ""}
           onChange={(e) =>
             update({ prefixPaddingMs: milliseconds(e.target.value) })
           }
-          disabled={disabled}
+          disabled={disabled || !!detection.disabled}
         />
       </div>
     </Surface>

@@ -39,6 +39,12 @@ export interface GeminiLiveSTTOptions extends VertexOptions {
  * where a turn starts and ends.
  */
 export interface ActivityDetection {
+  /**
+   * Turns Gemini's detection off. The whole session is then one segment: we
+   * send `activityStart` once connected and `activityEnd` on close, so text
+   * stays interim until you stop.
+   */
+  disabled?: boolean;
   /** HIGH ends a turn more readily, which helps when noise hides pauses. */
   endOfSpeechSensitivity?: "END_SENSITIVITY_HIGH" | "END_SENSITIVITY_LOW";
   /** LOW makes background noise less likely to count as speech. */
@@ -133,6 +139,7 @@ class GeminiLiveSession implements TranscriberSession {
   #onFatalError: TranscriberSessionOptions["onFatalError"];
 
   #ws: WebSocket | null = null;
+  #manualActivity: boolean;
   #connected = false;
   #closed = false;
   #fatalReported = false;
@@ -153,6 +160,7 @@ class GeminiLiveSession implements TranscriberSession {
     this.#onSpeechStart = options?.onSpeechStart;
     this.#onUtterance = options?.onUtterance;
     this.#onFatalError = options?.onFatalError;
+    this.#manualActivity = !!config.activityDetection?.disabled;
     this.#ready = new Promise<void>((resolve, reject) => {
       this.#resolveReady = resolve;
       this.#rejectReady = reject;
@@ -196,6 +204,9 @@ class GeminiLiveSession implements TranscriberSession {
     // SDK's `close()` can't wait, so a transcript sent in reply is dropped.
     if (this.#ws && this.#connected) {
       try {
+        if (this.#manualActivity) {
+          this.#ws.send(JSON.stringify({ realtimeInput: { activityEnd: {} } }));
+        }
         this.#ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
       } catch {
         // ignore
@@ -310,6 +321,9 @@ class GeminiLiveSession implements TranscriberSession {
 
     if (message.setupComplete) {
       this.#connected = true;
+      if (this.#manualActivity) {
+        this.#ws?.send(JSON.stringify({ realtimeInput: { activityStart: {} } }));
+      }
       for (const chunk of this.#pendingChunks) this.#sendAudio(chunk);
       this.#pendingChunks = [];
       this.#pendingBytes = 0;
