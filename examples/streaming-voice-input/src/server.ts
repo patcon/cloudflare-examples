@@ -1,24 +1,17 @@
 import { Agent, callable, routeAgentRequest, type Connection } from "agents";
+import { withVoiceInput, type Transcriber } from "agents/voice";
 import {
-  withVoiceInput,
-  WorkersAIFluxSTT,
-  WorkersAINova3STT,
-  type Transcriber
-} from "agents/voice";
-import { GeminiBatchSTT, GeminiLiveSTT } from "@cloudflare/voice-gemini";
-import {
-  BATCH_MODEL,
+  afterStop,
   isModelId,
-  MODELS,
-  transcribesAfterStop,
+  isStreaming,
   type ModelId,
   type Settings
 } from "./models";
-import { WorkersAINova3DiarizedSTT } from "./nova3-diarized";
+import { BATCH, STREAMING } from "./providers";
 import { AudioRecorder } from "./recording";
 import { speakerMarker } from "./speakers";
 
-// For the batch model: hears the audio, so it's recorded, but says nothing.
+// For batch models: hears the audio, so it's recorded, but says nothing.
 // The page asks for the transcript with `transcribeLastAudio()` once you stop.
 const silentTranscriber: Transcriber = {
   createSession: () => ({ feed() {}, close() {} })
@@ -29,20 +22,18 @@ const InputAgent = withVoiceInput(Agent);
 /**
  * Voice-to-text input agent.
  *
- * Transcribes speech in real time with the model named by this instance's
- * name (the page's model picker), or Nova 3 for any other name.
+ * Transcribes speech with the model named by this instance's name (the
+ * page's model picker), or Nova 3 for any other name.
  * No TTS or LLM pipeline — each utterance is transcribed and sent back to the
  * client immediately.
  *
  * The page edits this instance's settings through the agent's state, and can
- * download the last session's audio from `…/last-audio.wav`. For the batch
- * model, and Gemini Live when diarizing, the page calls
+ * download the last session's audio from `…/last-audio.wav`. For batch
+ * models, and when another model diarizes, the page calls
  * `transcribeLastAudio()` once you stop.
  */
 export class VoiceInputAgent extends InputAgent<Env, Settings> {
   initialState: Settings = { activityDetection: {} };
-  transcriber = new WorkersAINova3STT(this.env.AI);
-  flux = new WorkersAIFluxSTT(this.env.AI);
   recorder = new AudioRecorder(this.ctx.storage.sql);
 
   get model(): ModelId {
@@ -51,29 +42,12 @@ export class VoiceInputAgent extends InputAgent<Env, Settings> {
 
   // Called when recording starts, so only the chosen model is connected, and
   // only while recording.
-  createTranscriber(_connection: Connection): Transcriber | null {
-    const model = this.model;
-    if (model === "nova-3") {
-      return this.recorder.wrap(
-        this.state.diarize
-          ? new WorkersAINova3DiarizedSTT(this.env.AI)
-          : this.transcriber
-      );
-    }
-    if (model === "flux") return this.recorder.wrap(this.flux);
-    if (model === BATCH_MODEL) return this.recorder.wrap(silentTranscriber);
-    console.log(
-      `[${model}] Starting with voice detection`,
-      JSON.stringify(this.state.activityDetection)
-    );
+  createTranscriber(_connection: Connection): Transcriber {
+    const { model } = this;
     return this.recorder.wrap(
-      new GeminiLiveSTT({
-        accessToken: this.env.GOOGLE_ACCESS_TOKEN,
-        project: this.env.GOOGLE_CLOUD_PROJECT,
-        location: MODELS[model].location,
-        model,
-        activityDetection: this.state.activityDetection
-      })
+      isStreaming(model)
+        ? STREAMING[model](this.env, this.state)
+        : silentTranscriber
     );
   }
 
@@ -82,28 +56,25 @@ export class VoiceInputAgent extends InputAgent<Env, Settings> {
   }
 
   /**
-   * Transcribes the last recording with the batch model, marking each
-   * speaker change when diarizing. See `./speakers.ts`.
+   * Transcribes the last recording with the models `afterStop()` picks,
+   * marking each speaker change when diarizing. See `./speakers.ts`.
    */
   @callable()
   async transcribeLastAudio(): Promise<string> {
-    if (!transcribesAfterStop(this.model, this.state)) {
-      throw new Error(`${this.model} doesn't transcribe after you stop`);
-    }
+    const plan = afterStop(this.model, this.state);
+    if (!plan) throw new Error(`${this.model} doesn't transcribe after you stop`);
     const wav = this.recorder.wav();
     if (!wav) return "";
-    const stt = new GeminiBatchSTT({
-      accessToken: this.env.GOOGLE_ACCESS_TOKEN,
-      project: this.env.GOOGLE_CLOUD_PROJECT,
-      location: MODELS[BATCH_MODEL].location
+    const batchModel = (plan.diarized ?? plan.original)!;
+    const segments = await BATCH[batchModel](this.env).transcribe(wav, {
+      diarize: !!plan.diarized
     });
-    const segments = await stt.transcribe(wav, { diarize: this.state.diarize });
     const text = segments
       .map(({ speaker, text }) =>
         speaker === null ? text : `${speakerMarker(speaker)} ${text}`
       )
       .join(" ");
-    const via = this.model === BATCH_MODEL ? "" : ` → ${BATCH_MODEL}`;
+    const via = batchModel === this.model ? "" : ` → ${batchModel}`;
     console.log(`[${this.model}${via}] Transcribed: "${text}"`);
     return text;
   }

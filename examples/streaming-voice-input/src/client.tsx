@@ -26,10 +26,11 @@ import {
 } from "@phosphor-icons/react";
 import type { ActivityDetection } from "@cloudflare/voice-gemini";
 import {
-  BATCH_MODEL,
+  afterStop,
+  DIARIZER,
   isModelId,
+  isStreaming,
   MODELS,
-  transcribesAfterStop,
   type ModelId,
   type Settings
 } from "./models";
@@ -123,8 +124,8 @@ function DiarizeSettings({
   update: UpdateSettings;
   disabled: boolean;
 }) {
-  // Gemini Live can't diarize, so the batch model redoes its transcript.
-  const redone = MODELS[model].provider === "gemini" && model !== BATCH_MODEL;
+  // A streaming model that can't diarize has its transcript redone.
+  const redone = isStreaming(model) && !MODELS[model].diarizes;
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line">
       <Checkbox
@@ -136,7 +137,7 @@ function DiarizeSettings({
       <span className="mt-1 block">
         <Text size="xs" variant="secondary">
           {redone
-            ? `Once you stop, sends the recording to ${BATCH_MODEL}, and replaces the live text with its transcript. `
+            ? `Once you stop, sends the recording to ${DIARIZER}, and replaces the live text with its transcript. `
             : ""}
           Highlights each speaker's words in their own color, for up to 8
           speakers. Applies the next time you start dictating.
@@ -405,16 +406,16 @@ function App() {
   });
 
   const [settings, updateSettings, agent] = useSettings(model);
-  const afterStop = transcribesAfterStop(model, settings);
+  const plan = afterStop(model, settings);
   const redone = useTranscriptAfterStop(
     transcript,
     isListening,
-    afterStop,
+    !!plan,
     // A long recording can take a while.
     () => agent.call<string>("transcribeLastAudio", [], { timeout: 120_000 })
   );
   const finalText = redone.text;
-  const batchOnly = model === BATCH_MODEL;
+  const batchOnly = !isStreaming(model);
 
   const [copied, setCopied] = useState(false);
 
@@ -547,7 +548,7 @@ function App() {
             )}
             {redone.transcribing && (
               <span className="mt-2 block text-kumo-subtle text-sm italic">
-                Transcribing with {BATCH_MODEL}...
+                Transcribing with {plan?.diarized ?? plan?.original}...
               </span>
             )}
           </div>

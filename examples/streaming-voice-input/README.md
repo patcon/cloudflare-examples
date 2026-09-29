@@ -117,7 +117,11 @@ export class VoiceInputAgent extends InputAgent<Env> {
 }
 ```
 
-Each model is its own agent instance, named after the model: the page's menu passes the model as `useVoiceInput({ name })`. `createTranscriber()` reads `this.name` and returns that model's transcriber: `WorkersAINova3STT`, or the diarizing `WorkersAINova3DiarizedSTT` when that's turned on, `WorkersAIFluxSTT`, or `GeminiLiveSTT`. For `gemini-3.5-transcribe-preview`, it returns a transcriber that ignores the audio, so the audio is only recorded. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
+Each model is its own agent instance, named after the model: the page's menu passes the model as `useVoiceInput({ name })`. [`src/models.ts`](src/models.ts) says whether each model `streams` and whether it `diarizes`, and [`src/providers.ts`](src/providers.ts) sets each one up, in `STREAMING` or `BATCH`. Both are typed over every model, so a new model that isn't set up fails the typecheck.
+
+`createTranscriber()` reads `this.name` and returns that model's streaming transcriber: `WorkersAINova3STT`, or the diarizing `WorkersAINova3DiarizedSTT` when that's turned on, `WorkersAIFluxSTT`, or `GeminiLiveSTT`. For a batch model, it returns a transcriber that ignores the audio, so the audio is only recorded. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
+
+Once you stop, `afterStop()` in `src/models.ts` decides what's transcribed from the recording: a batch model's own transcript, and, when diarizing with a model that can't, one from `DIARIZER` (`gemini-3.5-transcribe-preview`). The page gets these from the agent's `transcribeLastAudio()`.
 
 `GeminiLiveSTT` implements the SDK's `Transcriber` interface. It's a package of its own, in [`packages/voice-gemini`](packages/voice-gemini), laid out like the providers in [cloudflare/agents `voice-providers/`](https://github.com/cloudflare/agents/tree/main/voice-providers) so it can move there later. Its tests run with `pnpm test`. Each session opens a WebSocket to Vertex's `BidiGenerateContent` with a text-only response, and streams the 16kHz PCM up as base64. Vertex sends back three things:
 - `interimInputTranscription`: everything heard so far this turn, shown as interim text.
