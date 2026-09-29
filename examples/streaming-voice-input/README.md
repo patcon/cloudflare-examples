@@ -1,16 +1,21 @@
-# Voice Input
+# streaming-voice-input: streaming speech-to-text
 
 Voice-to-text dictation example using the `useVoiceInput` hook from `agents/voice`.
 
 Captures microphone audio, streams it to an Agent Durable Object for real-time speech-to-text using Workers AI, and displays the transcript in a text area.
 
+It's a port of [cloudflare/agents `examples/voice-input`](https://github.com/cloudflare/agents/tree/11f87b5332f6cf4dfff71d8249621b28f539280f/examples/voice-input), made standalone: it installs `agents` from npm instead of the monorepo's workspace.
+
 ## Run it
 
 ```bash
-npm install && npm start
+pnpm install
+pnpm dev
 ```
 
-No API keys needed — uses Workers AI (bound via `wrangler.jsonc`).
+Then open <http://localhost:8793>. `pnpm dev:share` also prints a public link, to try it from a phone.
+
+No API keys needed — uses Workers AI (bound via `wrangler.jsonc`). The binding is remote, so you need to be logged in with `pnpm wrangler login`.
 
 ## How it works
 
@@ -53,8 +58,3 @@ Returns:
 - **`start()` / `stop()`** — control listening
 - **`toggleMute()`** — mute without stopping
 - **`clear()`** — reset the transcript
-
-## Related
-
-- [`examples/playground`](../playground) — full voice agent with conversation
-- [`agents/voice`](../../packages/agents) — the Agents package Voice exports

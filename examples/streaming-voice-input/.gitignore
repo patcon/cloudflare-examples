@@ -146,3 +146,4 @@ vite.config.ts.timestamp-*
 
 .wrangler
 .DS_Store
+.dev.vars

@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "voice-input-example",
+  "name": "streaming-voice-input",
   "ai": { "binding": "AI", "remote": true },
   "compatibility_date": "2026-06-11",
   "compatibility_flags": ["nodejs_compat"],

@@ -1,18 +1,27 @@
 {
-  "name": "@cloudflare/agents-voice-input-example",
-  "description": "Voice-to-text input example using agents/voice useVoiceInput hook",
-  "private": true,
-  "type": "module",
-  "version": "0.0.0",
+  "name": "streaming-voice-input",
+  "version": "1.0.0",
+  "description": "Voice-to-text dictation with the agents/voice useVoiceInput hook, comparing Workers AI and Gemini Live transcription",
   "scripts": {
-    "start": "vite dev",
+    "dev": "vite dev",
+    "dev:share": "vite dev --mode share",
     "deploy": "vite build && wrangler deploy",
     "types": "wrangler types env.d.ts --include-runtime false"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.5",
+  "private": true,
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
   },
   "dependencies": {
     "@cloudflare/kumo": "^2.6.0",
     "@phosphor-icons/react": "^2.1.10",
-    "agents": "*",
+    "agents": "^0.24.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
