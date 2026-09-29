@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import { useVoiceInput } from "agents/voice/react";
 import {
@@ -156,10 +156,11 @@ function DiarizeSettings({
   );
 }
 
-interface Replacement {
-  /** Where the session's text starts and ends in the live transcript. */
-  start: number;
-  end: number;
+/** One recording's text, kept once you stop. */
+interface Session {
+  id: string;
+  /** The final text heard while recording. */
+  live: string;
   /** Interim text that was never made final, because you stopped mid-speech. */
   tail: string | null;
   /** The batch transcripts, or null while they're being transcribed. */
@@ -169,30 +170,101 @@ interface Replacement {
 /** Which of a session's transcripts to show, when it has both. */
 type TranscriptView = "diarized" | "original";
 
+// Each model's sessions are kept in the browser, so they survive a reload.
+const storageKey = (model: ModelId) => `transcript:${model}`;
+
+function loadSessions(model: ModelId): Session[] {
+  try {
+    const sessions: Session[] = JSON.parse(
+      localStorage.getItem(storageKey(model)) ?? "[]"
+    );
+    // One still transcribing when the page closed never will be.
+    return sessions.map((s) => ({ ...s, result: s.result ?? {} }));
+  } catch {
+    return [];
+  }
+}
+
+function saveSessions(model: ModelId, sessions: Session[]) {
+  try {
+    if (sessions.length) {
+      localStorage.setItem(storageKey(model), JSON.stringify(sessions));
+    } else localStorage.removeItem(storageKey(model));
+  } catch {
+    // Storage can be full or blocked. The text is still on the page.
+  }
+}
+
 /**
- * What each session's text becomes once you stop. `useVoiceInput` owns the
- * live transcript, and drops anything sent after you stop, so this keeps
- * each session's changes beside it:
+ * The text `useVoiceInput` added to its transcript. It keeps only its last
+ * 200 messages, dropping the oldest, and starts afresh with each connection,
+ * such as after switching models.
+ */
+function appended(previous: string, next: string) {
+  if (next.startsWith(previous)) return next.slice(previous.length);
+  for (let i = previous.indexOf(" "); i !== -1; i = previous.indexOf(" ", i + 1)) {
+    const kept = previous.slice(i + 1);
+    if (next.startsWith(kept)) return next.slice(kept.length);
+  }
+  return next;
+}
+
+const joinText = (...parts: (string | null | undefined)[]) =>
+  parts
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+
+/**
+ * Each model's transcript, kept as one session per recording. The page
+ * keeps these itself, beside `useVoiceInput`'s transcript, because that one
+ * drops anything sent after you stop, and isn't kept across reloads.
  *
  * - Interim text left when you stop mid-speech, which `useVoiceInput` clears
  *   and never makes final, is kept at the end of the session's live text.
  * - For sessions transcribed after you stop, it asks the agent for the batch
- *   transcripts, and puts the one `view` picks in place of the live text.
+ *   transcripts, and shows the one `view` picks in place of the live text.
  *   The original is the batch model's own transcript, or the live text for
  *   a streaming model.
  */
-function useTranscriptAfterStop(
+function useSessionTranscript(
+  model: ModelId,
   transcript: string,
   interimTranscript: string | null,
   isListening: boolean,
   afterStop: boolean,
   transcribe: () => Promise<AfterStopText>
 ) {
-  const [replacements, setReplacements] = useState<Replacement[]>([]);
+  const [byModel, setByModel] = useState<Partial<Record<ModelId, Session[]>>>(
+    {}
+  );
+  // The page re-renders with every audio level, so storage is read once.
+  const sessions = useMemo(
+    () => byModel[model] ?? loadSessions(model),
+    [byModel, model]
+  );
+  // Saved as they change. A transcript still coming back for a model you've
+  // since switched from is kept under that model.
+  const change = (target: ModelId, update: (all: Session[]) => Session[]) =>
+    setByModel((all) => {
+      const next = update(all[target] ?? loadSessions(target));
+      saveSessions(target, next);
+      return { ...all, [target]: next };
+    });
+
   const [view, setView] = useState<TranscriptView>("diarized");
   const [error, setError] = useState<string | null>(null);
-  const sessionStart = useRef<number | null>(null);
+  // The final text heard so far in this recording.
+  const [live, setLive] = useState("");
+  const previousTranscript = useRef(transcript);
   const lastInterim = useRef<string | null>(null);
+  const recording = useRef(false);
+
+  useEffect(() => {
+    const added = appended(previousTranscript.current, transcript);
+    previousTranscript.current = transcript;
+    if (isListening && added.trim()) setLive((text) => joinText(text, added));
+  }, [transcript]);
 
   // Stopping clears the interim text in the same render that stops
   // listening, so this only follows it while listening, keeping what was
@@ -204,26 +276,31 @@ function useTranscriptAfterStop(
 
   useEffect(() => {
     if (isListening) {
-      sessionStart.current = transcript.length;
+      recording.current = true;
+      setLive("");
       lastInterim.current = null;
       setError(null);
       return;
     }
-    const start = sessionStart.current;
-    sessionStart.current = null;
+    // Not listening when the page loads.
+    if (!recording.current) return;
+    recording.current = false;
     const tail = lastInterim.current?.trim() || null;
     lastInterim.current = null;
-    if (start === null || (!afterStop && !tail)) return;
-    const end = transcript.length;
-    if (!afterStop) {
-      setReplacements((all) => [...all, { start, end, tail, result: {} }]);
-      return;
-    }
+    setLive("");
+    if (!live && !tail && !afterStop) return;
+    const session: Session = {
+      id: crypto.randomUUID(),
+      live,
+      tail,
+      result: afterStop ? null : {}
+    };
+    change(model, (all) => [...all, session]);
+    if (!afterStop) return;
     const settle = (result: AfterStopText) =>
-      setReplacements((all) =>
-        all.map((r) => (r.start === start ? { ...r, result } : r))
+      change(model, (all) =>
+        all.map((s) => (s.id === session.id ? { ...s, result } : s))
       );
-    setReplacements((all) => [...all, { start, end, tail, result: null }]);
     transcribe().then(settle, (e: Error) => {
       // Keeps the live text, if there was any.
       settle({});
@@ -231,41 +308,31 @@ function useTranscriptAfterStop(
     });
   }, [isListening]);
 
-  // The live transcript was reset, such as by switching models.
-  if (replacements.some((r) => r.end > transcript.length)) setReplacements([]);
-
-  let text = "";
-  let position = 0;
-  for (const r of replacements) {
-    text += transcript.slice(position, r.start);
+  const shown = (s: Session) => {
     // Undefined keeps the live text: still transcribing, or the original of
     // a streaming model.
     const chosen =
       view === "diarized"
-        ? (r.result?.diarized ?? r.result?.original)
-        : r.result?.original;
-    if (chosen === undefined) {
-      text += transcript.slice(r.start, r.end);
-      if (r.tail) text += " " + r.tail;
-    } else if (chosen) text += (text ? " " : "") + chosen;
-    position = r.end;
-  }
-  text = (text + transcript.slice(position)).trimStart();
+        ? (s.result?.diarized ?? s.result?.original)
+        : s.result?.original;
+    return chosen ?? joinText(s.live, s.tail);
+  };
 
   return {
-    text,
-    transcribing: replacements.some((r) => r.result === null),
+    text: joinText(...sessions.map(shown), live),
+    transcribing: sessions.some((s) => s.result === null),
     // A diarized transcript from another model, beside the original.
-    hasBoth: replacements.some(
-      (r) =>
-        r.result?.diarized !== undefined &&
-        r.result.diarized !== r.result.original
+    hasBoth: sessions.some(
+      (s) =>
+        s.result?.diarized !== undefined &&
+        s.result.diarized !== s.result.original
     ),
     view,
     setView,
     error,
-    reset: () => {
-      setReplacements([]);
+    clear: () => {
+      change(model, () => []);
+      setLive("");
       setError(null);
     }
   };
@@ -448,8 +515,7 @@ function App() {
     error,
     start,
     stop,
-    toggleMute,
-    clear
+    toggleMute
   } = useVoiceInput({
     agent: "VoiceInputAgent",
     // Each model is its own agent instance. Nothing connects to the model
@@ -459,7 +525,8 @@ function App() {
 
   const [settings, updateSettings, agent] = useSettings(model);
   const plan = afterStop(model, settings);
-  const redone = useTranscriptAfterStop(
+  const redone = useSessionTranscript(
+    model,
     transcript,
     interimTranscript,
     isListening,
@@ -698,10 +765,9 @@ function App() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => {
-                  clear();
-                  redone.reset();
-                }}
+                // useVoiceInput's own clear() only empties the page's
+                // copy, and its next final brings the old text back.
+                onClick={redone.clear}
                 disabled={!finalText}
                 aria-label="Clear text"
               >
