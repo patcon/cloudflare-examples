@@ -458,7 +458,8 @@ function GeminiSettings({
   );
 }
 
-// Diarized text, with each speaker's words on their own color.
+// Diarized text, with each speaker's words on their own color. Text without
+// speakers comes out as it went in, so both views lay out the same.
 function SpeakerText({ text }: { text: string }) {
   return splitBySpeaker(text).map((run, i) => (
     <span key={i}>
@@ -468,9 +469,12 @@ function SpeakerText({ text }: { text: string }) {
       ) : (
         <mark
           title={`Speaker ${run.speaker}`}
-          className="rounded px-0.5 text-inherit box-decoration-clone"
+          className="rounded text-inherit box-decoration-clone"
           style={{
-            backgroundColor: `color-mix(in srgb, ${speakerColor(run.speaker)} 45%, transparent)`
+            backgroundColor: speakerTint(run.speaker),
+            // Pads the highlight without padding the text, which would
+            // rewrap it differently from the original.
+            boxShadow: `0 0 0 2px ${speakerTint(run.speaker)}`
           }}
         >
           {run.text}
@@ -480,6 +484,9 @@ function SpeakerText({ text }: { text: string }) {
   ));
 }
 
+const speakerTint = (speaker: number) =>
+  `color-mix(in srgb, ${speakerColor(speaker)} 45%, transparent)`;
+
 function SpeakerLegend({ text }: { text: string }) {
   const speakers = [
     ...new Set(splitBySpeaker(text).map((run) => run.speaker))
@@ -487,7 +494,7 @@ function SpeakerLegend({ text }: { text: string }) {
     .filter((speaker) => speaker !== null)
     .sort((a, b) => a - b);
   return (
-    <div className="mb-3 flex flex-wrap gap-2">
+    <div className="mt-3 flex flex-wrap gap-2">
       {speakers.map((speaker) => (
         <span
           key={speaker}
@@ -648,9 +655,10 @@ function App() {
                 />
               </div>
             )}
-            {diarized ? (
+            {/* Diarized or not, the text is laid out the same, with the
+                speakers listed below it. */}
+            {displayText ? (
               <>
-                <SpeakerLegend text={displayText} />
                 <span className="whitespace-pre-wrap text-kumo-default text-sm leading-relaxed">
                   <SpeakerText text={finalText} />
                   {interimTranscript && (
@@ -660,17 +668,8 @@ function App() {
                     </span>
                   )}
                 </span>
+                {diarized && <SpeakerLegend text={displayText} />}
               </>
-            ) : displayText ? (
-              <span className="whitespace-pre-wrap text-kumo-default text-sm leading-relaxed">
-                {finalText}
-                {interimTranscript && (
-                  <span className="text-kumo-subtle italic">
-                    {finalText ? " " : ""}
-                    {interimTranscript}
-                  </span>
-                )}
-              </span>
             ) : redone.transcribing ? null : (
               <span className="text-kumo-subtle text-sm italic">
                 {isListening
