@@ -3,7 +3,7 @@ import { withVoiceInput, type Transcriber } from "agents/voice";
 import { GeminiBatchSTT, GeminiLiveSTT, type TranscriptSegment } from "@cloudflare/voice-gemini";
 import { extractStatements, isRetryable } from "./extract/gemini";
 import { isProjectId } from "../shared/ids";
-import { MAX_RECORDING_BYTES } from "../shared/limits";
+import { CONTEXT_SEGMENTS, MAX_RECORDING_BYTES } from "../shared/limits";
 import { BATCH_MODEL, EXTRACT_MODEL, LIVE_MODEL, LOCATION } from "./models";
 
 export interface SessionState {
@@ -45,8 +45,6 @@ export interface WindowRow {
   created_at: number;
 }
 
-/** Earlier segments given to the prompt as context. */
-const CONTEXT_SEGMENTS = 3;
 /** How often extraction runs by itself while recording. */
 const EXTRACT_EVERY_SECONDS = 300;
 /** Fewer new words than this, and the timer skips its run. */
@@ -160,7 +158,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
    * One extraction run, from the queue, which runs them one at a time. A
    * run that fails without a retry leaves its segments for the next one.
    */
-  async processWindow() {
+  async processWindow({ contextSegments = CONTEXT_SEGMENTS }: { contextSegments?: number } = {}) {
     const { projectId } = this.state;
     if (!projectId) return;
     const segments = this.#pendingSegments();
@@ -169,7 +167,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     if (!first || !last) return;
     const context = this.sql<Segment>`
       SELECT id, at, text FROM live_segments WHERE id < ${first.id}
-      ORDER BY id DESC LIMIT ${CONTEXT_SEGMENTS}`.reverse();
+      ORDER BY id DESC LIMIT ${contextSegments}`.reverse();
 
     const [win] = this.sql<{ id: number }>`
       INSERT INTO windows (from_seg, to_seg, status, created_at)
@@ -228,12 +226,12 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   }
 
   /**
-   * For `?debug=true`: one 5-minute WAV window of an uploaded file, from the
+   * For `?debug=true`: one WAV window of an uploaded file, from the
    * Worker's replay route. The batch model transcribes it in place of the
    * live text, then the usual extraction runs. Windows come in order, one at
    * a time, so the page waits for each.
    */
-  async replayWindow(projectId: string, wav: ArrayBuffer) {
+  async replayWindow(projectId: string, wav: ArrayBuffer, contextSegments = CONTEXT_SEGMENTS) {
     if (projectId !== this.state.projectId) throw new Error("Wrong project");
     if (this.state.recording || this.state.final) {
       throw new Error("This session is recording or has finished");
@@ -242,7 +240,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       new Uint8Array(wav),
     );
     for (const { text } of segments) this.#saveSegment(text);
-    await this.extractNow();
+    await this.queue("processWindow", { contextSegments }, { retry: { maxAttempts: 3 } });
     return { segments: segments.length };
   }
 

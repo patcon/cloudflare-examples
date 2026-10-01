@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Button, Text } from "@cloudflare/kumo";
-import { ChatsCircleIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
+import { Banner, Button, Text } from "@cloudflare/kumo";
+import { ChatsCircleIcon, MoonIcon, SunIcon, WarningIcon } from "@phosphor-icons/react";
 
 function ModeToggle() {
   const [mode, setMode] = useState(() => localStorage.getItem("theme") || "light");
@@ -35,7 +35,20 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
         </div>
         <ModeToggle />
       </header>
-      <main className="flex-1 p-4 max-w-2xl mx-auto w-full flex flex-col gap-4">{children}</main>
+      <main className="flex-1 p-4 max-w-2xl mx-auto w-full flex flex-col gap-4">
+        {/* Over plain HTTP, such as a phone on a LAN or tailnet IP, the browser
+            blocks the microphone and `crypto.randomUUID()`. On a tailnet IP,
+            the agent's WebSocket also tries `wss://`. */}
+        {!window.isSecureContext && (
+          <Banner
+            variant="alert"
+            icon={<WarningIcon />}
+            title="This app only works on localhost or HTTPS"
+            description="Over plain HTTP, the browser blocks the microphone and the live connection. To use it from a phone, run pnpm dev:share for an HTTPS link."
+          />
+        )}
+        {children}
+      </main>
     </div>
   );
 }

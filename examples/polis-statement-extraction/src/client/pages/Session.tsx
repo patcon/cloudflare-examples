@@ -102,13 +102,8 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   const interrupted = !busy && !ended && !!state?.audio;
   // `?debug=true` offers an audio file in place of the microphone, until
   // the session has anything in it.
-  const canReplay =
-    new URLSearchParams(location.search).get("debug") === "true" &&
-    !!state?.projectId &&
-    !busy &&
-    !ended &&
-    !state.audio &&
-    segments.length === 0;
+  const empty = !!state?.projectId && !busy && !ended && !state.audio && segments.length === 0;
+  const canReplay = new URLSearchParams(location.search).get("debug") === "true" && empty;
   // Stays up once shown, as the replay fills the session.
   const [replay, setReplay] = useState(false);
   useEffect(() => {
@@ -234,6 +229,12 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
           <p className="text-sm text-kumo-subtle">{voice.interimTranscript}</p>
         )}
       </Surface>
+
+      {empty && !replay && (
+        <a className="self-end text-xs text-kumo-subtle underline" href="?debug=true">
+          debug
+        </a>
+      )}
     </Shell>
   );
 }
@@ -286,7 +287,7 @@ function FinalTranscript({
               Speaker {s.speaker + 1}
             </span>
           )}
-          <span>{s.text}</span>
+          <span className="self-center">{s.text}</span>
         </p>
       ))}
       {final.status === "running" && segments.length > 0 && (

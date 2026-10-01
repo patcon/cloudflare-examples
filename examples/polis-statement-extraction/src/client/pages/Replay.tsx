@@ -1,19 +1,28 @@
 import { useState } from "react";
 import { Button, Surface, Text } from "@cloudflare/kumo";
 import { UploadSimpleIcon } from "@phosphor-icons/react";
-import { MAX_RECORDING_BYTES } from "../../shared/limits";
+import { CONTEXT_SEGMENTS, MAX_RECORDING_BYTES } from "../../shared/limits";
 import { audioType, decodeTo16kMono } from "../audio/replay";
 import { cutWindows, toWav } from "../audio/wav";
 
-/** As often as the timer runs while recording. */
-const WINDOW_SECONDS = 300;
+/**
+ * How much of the file each window covers. 5 minutes matches the timer
+ * while recording; shorter windows show statements sooner, but cost more
+ * requests and give each run less context.
+ */
+const WINDOW_CHOICES = [30, 60, 120, 300];
+/**
+ * How many earlier segments each run sees, so a short window can still
+ * follow an idea that started before it. Costs a little more per request.
+ */
+const CONTEXT_CHOICES = [CONTEXT_SEGMENTS, 5, 8, 12, 20];
 /** The server's limit on one uploaded piece of the recording. */
 const PIECE_BYTES = 1024 * 1024;
 
 /**
  * For `?debug=true`: runs an audio file through the session in place of the
- * microphone. Each 5-minute window is transcribed by the batch model and
- * extracted from, as the live text would be. The file itself then becomes
+ * microphone. Each window is transcribed by the batch model and extracted
+ * from, as the live text would be. The file itself then becomes
  * the session's recording, for the diarized pass.
  */
 export function Replay({
@@ -29,6 +38,11 @@ export function Replay({
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [windowSeconds, setWindowSeconds] = useState(300);
+  const [context, setContext] = useState(CONTEXT_SEGMENTS);
+  // A transcription and an extraction per window, then the diarized pass
+  // and its extraction.
+  const requestsPerHour = 2 * Math.ceil(3600 / windowSeconds) + 2;
 
   const base = `/api/${encodeURIComponent(projectId)}/sessions/${sessionId}`;
 
@@ -37,10 +51,10 @@ export function Replay({
     setError(null);
     try {
       setProgress("Decoding…");
-      const windows = cutWindows(await decodeTo16kMono(file), WINDOW_SECONDS);
+      const windows = cutWindows(await decodeTo16kMono(file), windowSeconds);
       for (const [i, samples] of windows.entries()) {
         setProgress(`Transcribing window ${i + 1} of ${windows.length}…`);
-        const resp = await fetch(`${base}/replay`, {
+        const resp = await fetch(`${base}/replay?context=${context}`, {
           method: "POST",
           headers: { "Content-Type": "audio/wav" },
           body: toWav(samples),
@@ -79,9 +93,40 @@ export function Replay({
         Debug: replay an audio file
       </Text>
       <Text size="xs" variant="secondary">
-        Instead of recording, each 5 minutes of the file is transcribed and extracted from, as if it
-        had been said live. A 1-hour file is about 26 Gemini requests.
+        Instead of recording, each window of the file is transcribed and extracted from, as if it
+        had been said live. A 1-hour file is about {requestsPerHour} Gemini requests.
       </Text>
+      <label className="text-sm flex gap-2 items-center">
+        Window
+        <select
+          value={windowSeconds}
+          disabled={running}
+          onChange={(e) => setWindowSeconds(Number(e.target.value))}
+          className="rounded border border-kumo-line bg-kumo-base px-1"
+        >
+          {WINDOW_CHOICES.map((s) => (
+            <option key={s} value={s}>
+              {s < 60 ? `${s} seconds` : `${s / 60} minute${s === 60 ? "" : "s"}`}
+              {s === 300 ? " (as when recording)" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="text-sm flex gap-2 items-center">
+        Context
+        <select
+          value={context}
+          disabled={running}
+          onChange={(e) => setContext(Number(e.target.value))}
+          className="rounded border border-kumo-line bg-kumo-base px-1"
+        >
+          {CONTEXT_CHOICES.map((n) => (
+            <option key={n} value={n}>
+              {n} earlier segments{n === CONTEXT_SEGMENTS ? " (as when recording)" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
       <input
         type="file"
         accept="audio/*"
