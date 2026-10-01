@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import { useVoiceInput } from "agents/voice/react";
 import {
@@ -26,10 +26,13 @@ import {
 } from "@phosphor-icons/react";
 import type { ActivityDetection } from "@cloudflare/voice-gemini";
 import {
-  BATCH_MODEL,
+  afterStop,
+  DIARIZER,
   isModelId,
+  isStreaming,
   MODELS,
-  transcribesAfterStop,
+  type AfterStop,
+  type AfterStopText,
   type ModelId,
   type Settings
 } from "./models";
@@ -110,6 +113,13 @@ function useSettings(instance: string) {
   return [settings, update, agent] as const;
 }
 
+/** The models transcribing once you stop, such as "a and b". */
+function afterStopModels(plan: AfterStop | null) {
+  return [...new Set([plan?.original, plan?.diarized])]
+    .filter(Boolean)
+    .join(" and ");
+}
+
 type UpdateSettings = (change: Partial<Settings>) => void;
 
 function DiarizeSettings({
@@ -123,8 +133,8 @@ function DiarizeSettings({
   update: UpdateSettings;
   disabled: boolean;
 }) {
-  // Gemini Live can't diarize, so the batch model redoes its transcript.
-  const redone = MODELS[model].provider === "gemini" && model !== BATCH_MODEL;
+  // A model that can't diarize has the recording diarized by DIARIZER too.
+  const redone = !MODELS[model].diarizes;
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line">
       <Checkbox
@@ -136,7 +146,7 @@ function DiarizeSettings({
       <span className="mt-1 block">
         <Text size="xs" variant="secondary">
           {redone
-            ? `Once you stop, sends the recording to ${BATCH_MODEL}, and replaces the live text with its transcript. `
+            ? `Once you stop, also sends the recording to ${DIARIZER}, and shows its transcript. The ${isStreaming(model) ? "live" : "model's own"} one is kept, to switch back to. `
             : ""}
           Highlights each speaker's words in their own color, for up to 8
           speakers. Applies the next time you start dictating.
@@ -146,73 +156,183 @@ function DiarizeSettings({
   );
 }
 
-interface Replacement {
-  /** Where the session's text starts and ends in the live transcript. */
-  start: number;
-  end: number;
-  /** The batch transcript, or null while it's being transcribed. */
-  text: string | null;
+/** One recording's text, kept once you stop. */
+interface Session {
+  id: string;
+  /** The final text heard while recording. */
+  live: string;
+  /** Interim text that was never made final, because you stopped mid-speech. */
+  tail: string | null;
+  /** The batch transcripts, or null while they're being transcribed. */
+  result: AfterStopText | null;
+}
+
+/** Which of a session's transcripts to show, when it has both. */
+type TranscriptView = "diarized" | "original";
+
+// Each model's sessions are kept in the browser, so they survive a reload.
+const storageKey = (model: ModelId) => `transcript:${model}`;
+
+function loadSessions(model: ModelId): Session[] {
+  try {
+    const sessions: Session[] = JSON.parse(
+      localStorage.getItem(storageKey(model)) ?? "[]"
+    );
+    // One still transcribing when the page closed never will be.
+    return sessions.map((s) => ({ ...s, result: s.result ?? {} }));
+  } catch {
+    return [];
+  }
+}
+
+function saveSessions(model: ModelId, sessions: Session[]) {
+  try {
+    if (sessions.length) {
+      localStorage.setItem(storageKey(model), JSON.stringify(sessions));
+    } else localStorage.removeItem(storageKey(model));
+  } catch {
+    // Storage can be full or blocked. The text is still on the page.
+  }
 }
 
 /**
- * For models that transcribe after you stop, asks the agent for each
- * session's batch transcript, and puts it in place of that session's live
- * text. `useVoiceInput` owns the live transcript, and drops anything sent
- * after you stop, so this keeps the replacements beside it.
+ * The text `useVoiceInput` added to its transcript. It keeps only its last
+ * 200 messages, dropping the oldest, and starts afresh with each connection,
+ * such as after switching models.
  */
-function useTranscriptAfterStop(
+function appended(previous: string, next: string) {
+  if (next.startsWith(previous)) return next.slice(previous.length);
+  for (let i = previous.indexOf(" "); i !== -1; i = previous.indexOf(" ", i + 1)) {
+    const kept = previous.slice(i + 1);
+    if (next.startsWith(kept)) return next.slice(kept.length);
+  }
+  return next;
+}
+
+const joinText = (...parts: (string | null | undefined)[]) =>
+  parts
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+
+/**
+ * Each model's transcript, kept as one session per recording. The page
+ * keeps these itself, beside `useVoiceInput`'s transcript, because that one
+ * drops anything sent after you stop, and isn't kept across reloads.
+ *
+ * - Interim text left when you stop mid-speech, which `useVoiceInput` clears
+ *   and never makes final, is kept at the end of the session's live text.
+ * - For sessions transcribed after you stop, it asks the agent for the batch
+ *   transcripts, and shows the one `view` picks in place of the live text.
+ *   The original is the batch model's own transcript, or the live text for
+ *   a streaming model.
+ */
+function useSessionTranscript(
+  model: ModelId,
   transcript: string,
+  interimTranscript: string | null,
   isListening: boolean,
   afterStop: boolean,
-  transcribe: () => Promise<string>
+  transcribe: () => Promise<AfterStopText>
 ) {
-  const [replacements, setReplacements] = useState<Replacement[]>([]);
+  const [byModel, setByModel] = useState<Partial<Record<ModelId, Session[]>>>(
+    {}
+  );
+  // The page re-renders with every audio level, so storage is read once.
+  const sessions = useMemo(
+    () => byModel[model] ?? loadSessions(model),
+    [byModel, model]
+  );
+  // Saved as they change. A transcript still coming back for a model you've
+  // since switched from is kept under that model.
+  const change = (target: ModelId, update: (all: Session[]) => Session[]) =>
+    setByModel((all) => {
+      const next = update(all[target] ?? loadSessions(target));
+      saveSessions(target, next);
+      return { ...all, [target]: next };
+    });
+
+  const [view, setView] = useState<TranscriptView>("diarized");
   const [error, setError] = useState<string | null>(null);
-  const sessionStart = useRef<number | null>(null);
+  // The final text heard so far in this recording.
+  const [live, setLive] = useState("");
+  const previousTranscript = useRef(transcript);
+  const lastInterim = useRef<string | null>(null);
+  const recording = useRef(false);
+
+  useEffect(() => {
+    const added = appended(previousTranscript.current, transcript);
+    previousTranscript.current = transcript;
+    if (isListening && added.trim()) setLive((text) => joinText(text, added));
+  }, [transcript]);
+
+  // Stopping clears the interim text in the same render that stops
+  // listening, so this only follows it while listening, keeping what was
+  // there just before you stopped. A final clears it too, so text that did
+  // become final isn't kept twice.
+  useEffect(() => {
+    if (isListening) lastInterim.current = interimTranscript;
+  }, [interimTranscript, isListening]);
 
   useEffect(() => {
     if (isListening) {
-      sessionStart.current = transcript.length;
+      recording.current = true;
+      setLive("");
+      lastInterim.current = null;
       setError(null);
       return;
     }
-    const start = sessionStart.current;
-    sessionStart.current = null;
-    if (start === null || !afterStop) return;
-    const end = transcript.length;
-    const settle = (text: string | null) =>
-      setReplacements((all) =>
-        all.flatMap((r) =>
-          r.start !== start ? [r] : text === null ? [] : [{ ...r, text }]
-        )
+    // Not listening when the page loads.
+    if (!recording.current) return;
+    recording.current = false;
+    const tail = lastInterim.current?.trim() || null;
+    lastInterim.current = null;
+    setLive("");
+    if (!live && !tail && !afterStop) return;
+    const session: Session = {
+      id: crypto.randomUUID(),
+      live,
+      tail,
+      result: afterStop ? null : {}
+    };
+    change(model, (all) => [...all, session]);
+    if (!afterStop) return;
+    const settle = (result: AfterStopText) =>
+      change(model, (all) =>
+        all.map((s) => (s.id === session.id ? { ...s, result } : s))
       );
-    setReplacements((all) => [...all, { start, end, text: null }]);
     transcribe().then(settle, (e: Error) => {
       // Keeps the live text, if there was any.
-      settle(null);
+      settle({});
       setError(`Transcribing after you stopped failed: ${e.message}`);
     });
   }, [isListening]);
 
-  // The live transcript was reset, such as by switching models.
-  if (replacements.some((r) => r.end > transcript.length)) setReplacements([]);
-
-  let text = "";
-  let position = 0;
-  for (const r of replacements) {
-    text += transcript.slice(position, r.start);
-    if (r.text === null) text += transcript.slice(r.start, r.end);
-    else if (r.text) text += (text ? " " : "") + r.text;
-    position = r.end;
-  }
-  text = (text + transcript.slice(position)).trimStart();
+  const shown = (s: Session) => {
+    // Undefined keeps the live text: still transcribing, or the original of
+    // a streaming model.
+    const chosen =
+      view === "diarized"
+        ? (s.result?.diarized ?? s.result?.original)
+        : s.result?.original;
+    return chosen ?? joinText(s.live, s.tail);
+  };
 
   return {
-    text,
-    transcribing: replacements.some((r) => r.text === null),
+    text: joinText(...sessions.map(shown), live),
+    transcribing: sessions.some((s) => s.result === null),
+    // A diarized transcript from another model, beside the original.
+    hasBoth: sessions.some(
+      (s) =>
+        s.result?.diarized !== undefined &&
+        s.result.diarized !== s.result.original
+    ),
+    view,
+    setView,
     error,
-    reset: () => {
-      setReplacements([]);
+    clear: () => {
+      change(model, () => []);
+      setLive("");
       setError(null);
     }
   };
@@ -338,7 +458,8 @@ function GeminiSettings({
   );
 }
 
-// Diarized text, with each speaker's words on their own color.
+// Diarized text, with each speaker's words on their own color. Text without
+// speakers comes out as it went in, so both views lay out the same.
 function SpeakerText({ text }: { text: string }) {
   return splitBySpeaker(text).map((run, i) => (
     <span key={i}>
@@ -348,9 +469,12 @@ function SpeakerText({ text }: { text: string }) {
       ) : (
         <mark
           title={`Speaker ${run.speaker}`}
-          className="rounded px-0.5 text-inherit box-decoration-clone"
+          className="rounded text-inherit box-decoration-clone"
           style={{
-            backgroundColor: `color-mix(in srgb, ${speakerColor(run.speaker)} 45%, transparent)`
+            backgroundColor: speakerTint(run.speaker),
+            // Pads the highlight without padding the text, which would
+            // rewrap it differently from the original.
+            boxShadow: `0 0 0 2px ${speakerTint(run.speaker)}`
           }}
         >
           {run.text}
@@ -360,6 +484,9 @@ function SpeakerText({ text }: { text: string }) {
   ));
 }
 
+const speakerTint = (speaker: number) =>
+  `color-mix(in srgb, ${speakerColor(speaker)} 45%, transparent)`;
+
 function SpeakerLegend({ text }: { text: string }) {
   const speakers = [
     ...new Set(splitBySpeaker(text).map((run) => run.speaker))
@@ -367,7 +494,7 @@ function SpeakerLegend({ text }: { text: string }) {
     .filter((speaker) => speaker !== null)
     .sort((a, b) => a - b);
   return (
-    <div className="mb-3 flex flex-wrap gap-2">
+    <div className="mt-3 flex flex-wrap gap-2">
       {speakers.map((speaker) => (
         <span
           key={speaker}
@@ -395,8 +522,7 @@ function App() {
     error,
     start,
     stop,
-    toggleMute,
-    clear
+    toggleMute
   } = useVoiceInput({
     agent: "VoiceInputAgent",
     // Each model is its own agent instance. Nothing connects to the model
@@ -405,16 +531,21 @@ function App() {
   });
 
   const [settings, updateSettings, agent] = useSettings(model);
-  const afterStop = transcribesAfterStop(model, settings);
-  const redone = useTranscriptAfterStop(
+  const plan = afterStop(model, settings);
+  const redone = useSessionTranscript(
+    model,
     transcript,
+    interimTranscript,
     isListening,
-    afterStop,
+    !!plan,
     // A long recording can take a while.
-    () => agent.call<string>("transcribeLastAudio", [], { timeout: 120_000 })
+    () =>
+      agent.call<AfterStopText>("transcribeLastAudio", [], {
+        timeout: 120_000
+      })
   );
   const finalText = redone.text;
-  const batchOnly = model === BATCH_MODEL;
+  const batchOnly = !isStreaming(model);
 
   const [copied, setCopied] = useState(false);
 
@@ -493,14 +624,12 @@ function App() {
           </div>
         </Surface>
 
-        {model !== "flux" && (
-          <DiarizeSettings
-            model={model}
-            settings={settings}
-            update={updateSettings}
-            disabled={isListening}
-          />
-        )}
+        <DiarizeSettings
+          model={model}
+          settings={settings}
+          update={updateSettings}
+          disabled={isListening}
+        />
 
         {MODELS[model].provider === "gemini" && !batchOnly && (
           <GeminiSettings
@@ -513,9 +642,23 @@ function App() {
         {/* Text area */}
         <Surface className="rounded-xl ring ring-kumo-line flex-1 flex flex-col min-h-[300px]">
           <div className="flex-1 p-4">
-            {diarized ? (
+            {redone.hasBoth && (
+              <div className="mb-3 w-48">
+                <Select
+                  size="sm"
+                  label="Transcript"
+                  items={{ diarized: "Diarized", original: "Original" }}
+                  value={redone.view}
+                  onValueChange={(value) =>
+                    redone.setView(value as TranscriptView)
+                  }
+                />
+              </div>
+            )}
+            {/* Diarized or not, the text is laid out the same, with the
+                speakers listed below it. */}
+            {displayText ? (
               <>
-                <SpeakerLegend text={displayText} />
                 <span className="whitespace-pre-wrap text-kumo-default text-sm leading-relaxed">
                   <SpeakerText text={finalText} />
                   {interimTranscript && (
@@ -525,17 +668,8 @@ function App() {
                     </span>
                   )}
                 </span>
+                {diarized && <SpeakerLegend text={displayText} />}
               </>
-            ) : displayText ? (
-              <span className="whitespace-pre-wrap text-kumo-default text-sm leading-relaxed">
-                {finalText}
-                {interimTranscript && (
-                  <span className="text-kumo-subtle italic">
-                    {finalText ? " " : ""}
-                    {interimTranscript}
-                  </span>
-                )}
-              </span>
             ) : redone.transcribing ? null : (
               <span className="text-kumo-subtle text-sm italic">
                 {isListening
@@ -547,7 +681,7 @@ function App() {
             )}
             {redone.transcribing && (
               <span className="mt-2 block text-kumo-subtle text-sm italic">
-                Transcribing with {BATCH_MODEL}...
+                Transcribing with {afterStopModels(plan)}...
               </span>
             )}
           </div>
@@ -630,10 +764,9 @@ function App() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => {
-                  clear();
-                  redone.reset();
-                }}
+                // useVoiceInput's own clear() only empties the page's
+                // copy, and its next final brings the old text back.
+                onClick={redone.clear}
                 disabled={!finalText}
                 aria-label="Clear text"
               >

@@ -64,7 +64,7 @@ The built-in `WorkersAINova3STT` doesn't pass `diarize`, and `useVoiceInput` onl
 
 `gemini-3.5-transcribe-preview` doesn't stream. While you dictate, the page only records. Once you press **Stop**, the page asks the agent for the transcript, and the agent sends the whole recording to Vertex's `generateContent` in a single request.
 
-Gemini Live can't tell speakers apart. So with Gemini 3.5 Transcribe Live picked, **Tell speakers apart (diarization)** sends the recording to `gemini-3.5-transcribe-preview` once you stop. Its diarized transcript then replaces that session's live text. With the batch model picked, the same checkbox asks it to diarize. Either way, each speaker's words are colored as they are for Nova 3.
+Gemini Live and Flux can't tell speakers apart. So with either picked, **Tell speakers apart (diarization)** sends the recording to `gemini-3.5-transcribe-preview` once you stop. Its diarized transcript is then shown in place of that session's live text, and a **Transcript** menu switches back to the original. With the batch model picked, the same checkbox asks it to diarize. Either way, each speaker's words are colored as they are for Nova 3.
 
 Diarization is `generationConfig.audioTranscriptionConfig: { mode: "VERBATIM", diarization: true }`, from Vertex's [`AudioTranscriptionConfig`](https://aiplatform.googleapis.com/$discovery/rest?version=v1beta1). Each speaker's stretch comes back as its own part, labeled `spk:0`, `spk:1`, and so on.
 
@@ -117,7 +117,11 @@ export class VoiceInputAgent extends InputAgent<Env> {
 }
 ```
 
-Each model is its own agent instance, named after the model: the page's menu passes the model as `useVoiceInput({ name })`. `createTranscriber()` reads `this.name` and returns that model's transcriber: `WorkersAINova3STT`, or the diarizing `WorkersAINova3DiarizedSTT` when that's turned on, `WorkersAIFluxSTT`, or `GeminiLiveSTT`. For `gemini-3.5-transcribe-preview`, it returns a transcriber that ignores the audio, so the audio is only recorded. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
+Each model is its own agent instance, named after the model: the page's menu passes the model as `useVoiceInput({ name })`. [`src/models.ts`](src/models.ts) says whether each model `streams` and whether it `diarizes`, and [`src/providers.ts`](src/providers.ts) sets each one up, in `STREAMING` or `BATCH`. Both are typed over every model, so a new model that isn't set up fails the typecheck.
+
+`createTranscriber()` reads `this.name` and returns that model's streaming transcriber: `WorkersAINova3STT`, or the diarizing `WorkersAINova3DiarizedSTT` when that's turned on, `WorkersAIFluxSTT`, or `GeminiLiveSTT`. For a batch model, it returns a transcriber that ignores the audio, so the audio is only recorded. The SDK calls it when you start dictating, so only one model is connected at a time, and only while you're recording.
+
+Once you stop, `afterStop()` in `src/models.ts` decides what's transcribed from the recording: a batch model's own transcript, and, when diarizing with a model that can't, one from `DIARIZER` (`gemini-3.5-transcribe-preview`). The page gets these from the agent's `transcribeLastAudio()`.
 
 `GeminiLiveSTT` implements the SDK's `Transcriber` interface. It's a package of its own, in [`packages/voice-gemini`](packages/voice-gemini), laid out like the providers in [cloudflare/agents `voice-providers/`](https://github.com/cloudflare/agents/tree/main/voice-providers) so it can move there later. Its tests run with `pnpm test`. Each session opens a WebSocket to Vertex's `BidiGenerateContent` with a text-only response, and streams the 16kHz PCM up as base64. Vertex sends back three things:
 - `interimInputTranscription`: everything heard so far this turn, shown as interim text.
