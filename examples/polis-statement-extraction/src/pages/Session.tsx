@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
 import { useVoiceInput } from "agents/voice/react";
-import { Button, Surface, Text } from "@cloudflare/kumo";
-import { MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
+import { Badge, Button, Surface, Text } from "@cloudflare/kumo";
+import { LightningIcon, MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
 import type {
   Segment,
+  WindowRow,
   SessionAgent,
   SessionMessage,
   SessionState
@@ -22,6 +23,7 @@ export function Session({
   const [segments, setSegments] = useState<Segment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
+  const [windows, setWindows] = useState<WindowRow[]>([]);
 
   const agent = useAgent<SessionAgent, SessionState>({
     agent: "SessionAgent",
@@ -36,6 +38,9 @@ export function Session({
             : [...s, message.segment]
         );
       }
+      if (message?.type === "windows") {
+        agent.call("listWindows").then(setWindows);
+      }
     }
   });
 
@@ -45,6 +50,8 @@ export function Session({
       .then(() => agent.call("attach", [projectId]))
       .then(() => agent.call("listSegments"))
       .then(setSegments)
+      .then(() => agent.call("listWindows"))
+      .then(setWindows)
       .catch((e: Error) => setAttachError(e.message));
   }, [agent, projectId]);
 
@@ -73,13 +80,25 @@ export function Session({
             {attachError || voice.error}
           </Text>
         )}
-        <a
-          className="text-sm underline"
-          href={`/${encodeURIComponent(projectId)}/review`}
-          target="_blank"
-        >
-          Open the review page
-        </a>
+        <div className="flex gap-3 items-center">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<LightningIcon size={14} />}
+            onClick={() => agent.call("extractNow")}
+            disabled={segments.length === 0}
+          >
+            Extract now
+          </Button>
+          <a
+            className="text-sm underline"
+            href={`/${encodeURIComponent(projectId)}/review`}
+            target="_blank"
+          >
+            Open the review page
+          </a>
+        </div>
+        {windows[0] && <LastRun run={windows[0]} />}
       </Surface>
 
       <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2 min-h-48">
@@ -101,6 +120,29 @@ export function Session({
         )}
       </Surface>
     </Shell>
+  );
+}
+
+/** The last extraction run, as one line. */
+function LastRun({ run }: { run: WindowRow }) {
+  const when = new Date(run.created_at).toLocaleTimeString();
+  if (run.status === "running") {
+    return <Text size="xs" variant="secondary">Extracting statements…</Text>;
+  }
+  if (run.status === "failed") {
+    return (
+      <Text size="xs" variant="error">
+        Extraction at {when} failed: {run.error}
+      </Text>
+    );
+  }
+  return (
+    <div className="flex gap-2 items-center">
+      <Text size="xs" variant="secondary">
+        Last extraction {when}
+      </Text>
+      <Badge variant="secondary">{run.kept} sent to review</Badge>
+    </div>
   );
 }
 

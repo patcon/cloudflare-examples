@@ -18,4 +18,8 @@ export {
   type TranscribeOptions,
   type TranscriptSegment
 } from "./batch";
-export type { VertexOptions } from "./vertex";
+export {
+  resolveAccessToken,
+  vertexHost,
+  type VertexOptions
+} from "./vertex";
