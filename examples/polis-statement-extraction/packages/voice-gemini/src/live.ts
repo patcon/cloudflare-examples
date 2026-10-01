@@ -14,6 +14,12 @@ import { arrayBufferToBase64, resolveAccessToken, vertexHost, type VertexOptions
  */
 const MAX_PENDING_BYTES = 960_000;
 
+/**
+ * Reconnects in a row, each without reaching setup, before giving up. A
+ * resumed connection that reaches setup starts the count again.
+ */
+const MAX_RESUMES = 3;
+
 export interface GeminiLiveSTTOptions extends VertexOptions {
   /** Model ID. @default "gemini-3.5-transcribe-live-preview" */
   model?: string;
@@ -82,8 +88,13 @@ export class GeminiLiveSTT implements Transcriber {
 
 /**
  * Underscore-prefixed: internal helper, exported only for unit tests.
+ *
+ * Without compression, Gemini ends an audio session after 15 minutes. The
+ * sliding window drops the oldest context instead. Vertex also closes each
+ * connection after a while, with a `goAway` first, so it asks for handles
+ * to resume the session on a new one. `handle` is the latest, when resuming.
  */
-export function _buildSetupMessage(opts: GeminiLiveSTTOptions) {
+export function _buildSetupMessage(opts: GeminiLiveSTTOptions, handle?: string) {
   const location = opts.location ?? "global";
   const model = opts.model ?? "gemini-3.5-transcribe-live-preview";
   const { activityDetection } = opts;
@@ -92,6 +103,8 @@ export function _buildSetupMessage(opts: GeminiLiveSTTOptions) {
       model: `projects/${opts.project}/locations/${location}/publishers/google/models/${model}`,
       generationConfig: { responseModalities: ["TEXT"] },
       inputAudioTranscription: {},
+      contextWindowCompression: { slidingWindow: {} },
+      sessionResumption: handle ? { handle } : {},
       ...(activityDetection && Object.keys(activityDetection).length
         ? {
             realtimeInputConfig: {
@@ -110,6 +123,10 @@ export function _buildConnectionUrl(location = "global"): string {
 
 interface LiveServerMessage {
   setupComplete?: object;
+  /** A handle to resume the session with, once it's at a point it can be. */
+  sessionResumptionUpdate?: { newHandle?: string; resumable?: boolean };
+  /** Vertex is about to close the connection. */
+  goAway?: { timeLeft?: string };
   voiceActivity?: { type?: "ACTIVITY_START" | "ACTIVITY_END" };
   serverContent?: {
     // Everything heard so far this turn. Each one replaces the last.
@@ -125,8 +142,12 @@ class GeminiLiveSession implements TranscriberSession {
   #onUtterance: TranscriberSessionOptions["onUtterance"];
   #onFatalError: TranscriberSessionOptions["onFatalError"];
 
+  #config: GeminiLiveSTTOptions;
   #ws: WebSocket | null = null;
   #manualActivity: boolean;
+  /** The latest handle Gemini said the session can resume from. */
+  #handle: string | undefined;
+  #resumes = 0;
   #connected = false;
   #closed = false;
   #fatalReported = false;
@@ -144,13 +165,14 @@ class GeminiLiveSession implements TranscriberSession {
     this.#onSpeechStart = options?.onSpeechStart;
     this.#onUtterance = options?.onUtterance;
     this.#onFatalError = options?.onFatalError;
+    this.#config = config;
     this.#manualActivity = !!config.activityDetection?.disabled;
     this.#ready = new Promise<void>((resolve, reject) => {
       this.#resolveReady = resolve;
       this.#rejectReady = reject;
     });
     this.#ready.catch(() => {});
-    this.#connect(config);
+    this.#connect();
   }
 
   waitUntilReady(): Promise<void> {
@@ -206,7 +228,8 @@ class GeminiLiveSession implements TranscriberSession {
     this.#resolveReadiness();
   }
 
-  async #connect(config: GeminiLiveSTTOptions): Promise<void> {
+  async #connect(): Promise<void> {
+    const config = this.#config;
     try {
       const accessToken = await resolveAccessToken(config.accessToken, "Gemini Live");
       const resp = await fetch(_buildConnectionUrl(config.location), {
@@ -228,18 +251,24 @@ class GeminiLiveSession implements TranscriberSession {
       }
       this.#ws = ws;
 
-      ws.addEventListener("message", (event) => this.#handleMessage(event));
+      // A socket replaced by a resume can still send events. Only the
+      // current one counts.
+      ws.addEventListener("message", (event) => {
+        if (ws === this.#ws) void this.#handleMessage(event);
+      });
       ws.addEventListener("close", (event) => {
+        if (ws !== this.#ws) return;
         this.#connected = false;
         if (this.#closed) return;
         // Vertex puts the reason, such as "model not found" or an expired
         // token, in the close.
-        // TODO: on `goAway` or the session time limit, resume with a
-        // `sessionResumption` handle instead of failing.
         const reason = event.reason || "no reason given";
-        const hint = /authentication credentials/i.test(reason)
-          ? " The access token has expired or been revoked."
-          : "";
+        const auth = /authentication credentials/i.test(reason);
+        if (!auth && this.#handle && this.#resumes < MAX_RESUMES) {
+          this.#resume(`closed (${event.code}): ${reason}`);
+          return;
+        }
+        const hint = auth ? " The access token has expired or been revoked." : "";
         this.#fail(
           "websocket_close",
           new VoiceProviderError(
@@ -253,14 +282,34 @@ class GeminiLiveSession implements TranscriberSession {
         );
       });
       ws.addEventListener("error", (event) => {
+        if (ws !== this.#ws) return;
         this.#connected = false;
         this.#fail("websocket", new Error("Gemini Live WebSocket error", { cause: event }));
       });
 
-      ws.send(JSON.stringify(_buildSetupMessage(config)));
+      ws.send(JSON.stringify(_buildSetupMessage(config, this.#handle)));
     } catch (error) {
       this.#fail("connection", toVoiceError(error, "Gemini Live connection failed"));
     }
+  }
+
+  /**
+   * Moves the session to a new connection with the latest handle. Audio fed
+   * meanwhile waits in the pending buffer, as it does before the first setup.
+   */
+  #resume(why: string) {
+    this.#resumes++;
+    // biome-ignore lint/suspicious/noConsole: a resume is worth seeing in the terminal.
+    console.info(`[GeminiLiveSTT] Resuming the session: ${why}`);
+    const old = this.#ws;
+    this.#ws = null;
+    this.#connected = false;
+    try {
+      old?.close();
+    } catch {
+      // ignore close errors
+    }
+    void this.#connect();
   }
 
   #sendAudio(chunk: ArrayBuffer) {
@@ -296,6 +345,7 @@ class GeminiLiveSession implements TranscriberSession {
 
     if (message.setupComplete) {
       this.#connected = true;
+      this.#resumes = 0;
       if (this.#manualActivity) {
         this.#ws?.send(JSON.stringify({ realtimeInput: { activityStart: {} } }));
       }
@@ -303,6 +353,14 @@ class GeminiLiveSession implements TranscriberSession {
       this.#pendingChunks = [];
       this.#pendingBytes = 0;
       this.#resolveReadiness();
+      return;
+    }
+
+    const update = message.sessionResumptionUpdate;
+    if (update?.resumable && update.newHandle) this.#handle = update.newHandle;
+
+    if (message.goAway) {
+      if (this.#handle) this.#resume(`goAway, ${message.goAway.timeLeft ?? "soon"} left`);
       return;
     }
 

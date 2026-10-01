@@ -73,6 +73,7 @@ For `GeminiLiveSTT`:
 1. When the session starts, it opens a WebSocket to Vertex and sends a `setup` message asking for input transcription and a text-only response.
 2. Audio from `feed()` is buffered until Vertex sends `setupComplete`, then sent as base64 16kHz PCM in `realtimeInput` messages.
 3. `voiceActivity` `ACTIVITY_START` becomes `onSpeechStart`, `interimInputTranscription` becomes `onInterim`, and `inputTranscription`, sent once Gemini's voice detection ends the turn, becomes `onUtterance`.
+4. For long sessions, the setup also asks for `contextWindowCompression.slidingWindow`, since an audio session without it ends after 15 minutes, and for `sessionResumption` handles. On `goAway`, or a connection that drops once there's a handle, it opens a new connection with the latest resumable handle. Audio fed meanwhile is buffered, as before the first setup. An expired token, or 3 resumes in a row that never reach setup, still fail the session. Handles are valid for 2 hours, per the [Live API docs](https://ai.google.dev/gemini-api/docs/live-session).
 
 ## Tests
 
@@ -86,7 +87,7 @@ To match the other providers, and to be upstreamed:
 
 - **Tokens that outlast an hour.** A function can now fetch a fresh token for each session, but nothing ships one. A helper that signs a service account JWT with WebCrypto and exchanges it for a token, cached until it expires, would make it work in production.
 - **Gemini Developer API.** Accept an `apiKey` and connect to `generativelanguage.googleapis.com` instead of Vertex, if the transcribe model is served there. An API key doesn't expire.
-- **Long sessions.** Live API sessions and connections have time limits. Handle `goAway` and reconnect with a `sessionResumption` handle, rather than failing.
+- **Long sessions, checked live.** Resumption is tested against a mock socket. On 1 October 2026, `gemini-3.5-transcribe-live-preview` accepted `contextWindowCompression` and `sessionResumption` in its setup, but no session has run past Vertex's limits yet.
 - **Stopping mid-sentence.** `close()` sends `realtimeInput.audioStreamEnd`, but any transcript Gemini sends back is dropped, so words spoken just before stopping are lost. No provider waits for one, because `TranscriberSession.close()` can't: it returns `void`, and the pipeline forgets the session straight away. This needs an SDK change upstream, such as `close()` returning a promise.
 - **Language.** Map the session's `language` option onto Gemini's config, once we know which field the transcribe model honours.
 - **Vocabulary.** The others take `keyterms` or a `prompt`. Find out whether a `systemInstruction` biases the transcribe model.

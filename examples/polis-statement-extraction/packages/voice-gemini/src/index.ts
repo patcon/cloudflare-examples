@@ -2,7 +2,8 @@
  * @cloudflare/voice-gemini — Gemini speech-to-text for the Cloudflare Agents
  * voice pipeline, over Vertex AI. See README.md for options.
  *
- * - `GeminiLiveSTT` (`./live.ts`) streams over `BidiGenerateContent`.
+ * - `GeminiLiveSTT` (`./live.ts`) streams over `BidiGenerateContent`, and
+ *   resumes the session on a new connection when Vertex closes the old one.
  * - `GeminiBatchSTT` (`./batch.ts`) transcribes a finished recording with
  *   `generateContent`.
  */

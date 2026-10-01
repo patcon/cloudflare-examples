@@ -171,3 +171,90 @@ it("reports one fatal error when Vertex closes, and none for our own close", asy
   expect(fatalErrors).toHaveLength(1);
   expect(fatalErrors[0].message).toMatch(/expired or been revoked/);
 });
+
+/** Hands out a new socket for each connection, as a reconnect makes. */
+function stubSockets() {
+  const sockets: MockWebSocket[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      const ws = new MockWebSocket();
+      sockets.push(ws);
+      return { webSocket: ws } as unknown as Response;
+    }),
+  );
+  return sockets;
+}
+
+const setupOf = (ws: MockWebSocket) => JSON.parse(ws.send.mock.calls[0]?.[0]).setup;
+
+it("asks for a sliding context window and resumption handles", () => {
+  expect(_buildSetupMessage(options).setup).toMatchObject({
+    contextWindowCompression: { slidingWindow: {} },
+    sessionResumption: {},
+  });
+  expect(_buildSetupMessage(options, "h1").setup.sessionResumption).toEqual({ handle: "h1" });
+});
+
+it("resumes on goAway with the latest handle, sending the audio heard meanwhile", async () => {
+  const sockets = stubSockets();
+  const onFatalError = vi.fn();
+  const session = new GeminiLiveSTT(options).createSession({ onFatalError });
+  await vi.waitFor(() => expect(sockets[0]?.send).toHaveBeenCalled());
+  const [first] = sockets as [MockWebSocket];
+  serverMessage(first, { setupComplete: {} });
+  await session.waitUntilReady?.();
+
+  serverMessage(first, { sessionResumptionUpdate: { newHandle: "h1", resumable: true } });
+  // Not resumable at this point, so h1 stays the one to use.
+  serverMessage(first, { sessionResumptionUpdate: { newHandle: "h2", resumable: false } });
+  serverMessage(first, { goAway: { timeLeft: "10s" } });
+  await vi.waitFor(() => expect(sockets[1]?.send).toHaveBeenCalled());
+  const second = sockets[1] as MockWebSocket;
+  expect(first.close).toHaveBeenCalled();
+  expect(setupOf(second).sessionResumption).toEqual({ handle: "h1" });
+
+  session.feed(new Uint8Array([1, 2, 3]).buffer);
+  expect(second.send).toHaveBeenCalledTimes(1);
+  serverMessage(second, { setupComplete: {} });
+  await vi.waitFor(() => expect(second.send).toHaveBeenCalledTimes(2));
+  expect(JSON.parse(second.send.mock.calls[1]?.[0]).realtimeInput.audio.data).toBe("AQID");
+  expect(onFatalError).not.toHaveBeenCalled();
+});
+
+it("resumes when the connection drops once there's a handle", async () => {
+  const sockets = stubSockets();
+  const onFatalError = vi.fn();
+  const session = new GeminiLiveSTT(options).createSession({ onFatalError });
+  await vi.waitFor(() => expect(sockets[0]?.send).toHaveBeenCalled());
+  const [first] = sockets as [MockWebSocket];
+  serverMessage(first, { setupComplete: {} });
+  await session.waitUntilReady?.();
+  serverMessage(first, { sessionResumptionUpdate: { newHandle: "h1", resumable: true } });
+
+  first.dispatchEvent(new CloseEvent("close", { code: 1011, reason: "deadline exceeded" }));
+  await vi.waitFor(() => expect(sockets[1]?.send).toHaveBeenCalled());
+  expect(setupOf(sockets[1] as MockWebSocket).sessionResumption).toEqual({ handle: "h1" });
+  expect(onFatalError).not.toHaveBeenCalled();
+});
+
+it("doesn't resume when the token is the problem", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const sockets = stubSockets();
+  const onFatalError = vi.fn();
+  const session = new GeminiLiveSTT(options).createSession({ onFatalError });
+  await vi.waitFor(() => expect(sockets[0]?.send).toHaveBeenCalled());
+  const [first] = sockets as [MockWebSocket];
+  serverMessage(first, { setupComplete: {} });
+  await session.waitUntilReady?.();
+  serverMessage(first, { sessionResumptionUpdate: { newHandle: "h1", resumable: true } });
+
+  first.dispatchEvent(
+    new CloseEvent("close", {
+      code: 1008,
+      reason: "Request had invalid authentication credentials.",
+    }),
+  );
+  await vi.waitFor(() => expect(onFatalError).toHaveBeenCalled());
+  expect(sockets).toHaveLength(1);
+});
