@@ -32,7 +32,7 @@ Everything runs on Gemini on Vertex AI, so you need a Google Cloud project with 
 | `/:projectId/sessions/:sessionId?debug=true` | Whoever's testing | Replay an audio file instead of recording. See [Replaying an audio file](#replaying-an-audio-file) |
 | `/:projectId/review` | The host | The project's sessions, each with **Extract now**, and every proposed statement: to review, approved, rejected and filtered out |
 
-A project is any name, made the first time it's used.
+A project is any name, made the first time it's used. `/:projectId/` on its own opens the start page.
 
 ## How a session works
 

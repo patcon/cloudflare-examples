@@ -15,6 +15,11 @@ function App() {
     .map(decodeURIComponent);
 
   if (!projectId) return <Home />;
+  if (isProjectId(projectId) && !page) {
+    // A project's own link, such as /demo/, opens its start page.
+    location.replace(`/${encodeURIComponent(projectId)}/start`);
+    return null;
+  }
   if (isProjectId(projectId) && rest.length === 0) {
     if (page === "start" && !sessionId) return <Start projectId={projectId} />;
     if (page === "review" && !sessionId) return <Review projectId={projectId} />;
