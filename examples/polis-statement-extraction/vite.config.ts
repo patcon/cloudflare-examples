@@ -16,8 +16,14 @@ export default defineConfig(({ mode }) => ({
     cloudflare({ tunnel: { autoStart: mode === "share" } }),
     tailwindcss(),
   ],
-  // Each example has its own port, so they can run side by side.
-  // `.ts.net` lets a phone on your tailnet reach it over HTTPS, through
-  // `tailscale serve --bg 8794`. The microphone needs HTTPS.
-  server: { port: 8794, strictPort: true, allowedHosts: [".ts.net"] },
+  server: {
+    // Each example has its own port, so they can run side by side.
+    port: 8794,
+    strictPort: true,
+    // Listens on every network, as `--host` does, so other devices can reach it.
+    host: true,
+    // `.ts.net` lets a phone on your tailnet reach it over HTTPS, through
+    // `tailscale serve --bg 8794`. The microphone needs HTTPS.
+    allowedHosts: [".ts.net"],
+  },
 }));
