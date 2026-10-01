@@ -26,6 +26,10 @@ export interface WindowRow {
 
 /** Earlier segments given to the prompt as context. */
 const CONTEXT_SEGMENTS = 3;
+/** How often extraction runs by itself while recording. */
+const EXTRACT_EVERY_SECONDS = 300;
+/** Fewer new words than this, and the timer skips its run. */
+const MIN_NEW_WORDS = 150;
 
 export interface Segment {
   id: number;
@@ -94,12 +98,32 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   /** Pulls statements out of what's been said since the last run. */
   @callable()
   async extractNow() {
-    // Runs after anything already queued. The stable id replaces a run
-    // that's still waiting, so pressing twice doesn't run twice.
-    await this.queue("processWindow", {}, {
-      id: "window",
-      retry: { maxAttempts: 3 }
-    });
+    // The queue runs one at a time, so runs never overlap. Pressing twice
+    // queues twice, but the second finds nothing new and returns.
+    await this.queue("processWindow", {}, { retry: { maxAttempts: 3 } });
+  }
+
+  /** From the timer: runs extraction once enough has been said. */
+  async tick() {
+    if (!this.state.recording) return this.#stopTimer();
+    const words = this.#pendingSegments()
+      .map((s) => s.text.split(/\s+/).filter(Boolean).length)
+      .reduce((a, b) => a + b, 0);
+    if (words >= MIN_NEW_WORDS) await this.extractNow();
+  }
+
+  async #stopTimer() {
+    for (const s of await this.listSchedules({ type: "interval" })) {
+      if (s.callback === "tick") await this.cancelSchedule(s.id);
+    }
+  }
+
+  /** What's been said since the last run that worked. */
+  #pendingSegments(): Segment[] {
+    return this.sql<Segment>`
+      SELECT id, at, text FROM live_segments
+      WHERE id > (SELECT COALESCE(MAX(to_seg), 0) FROM windows WHERE status = 'done')
+      ORDER BY id`;
   }
 
   /**
@@ -109,13 +133,10 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   async processWindow() {
     const { projectId } = this.state;
     if (!projectId) return;
-    const [{ last }] = this.sql<{ last: number }>`
-      SELECT COALESCE(MAX(to_seg), 0) AS last FROM windows WHERE status = 'done'`;
-    const segments = this.sql<Segment>`
-      SELECT id, at, text FROM live_segments WHERE id > ${last} ORDER BY id`;
+    const segments = this.#pendingSegments();
     if (segments.length === 0) return;
     const context = this.sql<Segment>`
-      SELECT id, at, text FROM live_segments WHERE id <= ${last}
+      SELECT id, at, text FROM live_segments WHERE id < ${segments[0].id}
       ORDER BY id DESC LIMIT ${CONTEXT_SEGMENTS}`.reverse();
 
     const [win] = this.sql<{ id: number }>`
@@ -173,12 +194,17 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     return this.state.projectId !== null;
   }
 
-  onCallStart(_connection: Connection) {
+  async onCallStart(_connection: Connection) {
     this.setState({ ...this.state, recording: true });
+    // Idempotent: a second start doesn't add a second timer.
+    await this.scheduleEvery(EXTRACT_EVERY_SECONDS, "tick");
   }
 
-  onCallEnd(_connection: Connection) {
+  async onCallEnd(_connection: Connection) {
     this.setState({ ...this.state, recording: false });
+    await this.#stopTimer();
+    // Whatever was said since the last run.
+    await this.extractNow();
   }
 
   onTranscript(text: string, _connection: Connection) {
