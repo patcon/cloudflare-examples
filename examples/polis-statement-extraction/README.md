@@ -64,7 +64,7 @@ Stopping ends the session for good, since the recording has to be one file. If t
 
 ## Replaying an audio file
 
-Add `?debug=true` to a new session's link to replay a recording instead of using the microphone. The page decodes the file and resamples it to 16kHz mono. It sends the audio to the session in 5-minute WAV windows. Each window is transcribed by `gemini-3.5-transcribe-preview` in place of the live text, then extracted from as usual. If the file is small enough for one request, it then becomes the session's recording, and the final pass runs.
+Add `?debug=true` to a new session's link, or follow the faint **debug** link at the bottom of its page, to replay a recording instead of using the microphone. The page decodes the file and resamples it to 16kHz mono. It sends the audio to the session in 5-minute WAV windows. Each window is transcribed by `gemini-3.5-transcribe-preview` in place of the live text, then extracted from as usual. If the file is small enough for one request, it then becomes the session's recording, and the final pass runs.
 
 An hour-long file takes a few minutes and makes about 26 Gemini requests: 12 windows each transcribed and extracted from, then the final pass's two.
 
