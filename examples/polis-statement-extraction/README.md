@@ -4,9 +4,9 @@ A group sits around one phone, which records their conversation. While they talk
 
 There's no voting yet. A session is a group, not one person, so who reacts to what is a later question. There's no login either.
 
-| Start a session | Record a session |
+| Start a session | Record your group conversation |
 |---|---|
-| ![The start page, with a button to start a session](docs/start-a-session.png) | ![A session recording, with its live transcript](docs/record-a-session.png) |
+| ![The start page, with a button to start a session](docs/start-a-session.png) | ![A session recording, with its live transcript](docs/record-your-group-conversation.png) |
 
 | Transcribed session | Host reviews extracted statements |
 |---|---|
