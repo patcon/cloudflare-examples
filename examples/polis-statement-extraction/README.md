@@ -4,6 +4,14 @@ A group sits around one phone, which records their conversation. While they talk
 
 There's no voting yet. A session is a group, not one person, so who reacts to what is a later question. There's no login either.
 
+| Start a session | Record a session |
+|---|---|
+| ![The start page, with a button to start a session](docs/start-a-session.png) | ![A session recording, with its live transcript](docs/record-a-session.png) |
+
+| Transcribed session | Host reviews extracted statements |
+|---|---|
+| ![A stopped session, transcribed again by speaker](docs/transcribed-session.png) | ![The review page, with statements to approve, edit or reject](docs/host-reviews-extracted-statements.png) |
+
 ## Run it
 
 ```bash
