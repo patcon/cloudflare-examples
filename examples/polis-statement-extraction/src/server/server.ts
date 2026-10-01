@@ -8,6 +8,8 @@ export { SessionAgent } from "./session-agent";
 
 /** A 10-second piece at 24kbps is about 30KB. This allows plenty more. */
 const MAX_PART_BYTES = 1024 * 1024;
+/** A 5-minute 16kHz WAV window, for `?debug=true`, is about 9.6MB. */
+const MAX_WINDOW_BYTES = 12 * 1024 * 1024;
 
 type AppEnv = { Bindings: Env };
 
@@ -44,6 +46,25 @@ app.put("/api/:projectId/sessions/:sessionId/recording/:part{[0-9]+}", async (c)
     return c.text((error as Error).message, 409);
   }
   return c.body(null, 204);
+});
+
+// For `?debug=true`: transcribes one window of an uploaded file, then
+// extracts from it, as if it had been said live.
+app.post("/api/:projectId/sessions/:sessionId/replay", async (c) => {
+  const target = await sessionFor(c);
+  if (!target) return c.notFound();
+  if (c.req.header("Content-Type") !== "audio/wav") {
+    return c.text("Content-Type must be audio/wav", 415);
+  }
+  const wav = await c.req.arrayBuffer();
+  if (wav.byteLength === 0 || wav.byteLength > MAX_WINDOW_BYTES) {
+    return c.text("Bad window size", 413);
+  }
+  try {
+    return c.json(await target.session.replayWindow(target.projectId, wav));
+  } catch (error) {
+    return c.text((error as Error).message, 409);
+  }
 });
 
 // Streams the whole recording back, to listen to it.

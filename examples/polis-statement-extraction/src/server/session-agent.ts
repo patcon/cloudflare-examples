@@ -3,6 +3,7 @@ import { withVoiceInput, type Transcriber } from "agents/voice";
 import { GeminiBatchSTT, GeminiLiveSTT, type TranscriptSegment } from "@cloudflare/voice-gemini";
 import { extractStatements, isRetryable } from "./extract/gemini";
 import { isProjectId } from "../shared/ids";
+import { MAX_RECORDING_BYTES } from "../shared/limits";
 import { BATCH_MODEL, EXTRACT_MODEL, LIVE_MODEL, LOCATION } from "./models";
 
 export interface SessionState {
@@ -23,11 +24,6 @@ export interface FinalSegment {
   text: string;
 }
 
-/**
- * Vertex caps an inline request at 20MB, and base64 adds a third. At the
- * page's 24kbps, this is about 80 minutes.
- */
-const MAX_AUDIO_BYTES = 14 * 1024 * 1024;
 /** The window ID statements from the final pass are saved with. */
 const FINAL_WINDOW = 0;
 
@@ -226,6 +222,25 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     }
   }
 
+  /**
+   * For `?debug=true`: one 5-minute WAV window of an uploaded file, from the
+   * Worker's replay route. The batch model transcribes it in place of the
+   * live text, then the usual extraction runs. Windows come in order, one at
+   * a time, so the page waits for each.
+   */
+  async replayWindow(projectId: string, wav: ArrayBuffer) {
+    if (projectId !== this.state.projectId) throw new Error("Wrong project");
+    if (this.state.recording || this.state.final) {
+      throw new Error("This session is recording or has finished");
+    }
+    const segments = await new GeminiBatchSTT(this.#vertex(BATCH_MODEL)).transcribe(
+      new Uint8Array(wav),
+    );
+    for (const { text } of segments) this.#saveSegment(text);
+    await this.extractNow();
+    return { segments: segments.length };
+  }
+
   /** For the Worker's download route: the recording's pieces, in order. */
   recordingParts(projectId: string): { mimeType: string; keys: string[] } | null {
     const { audio } = this.state;
@@ -305,9 +320,9 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   }
 
   async #diarize(audio: NonNullable<SessionState["audio"]>): Promise<TranscriptSegment[]> {
-    if (audio.bytes > MAX_AUDIO_BYTES) {
+    if (audio.bytes > MAX_RECORDING_BYTES) {
       throw new Error(
-        `The recording is ${(audio.bytes / 1024 / 1024).toFixed(1)}MB, more than the ${MAX_AUDIO_BYTES / 1024 / 1024}MB Gemini takes in one request`,
+        `The recording is ${(audio.bytes / 1024 / 1024).toFixed(1)}MB, more than the ${MAX_RECORDING_BYTES / 1024 / 1024}MB Gemini takes in one request`,
       );
     }
     const bytes = new Uint8Array(audio.bytes);
@@ -362,6 +377,11 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   }
 
   onTranscript(text: string, _connection: Connection) {
+    this.#saveSegment(text);
+  }
+
+  /** Saves one finalized utterance, live or replayed, and tells the pages. */
+  #saveSegment(text: string) {
     const [segment] = this.sql<Segment>`
       INSERT INTO live_segments (at, text) VALUES (${Date.now()}, ${text})
       RETURNING id, at, text`;

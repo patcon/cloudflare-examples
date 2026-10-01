@@ -20,6 +20,7 @@ import type {
 } from "../../server/session-agent";
 import { speakerColor } from "../speakers";
 import { Shell } from "../ui";
+import { Replay } from "./Replay";
 
 /** For the recording phone: records, and shows the live transcript. */
 export function Session({ projectId, sessionId }: { projectId: string; sessionId: string }) {
@@ -99,11 +100,28 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   const ended = !!state?.final;
   // Recorded before, on a page that's gone, and never finished.
   const interrupted = !busy && !ended && !!state?.audio;
+  // `?debug=true` offers an audio file in place of the microphone, until
+  // the session has anything in it.
+  const canReplay =
+    new URLSearchParams(location.search).get("debug") === "true" &&
+    !!state?.projectId &&
+    !busy &&
+    !ended &&
+    !state.audio &&
+    segments.length === 0;
+  // Stays up once shown, as the replay fills the session.
+  const [replay, setReplay] = useState(false);
+  useEffect(() => {
+    if (canReplay) setReplay(true);
+  }, [canReplay]);
 
   return (
     <Shell title={projectId}>
+      {replay && (
+        <Replay projectId={projectId} sessionId={sessionId} finish={() => agent.call("finish")} />
+      )}
       <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3 items-center">
-        {busy === "recording" ? (
+        {replay ? null : busy === "recording" ? (
           <Button variant="destructive" size="lg" icon={<StopIcon size={20} />} onClick={stop}>
             Stop and end the session
           </Button>
