@@ -1,0 +1,46 @@
+{
+  "name": "polis-statement-extraction",
+  "version": "1.0.0",
+  "description": "Transcribes a group conversation live with Gemini, and pulls out Polis-style statements for a host to review",
+  "scripts": {
+    "dev": "vite dev",
+    "dev:share": "vite dev --mode share",
+    "google-token": "node scripts/google-token.mjs",
+    "deploy": "vite build && wrangler deploy",
+    "types": "wrangler types env.d.ts --include-runtime false",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run && pnpm --filter @cloudflare/voice-gemini test"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.5",
+  "private": true,
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
+  },
+  "dependencies": {
+    "@cloudflare/voice-gemini": "workspace:*",
+    "@cloudflare/kumo": "^2.6.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "agents": "^0.24.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.48.0",
+    "@cloudflare/workers-types": "^5.20260729.1",
+    "@tailwindcss/vite": "^4",
+    "@types/node": "^26.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "tailwindcss": "^4.3.2",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.0",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.115.0"
+  }
+}
