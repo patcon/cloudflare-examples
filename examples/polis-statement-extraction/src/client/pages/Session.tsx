@@ -287,7 +287,7 @@ function FinalTranscript({
               Speaker {s.speaker + 1}
             </span>
           )}
-          <span>{s.text}</span>
+          <span className="self-center">{s.text}</span>
         </p>
       ))}
       {final.status === "running" && segments.length > 0 && (
