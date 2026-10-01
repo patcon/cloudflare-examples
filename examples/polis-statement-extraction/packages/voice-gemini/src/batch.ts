@@ -22,6 +22,11 @@ export interface GeminiBatchSTTOptions extends VertexOptions {
 export interface TranscribeOptions {
   /** Tell speakers apart. */
   diarize?: boolean;
+  /**
+   * The recording's format, such as `audio/webm` from a `MediaRecorder`.
+   * @default "audio/wav"
+   */
+  mimeType?: string;
 }
 
 /** One stretch of a batch transcript, by one speaker. */
@@ -58,9 +63,9 @@ export class GeminiBatchSTT {
     this.#options = options;
   }
 
-  /** Transcribes a WAV file. */
+  /** Transcribes a recording, WAV unless `options.mimeType` says otherwise. */
   async transcribe(
-    wav: Uint8Array<ArrayBuffer>,
+    audio: Uint8Array<ArrayBuffer>,
     options: TranscribeOptions = {}
   ): Promise<TranscriptSegment[]> {
     const config = this.#options;
@@ -72,7 +77,7 @@ export class GeminiBatchSTT {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(
-        _buildTranscribeRequest(arrayBufferToBase64(wav.buffer), options)
+        _buildTranscribeRequest(arrayBufferToBase64(audio.buffer), options)
       )
     });
     if (!resp.ok) {
@@ -106,14 +111,21 @@ export function _buildGenerateContentUrl(opts: GeminiBatchSTTOptions): string {
  * `audioTranscriptionConfig` is Vertex's `AudioTranscriptionConfig`.
  */
 export function _buildTranscribeRequest(
-  base64Wav: string,
+  base64Audio: string,
   options: TranscribeOptions
 ) {
   return {
     contents: [
       {
         role: "user",
-        parts: [{ inlineData: { mimeType: "audio/wav", data: base64Wav } }]
+        parts: [
+          {
+            inlineData: {
+              mimeType: options.mimeType ?? "audio/wav",
+              data: base64Audio
+            }
+          }
+        ]
       }
     ],
     // Diarization needs VERBATIM, which is also the default.

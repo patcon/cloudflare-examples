@@ -14,6 +14,11 @@
     ]
   },
   "main": "src/server.ts",
+  // Each session's compressed recording, for diarizing once it stops.
+  // `vite dev` keeps it on disk, under .wrangler/state.
+  "r2_buckets": [
+    { "binding": "RECORDINGS", "bucket_name": "polis-statement-extraction-recordings" }
+  ],
   "migrations": [
     {
       "new_sqlite_classes": ["ProjectAgent", "SessionAgent"],

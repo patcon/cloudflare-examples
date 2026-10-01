@@ -11,11 +11,16 @@ export class VertexError extends Error {
   ) {
     super(message);
   }
+}
 
-  /** Rate limits and server errors are worth retrying. A bad token isn't. */
-  get retryable() {
-    return this.status === 429 || this.status >= 500;
-  }
+/**
+ * Rate limits and server errors are worth retrying. A bad token isn't.
+ * Reads `status` from a `VertexError` or the batch transcriber's
+ * `VoiceProviderError`.
+ */
+export function isRetryable(error: unknown): boolean {
+  const status = (error as { status?: unknown })?.status;
+  return typeof status === "number" && (status === 429 || status >= 500);
 }
 
 /** Asks a Gemini text model for statements, as JSON. */

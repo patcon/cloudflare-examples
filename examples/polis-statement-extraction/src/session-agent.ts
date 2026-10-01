@@ -1,15 +1,39 @@
 import { Agent, callable, getAgentByName, type Connection } from "agents";
 import { withVoiceInput, type Transcriber } from "agents/voice";
-import { GeminiLiveSTT } from "@cloudflare/voice-gemini";
-import { extractStatements, VertexError } from "./extract/gemini";
+import {
+  GeminiBatchSTT,
+  GeminiLiveSTT,
+  type TranscriptSegment
+} from "@cloudflare/voice-gemini";
+import { extractStatements, isRetryable } from "./extract/gemini";
 import { isProjectId } from "./ids";
-import { EXTRACT_MODEL, LIVE_MODEL, LOCATION } from "./models";
+import { BATCH_MODEL, EXTRACT_MODEL, LIVE_MODEL, LOCATION } from "./models";
 
 export interface SessionState {
   /** Set by the first page to connect, from its URL. */
   projectId: string | null;
   recording: boolean;
+  /** The compressed recording the page uploads, in R2. */
+  audio: { mimeType: string; parts: number; bytes: number } | null;
+  /** Diarizing the whole recording once it stops, then one last extraction. */
+  final: { status: "running" | "done" | "failed"; error: string | null } | null;
 }
+
+/** One speaker's stretch of the diarized transcript. */
+export interface FinalSegment {
+  seq: number;
+  /** Numbered from 0, in the order speakers are first heard. */
+  speaker: number | null;
+  text: string;
+}
+
+/**
+ * Vertex caps an inline request at 20MB, and base64 adds a third. At the
+ * page's 24kbps, this is about 80 minutes.
+ */
+const MAX_AUDIO_BYTES = 14 * 1024 * 1024;
+/** The window ID statements from the final pass are saved with. */
+const FINAL_WINDOW = 0;
 
 /** One extraction run over a stretch of the transcript, kept as a log. */
 export interface WindowRow {
@@ -40,7 +64,8 @@ export interface Segment {
 /** What the session broadcasts, beside the voice pipeline's own messages. */
 export type SessionMessage =
   | { type: "segment"; segment: Segment }
-  | { type: "windows" };
+  | { type: "windows" }
+  | { type: "final" };
 
 const InputAgent = withVoiceInput(Agent);
 
@@ -50,7 +75,12 @@ const InputAgent = withVoiceInput(Agent);
  * utterance Gemini Live finalizes.
  */
 export class SessionAgent extends InputAgent<Env, SessionState> {
-  initialState: SessionState = { projectId: null, recording: false };
+  initialState: SessionState = {
+    projectId: null,
+    recording: false,
+    audio: null,
+    final: null
+  };
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -67,6 +97,9 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       filtered INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     )`);
+    this.ctx.storage.sql.exec(
+      "CREATE TABLE IF NOT EXISTS final_transcript (seq INTEGER PRIMARY KEY, speaker INTEGER, text TEXT NOT NULL)"
+    );
   }
 
   /**
@@ -148,21 +181,13 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     const project = await getAgentByName(this.env.ProjectAgent, projectId);
     try {
       const { topic, existing } = await project.promptContext();
-      const proposed = await extractStatements(
-        {
-          accessToken: this.env.GOOGLE_ACCESS_TOKEN,
-          project: this.env.GOOGLE_CLOUD_PROJECT,
-          location: LOCATION,
-          model: EXTRACT_MODEL
-        },
-        {
+      const proposed = await extractStatements(this.#vertex(EXTRACT_MODEL), {
           topic,
           existing,
           context: context.map((s) => s.text).join("\n"),
           transcript: segments.map((s) => s.text).join("\n"),
           pass: "live"
-        }
-      );
+      });
       const { kept, filtered } = await project.addCandidates(this.name, win.id, "live", proposed);
       this.sql`UPDATE windows SET status = 'done', kept = ${kept}, filtered = ${filtered}
         WHERE id = ${win.id}`;
@@ -174,19 +199,145 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       console.error(`[${this.name}] Window ${win.id} failed: ${message}`);
       await project.runFinished(this.name, message);
       // Rethrowing lets the queue retry it, as a new window row.
-      if (error instanceof VertexError && error.retryable) throw error;
+      if (isRetryable(error)) throw error;
     } finally {
       this.#notify({ type: "windows" });
     }
   }
 
-  createTranscriber(_connection: Connection): Transcriber {
-    return new GeminiLiveSTT({
+  /**
+   * Stores one piece of the page's compressed recording, from the Worker's
+   * upload route. Pieces come every 10 seconds, numbered from 0; the first
+   * holds the file's header, so joined in order they make one file.
+   */
+  async storePart(projectId: string, n: number, mimeType: string, body: ArrayBuffer) {
+    if (projectId !== this.state.projectId) throw new Error("Wrong project");
+    if (this.state.final) throw new Error("This session has already finished");
+    const audio = this.state.audio ?? { mimeType, parts: 0, bytes: 0 };
+    // A retried upload may repeat the last piece. Anything else is a gap.
+    if (!Number.isInteger(n) || n < 0 || n > audio.parts) {
+      throw new Error(`Expected piece ${audio.parts}, got ${n}`);
+    }
+    if (mimeType !== audio.mimeType) throw new Error("The format changed mid-recording");
+    await this.env.RECORDINGS.put(partKey(this.name, n), body);
+    if (n === audio.parts) {
+      this.setState({
+        ...this.state,
+        audio: { mimeType, parts: n + 1, bytes: audio.bytes + body.byteLength }
+      });
+    }
+  }
+
+  /** For the Worker's download route: the recording's pieces, in order. */
+  recordingParts(projectId: string): { mimeType: string; keys: string[] } | null {
+    const { audio } = this.state;
+    if (projectId !== this.state.projectId || !audio) return null;
+    return {
+      mimeType: audio.mimeType,
+      keys: Array.from({ length: audio.parts }, (_, n) => partKey(this.name, n))
+    };
+  }
+
+  /**
+   * Called by the page once it has stopped and uploaded the last piece.
+   * Diarizes the whole recording, then runs one last extraction over it.
+   */
+  @callable()
+  async finish() {
+    if (!this.state.audio || this.state.final?.status === "running") return;
+    if (this.state.final?.status === "done") return;
+    this.setState({ ...this.state, final: { status: "running", error: null } });
+    await this.queue("finalize", {}, { retry: { maxAttempts: 3 } });
+  }
+
+  @callable()
+  listFinalTranscript(): FinalSegment[] {
+    return this.sql<FinalSegment>`SELECT seq, speaker, text FROM final_transcript ORDER BY seq`;
+  }
+
+  /** From the queue. A retry skips the transcription if it's already done. */
+  async finalize() {
+    const { projectId, audio } = this.state;
+    if (!projectId || !audio) return;
+    const project = await getAgentByName(this.env.ProjectAgent, projectId);
+    try {
+      let segments = this.listFinalTranscript();
+      if (segments.length === 0) {
+        segments = (await this.#diarize(audio)).map((s, seq) => ({ seq, ...s }));
+        for (const s of segments) {
+          this.sql`INSERT INTO final_transcript (seq, speaker, text)
+            VALUES (${s.seq}, ${s.speaker}, ${s.text})`;
+        }
+        this.#notify({ type: "final" });
+      }
+      const { topic, existing } = await project.promptContext();
+      const proposed = await extractStatements(this.#vertex(EXTRACT_MODEL), {
+        topic,
+        existing,
+        context: "",
+        transcript: segments
+          .map((s) => (s.speaker === null ? s.text : `Speaker ${s.speaker + 1}: ${s.text}`))
+          .join("\n"),
+        pass: "final"
+      });
+      const { kept, filtered } = await project.addCandidates(this.name, FINAL_WINDOW, "final", proposed);
+      console.log(`[${this.name}] Final pass: ${kept} kept, ${filtered} filtered`);
+      this.setState({ ...this.state, final: { status: "done", error: null } });
+      await project.runFinished(this.name, null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[${this.name}] Final pass failed: ${message}`);
+      if (isRetryable(error)) throw error;
+      this.setState({ ...this.state, final: { status: "failed", error: message } });
+      await project.runFinished(this.name, message);
+    }
+  }
+
+  /** Lets the page try the final pass again, such as after a new token. */
+  @callable()
+  async retryFinish() {
+    if (this.state.final?.status !== "failed") return;
+    this.setState({ ...this.state, final: null });
+    await this.finish();
+  }
+
+  async #diarize(audio: NonNullable<SessionState["audio"]>): Promise<TranscriptSegment[]> {
+    if (audio.bytes > MAX_AUDIO_BYTES) {
+      throw new Error(
+        `The recording is ${(audio.bytes / 1024 / 1024).toFixed(1)}MB, more than the ${MAX_AUDIO_BYTES / 1024 / 1024}MB Gemini takes in one request`
+      );
+    }
+    const bytes = new Uint8Array(audio.bytes);
+    let offset = 0;
+    for (let n = 0; n < audio.parts; n++) {
+      const part = await this.env.RECORDINGS.get(partKey(this.name, n));
+      if (!part) throw new Error(`Piece ${n} of the recording is missing`);
+      const chunk = new Uint8Array(await part.arrayBuffer());
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const started = Date.now();
+    const segments = await new GeminiBatchSTT(this.#vertex(BATCH_MODEL)).transcribe(
+      offset === bytes.length ? bytes : bytes.slice(0, offset),
+      { diarize: true, mimeType: audio.mimeType.split(";")[0] }
+    );
+    console.log(
+      `[${this.name}] Diarized ${(offset / 1024 / 1024).toFixed(1)}MB in ${Math.round((Date.now() - started) / 1000)}s: ${segments.length} segments`
+    );
+    return segments;
+  }
+
+  #vertex(model: string) {
+    return {
       accessToken: this.env.GOOGLE_ACCESS_TOKEN,
       project: this.env.GOOGLE_CLOUD_PROJECT,
       location: LOCATION,
-      model: LIVE_MODEL
-    });
+      model
+    };
+  }
+
+  createTranscriber(_connection: Connection): Transcriber {
+    return new GeminiLiveSTT(this.#vertex(LIVE_MODEL));
   }
 
   beforeCallStart(_connection: Connection) {
@@ -218,4 +369,8 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   #notify(message: SessionMessage) {
     this.broadcast(JSON.stringify(message));
   }
+}
+
+function partKey(sessionId: string, n: number) {
+  return `sessions/${sessionId}/parts/${String(n).padStart(6, "0")}`;
 }

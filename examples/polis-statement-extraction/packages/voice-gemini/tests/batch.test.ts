@@ -24,6 +24,15 @@ it("asks for diarization only when told to", () => {
   });
 });
 
+it("sends WAV unless told the format", () => {
+  const mimeType = (request: ReturnType<typeof _buildTranscribeRequest>) =>
+    request.contents[0].parts[0].inlineData.mimeType;
+  expect(mimeType(_buildTranscribeRequest("AAAA", {}))).toBe("audio/wav");
+  expect(
+    mimeType(_buildTranscribeRequest("AAAA", { mimeType: "audio/webm" }))
+  ).toBe("audio/webm");
+});
+
 it("posts to the global generateContent endpoint by default", () => {
   expect(_buildGenerateContentUrl(options)).toBe(
     "https://aiplatform.googleapis.com/v1beta1/projects/test-project/locations/global/publishers/google/models/gemini-3.5-transcribe-preview:generateContent"
