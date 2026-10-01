@@ -19,6 +19,15 @@ const CONTEXT_CHOICES = [CONTEXT_SEGMENTS, 5, 8, 12, 20];
 /** The server's limit on one uploaded piece of the recording. */
 const PIECE_BYTES = 1024 * 1024;
 
+/** Why a file can't become the session's recording, so has no diarized pass. */
+function noDiarizedPass(file: File): string | null {
+  if (!audioType(file)) return "Gemini can't take this file's format";
+  if (file.size > MAX_RECORDING_BYTES) {
+    return `${(file.size / 1024 / 1024).toFixed(1)}MB is over the ${MAX_RECORDING_BYTES / 1024 / 1024}MB that fits in one request. Opus at 24kbps fits about 80 minutes`;
+  }
+  return null;
+}
+
 /**
  * For `?debug=true`: runs an audio file through the session in place of the
  * microphone. Each window is transcribed by the batch model and extracted
@@ -63,10 +72,9 @@ export function Replay({
       }
 
       const type = audioType(file);
-      if (!type || file.size > MAX_RECORDING_BYTES) {
-        setProgress(
-          `Done. The file is too large to tell speakers apart in one request (over ${MAX_RECORDING_BYTES / 1024 / 1024}MB), so there's no diarized pass. Opus at 24kbps fits about 80 minutes.`,
-        );
+      const problem = noDiarizedPass(file);
+      if (!type || problem) {
+        setProgress(`Done, with no diarized pass: ${problem}.`);
         return;
       }
       for (let n = 0; n * PIECE_BYTES < file.size; n++) {
@@ -134,6 +142,12 @@ export function Replay({
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         className="text-sm"
       />
+      {file && noDiarizedPass(file) && (
+        <Text size="sm" variant="error">
+          Speakers won't be told apart: {noDiarizedPass(file)}. The live-style extraction still
+          runs.
+        </Text>
+      )}
       <Button
         variant="primary"
         icon={<UploadSimpleIcon size={16} />}
