@@ -17,5 +17,7 @@ export default defineConfig(({ mode }) => ({
     tailwindcss(),
   ],
   // Each example has its own port, so they can run side by side.
-  server: { port: 8794, strictPort: true },
+  // `.ts.net` lets a phone on your tailnet reach it over HTTPS, through
+  // `tailscale serve --bg 8794`. The microphone needs HTTPS.
+  server: { port: 8794, strictPort: true, allowedHosts: [".ts.net"] },
 }));
