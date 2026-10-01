@@ -294,6 +294,14 @@ function FinalTranscript({
           Looking for statements across the whole session…
         </Text>
       )}
+      {final.status === "done" && final.kept !== undefined && (
+        <div className="flex gap-2 items-center">
+          <Text size="xs" variant="secondary">
+            Statements from the whole session
+          </Text>
+          <Badge variant="secondary">{final.kept} sent to review</Badge>
+        </div>
+      )}
     </Surface>
   );
 }

@@ -13,7 +13,12 @@ export interface SessionState {
   /** The compressed recording the page uploads, in R2. */
   audio: { mimeType: string; parts: number; bytes: number } | null;
   /** Diarizing the whole recording once it stops, then one last extraction. */
-  final: { status: "running" | "done" | "failed"; error: string | null } | null;
+  final: {
+    status: "running" | "done" | "failed";
+    error: string | null;
+    /** Statements the last extraction sent to review, once it's done. */
+    kept?: number;
+  } | null;
 }
 
 /** One speaker's stretch of the diarized transcript. */
@@ -300,7 +305,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
         proposed,
       );
       console.log(`[${this.name}] Final pass: ${kept} kept, ${filtered} filtered`);
-      this.setState({ ...this.state, final: { status: "done", error: null } });
+      this.setState({ ...this.state, final: { status: "done", error: null, kept } });
       await project.runFinished(this.name, null);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
