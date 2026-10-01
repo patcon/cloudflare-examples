@@ -2,6 +2,7 @@ import { getAgentByName } from "agents";
 import { Hono, type Context } from "hono";
 import { agentsMiddleware } from "hono-agents";
 import { isProjectId, isSessionId } from "../shared/ids";
+import { CONTEXT_SEGMENTS, MAX_CONTEXT_SEGMENTS } from "../shared/limits";
 
 export { ProjectAgent } from "./project-agent";
 export { SessionAgent } from "./session-agent";
@@ -60,8 +61,13 @@ app.post("/api/:projectId/sessions/:sessionId/replay", async (c) => {
   if (wav.byteLength === 0 || wav.byteLength > MAX_WINDOW_BYTES) {
     return c.text("Bad window size", 413);
   }
+  // `?context=` picks how many earlier segments each run sees.
+  const context = Number(c.req.query("context") ?? CONTEXT_SEGMENTS);
+  if (!Number.isInteger(context) || context < 0 || context > MAX_CONTEXT_SEGMENTS) {
+    return c.text(`context must be a whole number from 0 to ${MAX_CONTEXT_SEGMENTS}`, 400);
+  }
   try {
-    return c.json(await target.session.replayWindow(target.projectId, wav));
+    return c.json(await target.session.replayWindow(target.projectId, wav, context));
   } catch (error) {
     return c.text((error as Error).message, 409);
   }
