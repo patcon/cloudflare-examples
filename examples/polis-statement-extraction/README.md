@@ -54,7 +54,7 @@ Stopping ends the session for good, since the recording has to be one file. If t
 
 ### Limits
 
-- **Recordings up to about 80 minutes.** Vertex caps an inline request at 20MB, which is about 14MB of audio once base64-encoded. A longer recording keeps its live statements, but gets no final pass.
+- **Diarized recordings up to 30 minutes.** The transcription model only tells speakers apart in [up to 30 minutes of audio](https://ai.google.dev/gemini-api/docs/transcribe). Past that, the recording page warns, and a replayed file skips the final pass. A longer recording keeps its live statements. Recordings are also kept under 14MB, after the Gemini Developer API's old 20MB cap on an inline request; Vertex doesn't state its own.
 - **Sessions up to about an hour**, because of the token. Gemini Live itself resumes past Vertex's session limits; see [`packages/voice-gemini`](packages/voice-gemini/README.md).
 - **Formats.** The page records Opus in WebM, or in Ogg, where the browser can, else AAC in MP4. Gemini takes all three. Only WebM from Chrome has been tried end to end.
 

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Surface, Text } from "@cloudflare/kumo";
 import { UploadSimpleIcon } from "@phosphor-icons/react";
-import { CONTEXT_SEGMENTS, MAX_RECORDING_BYTES } from "../../shared/limits";
+import { CONTEXT_SEGMENTS, MAX_DIARIZED_SECONDS, MAX_RECORDING_BYTES } from "../../shared/limits";
 import { audioType, decodeTo16kMono } from "../audio/replay";
 import { cutWindows, toWav } from "../audio/wav";
 
@@ -20,12 +20,36 @@ const CONTEXT_CHOICES = [CONTEXT_SEGMENTS, 5, 8, 12, 20];
 const PIECE_BYTES = 1024 * 1024;
 
 /** Why a file can't become the session's recording, so has no diarized pass. */
-function noDiarizedPass(file: File): string | null {
+function noDiarizedPass(file: File, seconds: number | null): string | null {
   if (!audioType(file)) return "Gemini can't take this file's format";
+  if (seconds !== null && seconds > MAX_DIARIZED_SECONDS) {
+    return `it's ${Math.round(seconds / 60)} minutes long, and Gemini diarizes at most ${MAX_DIARIZED_SECONDS / 60}`;
+  }
   if (file.size > MAX_RECORDING_BYTES) {
-    return `${(file.size / 1024 / 1024).toFixed(1)}MB is over the ${MAX_RECORDING_BYTES / 1024 / 1024}MB that fits in one request. Opus at 24kbps fits about 80 minutes`;
+    return `${(file.size / 1024 / 1024).toFixed(1)}MB is over the ${MAX_RECORDING_BYTES / 1024 / 1024}MB that fits in one request`;
   }
   return null;
+}
+
+/** An audio file's length, from its metadata, without decoding it all. */
+function useDuration(file: File | null): number | null {
+  const [seconds, setSeconds] = useState<number | null>(null);
+  useEffect(() => {
+    setSeconds(null);
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const audio = new Audio();
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      if (Number.isFinite(audio.duration)) setSeconds(audio.duration);
+    };
+    audio.src = url;
+    return () => {
+      audio.removeAttribute("src");
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
+  return seconds;
 }
 
 /**
@@ -44,6 +68,7 @@ export function Replay({
   finish: () => Promise<unknown>;
 }) {
   const [file, setFile] = useState<File | null>(null);
+  const seconds = useDuration(file);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -72,7 +97,7 @@ export function Replay({
       }
 
       const type = audioType(file);
-      const problem = noDiarizedPass(file);
+      const problem = noDiarizedPass(file, seconds);
       if (!type || problem) {
         setProgress(`Done, with no diarized pass: ${problem}.`);
         return;
@@ -142,10 +167,10 @@ export function Replay({
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         className="text-sm"
       />
-      {file && noDiarizedPass(file) && (
+      {file && noDiarizedPass(file, seconds) && (
         <Text size="sm" variant="error">
-          Speakers won't be told apart: {noDiarizedPass(file)}. The live-style extraction still
-          runs.
+          Speakers won't be told apart: {noDiarizedPass(file, seconds)}. The live-style extraction
+          still runs.
         </Text>
       )}
       <Button

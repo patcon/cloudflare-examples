@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 
 /** Speech stays clear at this rate, and an hour is about 11MB. */
 const BITS_PER_SECOND = 24_000;
-const PIECE_MS = 10_000;
+export const PIECE_MS = 10_000;
 const UPLOAD_TRIES = 4;
 
 /** Opus first, for its size; Safari before 18.4 only records AAC in MP4. */

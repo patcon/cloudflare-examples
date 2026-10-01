@@ -9,7 +9,7 @@ import {
   MicrophoneIcon,
   StopIcon,
 } from "@phosphor-icons/react";
-import { useRecordingUpload, useWakeLock } from "../audio/recorder";
+import { PIECE_MS, useRecordingUpload, useWakeLock } from "../audio/recorder";
 import type {
   FinalSegment,
   Segment,
@@ -18,6 +18,7 @@ import type {
   SessionState,
   WindowRow,
 } from "../../server/session-agent";
+import { MAX_DIARIZED_SECONDS } from "../../shared/limits";
 import { speakerColor } from "../speakers";
 import { Shell } from "../ui";
 import { Replay } from "./Replay";
@@ -164,6 +165,13 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
             Record
           </Button>
         )}
+        {busy === "recording" &&
+          (state?.audio?.parts ?? 0) * PIECE_MS > MAX_DIARIZED_SECONDS * 1000 && (
+            <Text size="sm" variant="secondary">
+              Past {MAX_DIARIZED_SECONDS / 60} minutes, the longest Gemini tells speakers apart in,
+              so the final transcript may not. Statements still come in as usual.
+            </Text>
+          )}
         {(error || voice.error || upload.error) && (
           <Text size="sm" variant="error">
             {error || voice.error || upload.error}
