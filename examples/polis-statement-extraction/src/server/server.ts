@@ -1,5 +1,5 @@
 import { getAgentByName, routeAgentRequest } from "agents";
-import { isProjectId, isSessionId } from "./ids";
+import { isProjectId, isSessionId } from "../shared/ids";
 
 export { ProjectAgent } from "./project-agent";
 export { SessionAgent } from "./session-agent";

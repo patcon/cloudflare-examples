@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { isProjectId, isSessionId } from "./ids";
+import { isProjectId, isSessionId } from "../shared/ids";
 import { Home } from "./pages/Home";
 import { Review } from "./pages/Review";
 import { Session } from "./pages/Session";

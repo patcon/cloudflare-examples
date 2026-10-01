@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { filterProposed, MAX_LENGTH } from "../src/extract/filter";
-import type { Proposed } from "../src/extract/types";
+import { filterProposed, MAX_LENGTH } from "../src/server/extract/filter";
+import type { Proposed } from "../src/server/extract/types";
 
 const p = (text: string): Proposed => ({
   text,

@@ -24,7 +24,7 @@ import type {
   ProjectMessage,
   ProjectState,
   SessionRow
-} from "../project-agent";
+} from "../../server/project-agent";
 import { Shell } from "../ui";
 
 const TABS: { value: CandidateStatus; label: string }[] = [

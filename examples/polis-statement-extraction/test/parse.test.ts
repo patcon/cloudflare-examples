@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseProposed } from "../src/extract/parse";
+import { parseProposed } from "../src/server/extract/parse";
 
 describe("parseProposed", () => {
   it("reads statements, trimming and clamping scores", () => {

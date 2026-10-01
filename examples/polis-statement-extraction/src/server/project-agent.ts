@@ -2,7 +2,7 @@ import { Agent, callable, getAgentByName } from "agents";
 import { filterProposed } from "./extract/filter";
 import { PROMPT_VERSION } from "./extract/prompt";
 import type { FilterReason, Pass, Proposed } from "./extract/types";
-import { isSessionId } from "./ids";
+import { isSessionId } from "../shared/ids";
 
 export interface ProjectState {
   /** What the conversations are about, given to the extraction prompt. */

@@ -13,7 +13,7 @@
       { "class_name": "SessionAgent", "name": "SessionAgent" }
     ]
   },
-  "main": "src/server.ts",
+  "main": "src/server/server.ts",
   // Each session's compressed recording, for diarizing once it stops.
   // `vite dev` keeps it on disk, under .wrangler/state.
   "r2_buckets": [

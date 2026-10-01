@@ -6,7 +6,7 @@ import {
   type TranscriptSegment
 } from "@cloudflare/voice-gemini";
 import { extractStatements, isRetryable } from "./extract/gemini";
-import { isProjectId } from "./ids";
+import { isProjectId } from "../shared/ids";
 import { BATCH_MODEL, EXTRACT_MODEL, LIVE_MODEL, LOCATION } from "./models";
 
 export interface SessionState {

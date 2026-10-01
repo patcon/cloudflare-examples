@@ -17,7 +17,7 @@ import type {
   SessionMessage,
   SessionState,
   WindowRow
-} from "../session-agent";
+} from "../../server/session-agent";
 import { speakerColor } from "../speakers";
 import { Shell } from "../ui";
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Input, Surface, Text } from "@cloudflare/kumo";
-import { isProjectId } from "../ids";
+import { isProjectId } from "../../shared/ids";
 import { Shell } from "../ui";
 
 /** Picks a project by name. Any name is a project, made when first used. */
