@@ -3,22 +3,9 @@
  * `BidiGenerateContent` WebSocket.
  */
 
-import type {
-  Transcriber,
-  TranscriberSession,
-  TranscriberSessionOptions
-} from "agents/voice";
-import {
-  logVoiceError,
-  toVoiceError,
-  VoiceProviderError
-} from "agents/voice/errors";
-import {
-  arrayBufferToBase64,
-  resolveAccessToken,
-  vertexHost,
-  type VertexOptions
-} from "./vertex";
+import type { Transcriber, TranscriberSession, TranscriberSessionOptions } from "agents/voice";
+import { logVoiceError, toVoiceError, VoiceProviderError } from "agents/voice/errors";
+import { arrayBufferToBase64, resolveAccessToken, vertexHost, type VertexOptions } from "./vertex";
 
 /**
  * Cap on audio buffered while the socket is still connecting (~30s at 16 kHz
@@ -108,11 +95,11 @@ export function _buildSetupMessage(opts: GeminiLiveSTTOptions) {
       ...(activityDetection && Object.keys(activityDetection).length
         ? {
             realtimeInputConfig: {
-              automaticActivityDetection: activityDetection
-            }
+              automaticActivityDetection: activityDetection,
+            },
           }
-        : {})
-    }
+        : {}),
+    },
   };
 }
 
@@ -152,10 +139,7 @@ class GeminiLiveSession implements TranscriberSession {
   #resolveReady: (() => void) | null = null;
   #rejectReady: ((reason: unknown) => void) | null = null;
 
-  constructor(
-    config: GeminiLiveSTTOptions,
-    options?: TranscriberSessionOptions
-  ) {
+  constructor(config: GeminiLiveSTTOptions, options?: TranscriberSessionOptions) {
     this.#onInterim = options?.onInterim;
     this.#onSpeechStart = options?.onSpeechStart;
     this.#onUtterance = options?.onUtterance;
@@ -186,7 +170,7 @@ class GeminiLiveSession implements TranscriberSession {
           component: "GeminiLiveSTT",
           stage: "audio_buffer",
           message: "Gemini Live pending audio buffer full",
-          error: new Error("Dropping audio until the socket connects")
+          error: new Error("Dropping audio until the socket connects"),
         });
       }
       return;
@@ -224,20 +208,17 @@ class GeminiLiveSession implements TranscriberSession {
 
   async #connect(config: GeminiLiveSTTOptions): Promise<void> {
     try {
-      const accessToken = await resolveAccessToken(
-        config.accessToken,
-        "Gemini Live"
-      );
+      const accessToken = await resolveAccessToken(config.accessToken, "Gemini Live");
       const resp = await fetch(_buildConnectionUrl(config.location), {
         headers: {
           Upgrade: "websocket",
-          Authorization: `Bearer ${accessToken}`
-        }
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
       const ws = resp.webSocket;
       if (!ws) {
         throw new VoiceProviderError("Gemini Live did not return a WebSocket", {
-          status: resp.status
+          status: resp.status,
         });
       }
       ws.accept();
@@ -264,27 +245,21 @@ class GeminiLiveSession implements TranscriberSession {
           new VoiceProviderError(
             `Gemini Live closed the connection (${event.code}): ${reason}${hint}`,
             {
-            closeCode: event.code,
-            closeReason: event.reason,
-              wasClean: event.wasClean
-            }
-          )
+              closeCode: event.code,
+              closeReason: event.reason,
+              wasClean: event.wasClean,
+            },
+          ),
         );
       });
       ws.addEventListener("error", (event) => {
         this.#connected = false;
-        this.#fail(
-          "websocket",
-          new Error("Gemini Live WebSocket error", { cause: event })
-        );
+        this.#fail("websocket", new Error("Gemini Live WebSocket error", { cause: event }));
       });
 
       ws.send(JSON.stringify(_buildSetupMessage(config)));
     } catch (error) {
-      this.#fail(
-        "connection",
-        toVoiceError(error, "Gemini Live connection failed")
-      );
+      this.#fail("connection", toVoiceError(error, "Gemini Live connection failed"));
     }
   }
 
@@ -294,10 +269,10 @@ class GeminiLiveSession implements TranscriberSession {
         realtimeInput: {
           audio: {
             mimeType: "audio/pcm;rate=16000",
-            data: arrayBufferToBase64(chunk)
-          }
-        }
-      })
+            data: arrayBufferToBase64(chunk),
+          },
+        },
+      }),
     );
   }
 
@@ -361,7 +336,7 @@ class GeminiLiveSession implements TranscriberSession {
       component: "GeminiLiveSTT",
       stage,
       message: error.message,
-      error
+      error,
     });
     this.#onFatalError?.(error);
   }

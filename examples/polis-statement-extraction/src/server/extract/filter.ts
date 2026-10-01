@@ -16,10 +16,7 @@ export interface Filtered {
  * or the same as one already in the project or earlier in this batch.
  * Dropped ones are kept with their reason, for tuning the prompt.
  */
-export function filterProposed(
-  proposed: Proposed[],
-  existing: string[]
-): Filtered[] {
+export function filterProposed(proposed: Proposed[], existing: string[]): Filtered[] {
   const seen = existing.map(words);
   return proposed.map((p) => {
     const reason = reasonToDrop(p.text, seen);
@@ -44,7 +41,7 @@ export function words(text: string): Set<string> {
       .normalize("NFKD")
       .replace(/[^\p{L}\p{N}\s]/gu, "")
       .split(/\s+/)
-      .filter(Boolean)
+      .filter(Boolean),
   );
 }
 

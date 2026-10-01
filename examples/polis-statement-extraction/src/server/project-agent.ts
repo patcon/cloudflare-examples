@@ -53,7 +53,7 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
     super(ctx, env);
     const sql = this.ctx.storage.sql;
     sql.exec(
-      "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, started_at INTEGER NOT NULL, last_run_at INTEGER, last_run_error TEXT)"
+      "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, started_at INTEGER NOT NULL, last_run_at INTEGER, last_run_error TEXT)",
     );
     sql.exec(`CREATE TABLE IF NOT EXISTS candidates (
       id INTEGER PRIMARY KEY,
@@ -98,7 +98,7 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
     sessionId: string,
     windowId: number,
     pass: Pass,
-    proposed: Proposed[]
+    proposed: Proposed[],
   ): { kept: number; filtered: number } {
     const existing = this.#statements(["pending", "approved", "rejected"]);
     const now = Date.now();

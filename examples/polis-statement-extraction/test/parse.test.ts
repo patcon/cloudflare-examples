@@ -6,22 +6,29 @@ describe("parseProposed", () => {
     expect(
       parseProposed({
         statements: [
-          { text: " Rent is too high. ", quote: "rent's crazy", rationale: "r", clarity: 9, divisiveness: "2", novelty: 0 }
-        ]
-      })
+          {
+            text: " Rent is too high. ",
+            quote: "rent's crazy",
+            rationale: "r",
+            clarity: 9,
+            divisiveness: "2",
+            novelty: 0,
+          },
+        ],
+      }),
     ).toEqual([
       {
         text: "Rent is too high.",
         quote: "rent's crazy",
         rationale: "r",
-        scores: { clarity: 5, divisiveness: 2, novelty: 1 }
-      }
+        scores: { clarity: 5, divisiveness: 2, novelty: 1 },
+      },
     ]);
   });
 
   it("skips entries without text, and gives missing scores 0", () => {
     expect(parseProposed({ statements: [{ quote: "q" }, { text: "A." }] })).toEqual([
-      { text: "A.", quote: "", rationale: "", scores: { clarity: 0, divisiveness: 0, novelty: 0 } }
+      { text: "A.", quote: "", rationale: "", scores: { clarity: 0, divisiveness: 0, novelty: 0 } },
     ]);
   });
 

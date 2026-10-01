@@ -43,12 +43,13 @@ export function buildPrompt(input: PromptInput): { system: string; user: string 
     `Statements the conversation already has (don't repeat these, or say the same thing in other words):\n${
       input.existing.length ? input.existing.map((s) => `- ${s}`).join("\n") : "(none yet)"
     }`,
-    input.context && `What was said just before (context only, don't take statements from it):\n${input.context}`,
-    `Transcript to take statements from:\n${input.transcript}`
+    input.context &&
+      `What was said just before (context only, don't take statements from it):\n${input.context}`,
+    `Transcript to take statements from:\n${input.transcript}`,
   ];
   return {
     system: input.pass === "final" ? `${SYSTEM}\n\n${FINAL}` : SYSTEM,
-    user: sections.filter(Boolean).join("\n\n")
+    user: sections.filter(Boolean).join("\n\n"),
   };
 }
 
@@ -66,12 +67,12 @@ export const RESPONSE_SCHEMA = {
           rationale: { type: "STRING" },
           clarity: { type: "INTEGER" },
           divisiveness: { type: "INTEGER" },
-          novelty: { type: "INTEGER" }
+          novelty: { type: "INTEGER" },
         },
         required: ["text", "quote", "rationale", "clarity", "divisiveness", "novelty"],
-        propertyOrdering: ["text", "quote", "rationale", "clarity", "divisiveness", "novelty"]
-      }
-    }
+        propertyOrdering: ["text", "quote", "rationale", "clarity", "divisiveness", "novelty"],
+      },
+    },
   },
-  required: ["statements"]
+  required: ["statements"],
 };

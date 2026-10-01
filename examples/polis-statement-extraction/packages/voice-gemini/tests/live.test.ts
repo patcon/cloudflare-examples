@@ -22,29 +22,24 @@ function stubSocket() {
 }
 
 function serverMessage(ws: MockWebSocket, message: object) {
-  ws.dispatchEvent(
-    new MessageEvent("message", { data: JSON.stringify(message) })
-  );
+  ws.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(message) }));
 }
 
 it("uses the global host unless given a region", () => {
   expect(_buildConnectionUrl()).toMatch(/^https:\/\/aiplatform\.googleapis\.com\//);
   expect(_buildConnectionUrl("europe-west1")).toMatch(
-    /^https:\/\/europe-west1-aiplatform\.googleapis\.com\//
+    /^https:\/\/europe-west1-aiplatform\.googleapis\.com\//,
   );
 });
 
 it("only sends voice detection settings that are set", () => {
-  expect(_buildSetupMessage(options).setup).not.toHaveProperty(
-    "realtimeInputConfig"
-  );
+  expect(_buildSetupMessage(options).setup).not.toHaveProperty("realtimeInputConfig");
   expect(
-    _buildSetupMessage({ ...options, activityDetection: { silenceDurationMs: 500 } })
-      .setup
+    _buildSetupMessage({ ...options, activityDetection: { silenceDurationMs: 500 } }).setup,
   ).toMatchObject({
     realtimeInputConfig: {
-      automaticActivityDetection: { silenceDurationMs: 500 }
-    }
+      automaticActivityDetection: { silenceDurationMs: 500 },
+    },
   });
 });
 
@@ -60,8 +55,8 @@ it("fetches the token from a function for each session", async () => {
   expect(fetch).toHaveBeenCalledWith(
     expect.any(String),
     expect.objectContaining({
-      headers: expect.objectContaining({ Authorization: "Bearer fresh-token" })
-    })
+      headers: expect.objectContaining({ Authorization: "Bearer fresh-token" }),
+    }),
   );
 });
 
@@ -76,7 +71,7 @@ it("buffers audio until setup completes, then sends it as base64", async () => {
 
   expect(ws.send).toHaveBeenCalledTimes(2);
   expect(JSON.parse(ws.send.mock.calls[1][0])).toEqual({
-    realtimeInput: { audio: { mimeType: "audio/pcm;rate=16000", data: "AQID" } }
+    realtimeInput: { audio: { mimeType: "audio/pcm;rate=16000", data: "AQID" } },
   });
 });
 
@@ -86,7 +81,7 @@ it("turns server messages into speech start, interim and final transcripts", asy
   const session = new GeminiLiveSTT(options).createSession({
     onSpeechStart: () => events.push("start"),
     onInterim: (text) => events.push(`interim:${text}`),
-    onUtterance: (text) => events.push(`final:${text}`)
+    onUtterance: (text) => events.push(`final:${text}`),
   });
   await vi.waitFor(() => expect(ws.send).toHaveBeenCalled());
   serverMessage(ws, { setupComplete: {} });
@@ -109,8 +104,8 @@ it("ends the audio stream before closing", async () => {
 
   session.close();
 
-  expect(JSON.parse(ws.send.mock.lastCall![0])).toEqual({
-    realtimeInput: { audioStreamEnd: true }
+  expect(JSON.parse(ws.send.mock.lastCall?.[0])).toEqual({
+    realtimeInput: { audioStreamEnd: true },
   });
   expect(ws.close).toHaveBeenCalled();
 });
@@ -119,11 +114,11 @@ it("marks the whole session as one segment when detection is disabled", async ()
   const { ws } = stubSocket();
   const session = new GeminiLiveSTT({
     ...options,
-    activityDetection: { disabled: true }
+    activityDetection: { disabled: true },
   }).createSession();
   await vi.waitFor(() => expect(ws.send).toHaveBeenCalled());
   expect(JSON.parse(ws.send.mock.calls[0][0]).setup).toMatchObject({
-    realtimeInputConfig: { automaticActivityDetection: { disabled: true } }
+    realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
   });
 
   serverMessage(ws, { setupComplete: {} });
@@ -134,7 +129,7 @@ it("marks the whole session as one segment when detection is disabled", async ()
   expect(sent).toEqual([
     { realtimeInput: { activityStart: {} } },
     { realtimeInput: { activityEnd: {} } },
-    { realtimeInput: { audioStreamEnd: true } }
+    { realtimeInput: { audioStreamEnd: true } },
   ]);
 });
 
@@ -142,15 +137,15 @@ it("rejects readiness and reports a fatal error when the socket upgrade fails", 
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({ webSocket: undefined, status: 401 }) as unknown as Response)
+    vi.fn(async () => ({ webSocket: undefined, status: 401 }) as unknown as Response),
   );
   const fatalErrors: Error[] = [];
   const session = new GeminiLiveSTT(options).createSession({
-    onFatalError: (error) => fatalErrors.push(error)
+    onFatalError: (error) => fatalErrors.push(error),
   });
 
   await expect(session.waitUntilReady?.()).rejects.toThrow(
-    "Gemini Live did not return a WebSocket"
+    "Gemini Live did not return a WebSocket",
   );
   expect(fatalErrors).toHaveLength(1);
 });
@@ -160,15 +155,15 @@ it("reports one fatal error when Vertex closes, and none for our own close", asy
   const { ws } = stubSocket();
   const fatalErrors: Error[] = [];
   const session = new GeminiLiveSTT(options).createSession({
-    onFatalError: (error) => fatalErrors.push(error)
+    onFatalError: (error) => fatalErrors.push(error),
   });
   await vi.waitFor(() => expect(ws.send).toHaveBeenCalled());
 
   ws.dispatchEvent(
     new CloseEvent("close", {
       code: 1008,
-      reason: "Request had invalid authentication credentials."
-    })
+      reason: "Request had invalid authentication credentials.",
+    }),
   );
   ws.dispatchEvent(new Event("error"));
   session.close();

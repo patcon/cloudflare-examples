@@ -17,9 +17,9 @@ export function parseProposed(json: unknown): Proposed[] {
         scores: {
           clarity: score(item.clarity),
           divisiveness: score(item.divisiveness),
-          novelty: score(item.novelty)
-        }
-      }
+          novelty: score(item.novelty),
+        },
+      },
     ];
   });
 }

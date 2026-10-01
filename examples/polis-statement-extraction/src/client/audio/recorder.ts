@@ -27,7 +27,7 @@ export function useRecordingUpload(projectId: string, sessionId: string) {
         const resp = await fetch(url(n), {
           method: "PUT",
           headers: { "Content-Type": piece.type },
-          body: piece
+          body: piece,
         });
         if (resp.ok) return;
         // The server refused it, such as a gap. Trying again won't help.
@@ -42,7 +42,7 @@ export function useRecordingUpload(projectId: string, sessionId: string) {
   async function start() {
     setError(null);
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
     });
     const mimeType = FORMATS.find((f) => MediaRecorder.isTypeSupported(f));
     const rec = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: BITS_PER_SECOND });
@@ -89,6 +89,6 @@ export function useWakeLock() {
     release() {
       void lock.current?.release();
       lock.current = null;
-    }
+    },
   };
 }

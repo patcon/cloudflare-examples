@@ -14,8 +14,8 @@ export default defineConfig(({ mode }) => ({
     agents(),
     react(),
     cloudflare({ tunnel: { autoStart: mode === "share" } }),
-    tailwindcss()
+    tailwindcss(),
   ],
   // Each example has its own port, so they can run side by side.
-  server: { port: 8794, strictPort: true }
+  server: { port: 8794, strictPort: true },
 }));

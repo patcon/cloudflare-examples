@@ -7,7 +7,7 @@ import {
   CheckIcon,
   LightningIcon,
   MicrophoneIcon,
-  StopIcon
+  StopIcon,
 } from "@phosphor-icons/react";
 import { useRecordingUpload, useWakeLock } from "../audio/recorder";
 import type {
@@ -16,19 +16,13 @@ import type {
   SessionAgent,
   SessionMessage,
   SessionState,
-  WindowRow
+  WindowRow,
 } from "../../server/session-agent";
 import { speakerColor } from "../speakers";
 import { Shell } from "../ui";
 
 /** For the recording phone: records, and shows the live transcript. */
-export function Session({
-  projectId,
-  sessionId
-}: {
-  projectId: string;
-  sessionId: string;
-}) {
+export function Session({ projectId, sessionId }: { projectId: string; sessionId: string }) {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [finalSegments, setFinalSegments] = useState<FinalSegment[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +39,7 @@ export function Session({
       const message = parse(event.data);
       if (message?.type === "segment") {
         setSegments((s) =>
-          s.some((x) => x.id === message.segment.id)
-            ? s
-            : [...s, message.segment]
+          s.some((x) => x.id === message.segment.id) ? s : [...s, message.segment],
         );
       }
       if (message?.type === "windows") {
@@ -56,7 +48,7 @@ export function Session({
       if (message?.type === "final") {
         agent.call("listFinalTranscript").then(setFinalSegments);
       }
-    }
+    },
   });
 
   // Joins the session to this page's project, then loads what's there.
@@ -67,8 +59,8 @@ export function Session({
         Promise.all([
           agent.call("listSegments").then(setSegments),
           agent.call("listWindows").then(setWindows),
-          agent.call("listFinalTranscript").then(setFinalSegments)
-        ])
+          agent.call("listFinalTranscript").then(setFinalSegments),
+        ]),
       )
       .catch((e: Error) => setError(e.message));
   }, [agent, projectId]);
@@ -83,9 +75,7 @@ export function Session({
     try {
       await upload.start();
     } catch (e) {
-      setError(
-        `Only the live transcript will be kept: recording failed (${(e as Error).message})`
-      );
+      setError(`Only the live transcript will be kept: recording failed (${(e as Error).message})`);
     }
     void wakeLock.acquire();
     setBusy("recording");
@@ -124,20 +114,30 @@ export function Session({
         ) : interrupted ? (
           <>
             <Text size="sm">
-              This session's recording was interrupted. Finish it to tell
-              speakers apart in what was recorded, or start a new session.
+              This session's recording was interrupted. Finish it to tell speakers apart in what was
+              recorded, or start a new session.
             </Text>
             <div className="flex gap-2">
-              <Button variant="primary" icon={<CheckIcon size={16} />} onClick={() => agent.call("finish")}>
+              <Button
+                variant="primary"
+                icon={<CheckIcon size={16} />}
+                onClick={() => agent.call("finish")}
+              >
                 Finish
               </Button>
-              <Button variant="secondary" onClick={() => (location.href = `/${encodeURIComponent(projectId)}/start`)}>
+              <Button
+                variant="secondary"
+                onClick={() => (location.href = `/${encodeURIComponent(projectId)}/start`)}
+              >
                 New session
               </Button>
             </div>
           </>
         ) : ended ? (
-          <Button variant="secondary" onClick={() => (location.href = `/${encodeURIComponent(projectId)}/start`)}>
+          <Button
+            variant="secondary"
+            onClick={() => (location.href = `/${encodeURIComponent(projectId)}/start`)}
+          >
             Start a new session
           </Button>
         ) : (
@@ -170,6 +170,7 @@ export function Session({
             className="text-sm underline"
             href={`/${encodeURIComponent(projectId)}/review`}
             target="_blank"
+            rel="noreferrer"
           >
             Open the review page
           </a>
@@ -223,7 +224,7 @@ export function Session({
 function FinalTranscript({
   final,
   segments,
-  retry
+  retry,
 }: {
   final: NonNullable<SessionState["final"]>;
   segments: FinalSegment[];
@@ -247,7 +248,12 @@ function FinalTranscript({
           <Text size="sm" variant="error">
             {final.error}
           </Text>
-          <Button size="sm" variant="secondary" icon={<ArrowClockwiseIcon size={14} />} onClick={retry}>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<ArrowClockwiseIcon size={14} />}
+            onClick={retry}
+          >
             Try again
           </Button>
         </div>
@@ -278,7 +284,11 @@ function FinalTranscript({
 function LastRun({ run }: { run: WindowRow }) {
   const when = new Date(run.created_at).toLocaleTimeString();
   if (run.status === "running") {
-    return <Text size="xs" variant="secondary">Extracting statements…</Text>;
+    return (
+      <Text size="xs" variant="secondary">
+        Extracting statements…
+      </Text>
+    );
   }
   if (run.status === "failed") {
     return (

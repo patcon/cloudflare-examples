@@ -1,10 +1,6 @@
 import { Agent, callable, getAgentByName, type Connection } from "agents";
 import { withVoiceInput, type Transcriber } from "agents/voice";
-import {
-  GeminiBatchSTT,
-  GeminiLiveSTT,
-  type TranscriptSegment
-} from "@cloudflare/voice-gemini";
+import { GeminiBatchSTT, GeminiLiveSTT, type TranscriptSegment } from "@cloudflare/voice-gemini";
 import { extractStatements, isRetryable } from "./extract/gemini";
 import { isProjectId } from "../shared/ids";
 import { BATCH_MODEL, EXTRACT_MODEL, LIVE_MODEL, LOCATION } from "./models";
@@ -79,13 +75,13 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     projectId: null,
     recording: false,
     audio: null,
-    final: null
+    final: null,
   };
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ctx.storage.sql.exec(
-      "CREATE TABLE IF NOT EXISTS live_segments (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, text TEXT NOT NULL)"
+      "CREATE TABLE IF NOT EXISTS live_segments (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, text TEXT NOT NULL)",
     );
     this.ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS windows (
       id INTEGER PRIMARY KEY,
@@ -98,7 +94,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       created_at INTEGER NOT NULL
     )`);
     this.ctx.storage.sql.exec(
-      "CREATE TABLE IF NOT EXISTS final_transcript (seq INTEGER PRIMARY KEY, speaker INTEGER, text TEXT NOT NULL)"
+      "CREATE TABLE IF NOT EXISTS final_transcript (seq INTEGER PRIMARY KEY, speaker INTEGER, text TEXT NOT NULL)",
     );
   }
 
@@ -167,14 +163,16 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     const { projectId } = this.state;
     if (!projectId) return;
     const segments = this.#pendingSegments();
-    if (segments.length === 0) return;
+    const first = segments[0];
+    const last = segments[segments.length - 1];
+    if (!first || !last) return;
     const context = this.sql<Segment>`
-      SELECT id, at, text FROM live_segments WHERE id < ${segments[0].id}
+      SELECT id, at, text FROM live_segments WHERE id < ${first.id}
       ORDER BY id DESC LIMIT ${CONTEXT_SEGMENTS}`.reverse();
 
     const [win] = this.sql<{ id: number }>`
       INSERT INTO windows (from_seg, to_seg, status, created_at)
-      VALUES (${segments[0].id}, ${segments.at(-1)!.id}, 'running', ${Date.now()})
+      VALUES (${first.id}, ${last.id}, 'running', ${Date.now()})
       RETURNING id`;
     this.#notify({ type: "windows" });
 
@@ -182,11 +180,11 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     try {
       const { topic, existing } = await project.promptContext();
       const proposed = await extractStatements(this.#vertex(EXTRACT_MODEL), {
-          topic,
-          existing,
-          context: context.map((s) => s.text).join("\n"),
-          transcript: segments.map((s) => s.text).join("\n"),
-          pass: "live"
+        topic,
+        existing,
+        context: context.map((s) => s.text).join("\n"),
+        transcript: segments.map((s) => s.text).join("\n"),
+        pass: "live",
       });
       const { kept, filtered } = await project.addCandidates(this.name, win.id, "live", proposed);
       this.sql`UPDATE windows SET status = 'done', kept = ${kept}, filtered = ${filtered}
@@ -223,7 +221,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     if (n === audio.parts) {
       this.setState({
         ...this.state,
-        audio: { mimeType, parts: n + 1, bytes: audio.bytes + body.byteLength }
+        audio: { mimeType, parts: n + 1, bytes: audio.bytes + body.byteLength },
       });
     }
   }
@@ -234,7 +232,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     if (projectId !== this.state.projectId || !audio) return null;
     return {
       mimeType: audio.mimeType,
-      keys: Array.from({ length: audio.parts }, (_, n) => partKey(this.name, n))
+      keys: Array.from({ length: audio.parts }, (_, n) => partKey(this.name, n)),
     };
   }
 
@@ -278,9 +276,14 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
         transcript: segments
           .map((s) => (s.speaker === null ? s.text : `Speaker ${s.speaker + 1}: ${s.text}`))
           .join("\n"),
-        pass: "final"
+        pass: "final",
       });
-      const { kept, filtered } = await project.addCandidates(this.name, FINAL_WINDOW, "final", proposed);
+      const { kept, filtered } = await project.addCandidates(
+        this.name,
+        FINAL_WINDOW,
+        "final",
+        proposed,
+      );
       console.log(`[${this.name}] Final pass: ${kept} kept, ${filtered} filtered`);
       this.setState({ ...this.state, final: { status: "done", error: null } });
       await project.runFinished(this.name, null);
@@ -304,7 +307,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   async #diarize(audio: NonNullable<SessionState["audio"]>): Promise<TranscriptSegment[]> {
     if (audio.bytes > MAX_AUDIO_BYTES) {
       throw new Error(
-        `The recording is ${(audio.bytes / 1024 / 1024).toFixed(1)}MB, more than the ${MAX_AUDIO_BYTES / 1024 / 1024}MB Gemini takes in one request`
+        `The recording is ${(audio.bytes / 1024 / 1024).toFixed(1)}MB, more than the ${MAX_AUDIO_BYTES / 1024 / 1024}MB Gemini takes in one request`,
       );
     }
     const bytes = new Uint8Array(audio.bytes);
@@ -319,10 +322,10 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     const started = Date.now();
     const segments = await new GeminiBatchSTT(this.#vertex(BATCH_MODEL)).transcribe(
       offset === bytes.length ? bytes : bytes.slice(0, offset),
-      { diarize: true, mimeType: audio.mimeType.split(";")[0] }
+      { diarize: true, mimeType: audio.mimeType.split(";")[0] },
     );
     console.log(
-      `[${this.name}] Diarized ${(offset / 1024 / 1024).toFixed(1)}MB in ${Math.round((Date.now() - started) / 1000)}s: ${segments.length} segments`
+      `[${this.name}] Diarized ${(offset / 1024 / 1024).toFixed(1)}MB in ${Math.round((Date.now() - started) / 1000)}s: ${segments.length} segments`,
     );
     return segments;
   }
@@ -332,7 +335,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       accessToken: this.env.GOOGLE_ACCESS_TOKEN,
       project: this.env.GOOGLE_CLOUD_PROJECT,
       location: LOCATION,
-      model
+      model,
     };
   }
 

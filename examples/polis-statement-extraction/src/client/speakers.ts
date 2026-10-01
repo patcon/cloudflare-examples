@@ -11,7 +11,7 @@ export const SPEAKER_COLORS = [
   "#a6d854",
   "#ffd92f",
   "#e5c494",
-  "#b3b3b3"
+  "#b3b3b3",
 ];
 
 export function speakerColor(speaker: number) {

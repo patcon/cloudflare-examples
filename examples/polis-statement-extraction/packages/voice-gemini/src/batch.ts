@@ -4,12 +4,7 @@
  */
 
 import { logVoiceError, VoiceProviderError } from "agents/voice/errors";
-import {
-  arrayBufferToBase64,
-  resolveAccessToken,
-  vertexHost,
-  type VertexOptions
-} from "./vertex";
+import { arrayBufferToBase64, resolveAccessToken, vertexHost, type VertexOptions } from "./vertex";
 
 export interface GeminiBatchSTTOptions extends VertexOptions {
   /**
@@ -66,7 +61,7 @@ export class GeminiBatchSTT {
   /** Transcribes a recording, WAV unless `options.mimeType` says otherwise. */
   async transcribe(
     audio: Uint8Array<ArrayBuffer>,
-    options: TranscribeOptions = {}
+    options: TranscribeOptions = {},
   ): Promise<TranscriptSegment[]> {
     const config = this.#options;
     const accessToken = await resolveAccessToken(config.accessToken, "Gemini");
@@ -74,24 +69,22 @@ export class GeminiBatchSTT {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(
-        _buildTranscribeRequest(arrayBufferToBase64(audio.buffer), options)
-      )
+      body: JSON.stringify(_buildTranscribeRequest(arrayBufferToBase64(audio.buffer), options)),
     });
     if (!resp.ok) {
       // Vertex puts the reason, such as an expired token, in the body.
       const body = await resp.text();
       const error = new VoiceProviderError(
         `Gemini transcription failed (${resp.status}): ${body}`,
-        { status: resp.status }
+        { status: resp.status },
       );
       logVoiceError({
         component: "GeminiBatchSTT",
         stage: "request",
         message: error.message,
-        error
+        error,
       });
       throw error;
     }
@@ -110,10 +103,7 @@ export function _buildGenerateContentUrl(opts: GeminiBatchSTTOptions): string {
  * Underscore-prefixed: internal helper, exported only for unit tests.
  * `audioTranscriptionConfig` is Vertex's `AudioTranscriptionConfig`.
  */
-export function _buildTranscribeRequest(
-  base64Audio: string,
-  options: TranscribeOptions
-) {
+export function _buildTranscribeRequest(base64Audio: string, options: TranscribeOptions) {
   return {
     contents: [
       {
@@ -122,20 +112,20 @@ export function _buildTranscribeRequest(
           {
             inlineData: {
               mimeType: options.mimeType ?? "audio/wav",
-              data: base64Audio
-            }
-          }
-        ]
-      }
+              data: base64Audio,
+            },
+          },
+        ],
+      },
     ],
     // Diarization needs VERBATIM, which is also the default.
     ...(options.diarize
       ? {
           generationConfig: {
-            audioTranscriptionConfig: { mode: "VERBATIM", diarization: true }
-          }
+            audioTranscriptionConfig: { mode: "VERBATIM", diarization: true },
+          },
         }
-      : {})
+      : {}),
   };
 }
 
@@ -154,9 +144,7 @@ interface GenerateContentResponse {
  * Underscore-prefixed: internal helper, exported only for unit tests.
  * Each speaker's stretch comes back as its own part, labeled like `spk:0`.
  */
-export function _parseTranscribeResponse(
-  response: GenerateContentResponse
-): TranscriptSegment[] {
+export function _parseTranscribeResponse(response: GenerateContentResponse): TranscriptSegment[] {
   const parts = response.candidates?.[0]?.content?.parts ?? [];
   // Numbered by first appearance, whatever the labels look like.
   const speakers = new Map<string, number>();
@@ -167,8 +155,8 @@ export function _parseTranscribeResponse(
     const label = part.audioTranscription?.speakerLabel;
     let speaker: number | null = null;
     if (label !== undefined) {
-      if (!speakers.has(label)) speakers.set(label, speakers.size);
-      speaker = speakers.get(label)!;
+      speaker = speakers.get(label) ?? speakers.size;
+      speakers.set(label, speaker);
     }
     segments.push({ speaker, text });
   }

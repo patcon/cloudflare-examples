@@ -7,7 +7,7 @@ import type { Proposed } from "./types";
 export class VertexError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
   ) {
     super(message);
   }
@@ -26,7 +26,7 @@ export function isRetryable(error: unknown): boolean {
 /** Asks a Gemini text model for statements, as JSON. */
 export async function extractStatements(
   vertex: VertexOptions & { model: string },
-  input: PromptInput
+  input: PromptInput,
 ): Promise<Proposed[]> {
   const { system, user } = buildPrompt(input);
   const location = vertex.location ?? "global";
@@ -35,16 +35,16 @@ export async function extractStatements(
     method: "POST",
     headers: {
       Authorization: `Bearer ${await resolveAccessToken(vertex.accessToken, "Gemini")}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA
-      }
-    })
+        responseSchema: RESPONSE_SCHEMA,
+      },
+    }),
   });
   if (!resp.ok) {
     // Vertex puts the reason, such as an expired token, in the body.

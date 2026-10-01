@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const token = execFileSync("gcloud", ["auth", "print-access-token"], {
-  encoding: "utf8"
+  encoding: "utf8",
 }).trim();
 
 const file = ".dev.vars";

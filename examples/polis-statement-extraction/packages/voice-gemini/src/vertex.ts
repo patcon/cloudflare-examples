@@ -31,10 +31,9 @@ export function vertexHost(location = "global"): string {
 /** Fetches the token if it's a function, and rejects an empty one. */
 export async function resolveAccessToken(
   accessToken: VertexOptions["accessToken"],
-  provider: string
+  provider: string,
 ): Promise<string> {
-  const token =
-    typeof accessToken === "function" ? await accessToken() : accessToken;
+  const token = typeof accessToken === "function" ? await accessToken() : accessToken;
   if (!token) throw new VoiceProviderError(`${provider} access token is empty`);
   return token;
 }

@@ -10,16 +10,16 @@
 export {
   GeminiLiveSTT,
   type ActivityDetection,
-  type GeminiLiveSTTOptions
+  type GeminiLiveSTTOptions,
 } from "./live";
 export {
   GeminiBatchSTT,
   type GeminiBatchSTTOptions,
   type TranscribeOptions,
-  type TranscriptSegment
+  type TranscriptSegment,
 } from "./batch";
 export {
   resolveAccessToken,
   vertexHost,
-  type VertexOptions
+  type VertexOptions,
 } from "./vertex";

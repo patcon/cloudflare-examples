@@ -9,7 +9,10 @@
     "deploy": "vite build && wrangler deploy",
     "types": "wrangler types env.d.ts --include-runtime false",
     "typecheck": "tsc && tsc --project tsconfig.client.json",
-    "test": "vitest run && pnpm --filter @cloudflare/voice-gemini test"
+    "test": "vitest run && pnpm --filter @cloudflare/voice-gemini test",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint ."
   },
   "license": "MIT",
   "packageManager": "pnpm@10.34.5",
@@ -22,14 +25,17 @@
     ]
   },
   "dependencies": {
-    "@cloudflare/voice-gemini": "workspace:*",
     "@cloudflare/kumo": "^2.6.0",
+    "@cloudflare/voice-gemini": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "agents": "^0.24.0",
+    "hono": "^4.13.12",
+    "hono-agents": "^3.0.12",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.14",
     "@cloudflare/vite-plugin": "^1.48.0",
     "@cloudflare/workers-types": "^5.20260729.1",
     "@tailwindcss/vite": "^4",

@@ -1,21 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import {
-  Badge,
-  Button,
-  Input,
-  Surface,
-  Tabs,
-  Text,
-  Textarea
-} from "@cloudflare/kumo";
+import { Badge, Button, Input, Surface, Tabs, Text, Textarea } from "@cloudflare/kumo";
 import {
   ArrowCounterClockwiseIcon,
   CheckIcon,
   CopyIcon,
   LightningIcon,
   PencilSimpleIcon,
-  XIcon
+  XIcon,
 } from "@phosphor-icons/react";
 import type {
   Candidate,
@@ -23,7 +15,7 @@ import type {
   ProjectAgent,
   ProjectMessage,
   ProjectState,
-  SessionRow
+  SessionRow,
 } from "../../server/project-agent";
 import { Shell } from "../ui";
 
@@ -31,7 +23,7 @@ const TABS: { value: CandidateStatus; label: string }[] = [
   { value: "pending", label: "To review" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
-  { value: "filtered", label: "Filtered out" }
+  { value: "filtered", label: "Filtered out" },
 ];
 
 /** For the host: every session's proposed statements, to approve or reject. */
@@ -50,16 +42,13 @@ export function Review({ projectId }: { projectId: string }) {
       const message = parse(event.data);
       if (message?.type === "sessions") void loadSessions();
       if (message?.type === "candidates") void loadCandidates();
-    }
+    },
   });
 
-  const loadSessions = useCallback(
-    () => agent.call("listSessions").then(setSessions),
-    [agent]
-  );
+  const loadSessions = useCallback(() => agent.call("listSessions").then(setSessions), [agent]);
   const loadCandidates = useCallback(
     () => agent.call("listCandidates").then(setCandidates),
-    [agent]
+    [agent],
   );
   useEffect(() => {
     agent.ready.then(() => Promise.all([loadSessions(), loadCandidates()]));
@@ -69,6 +58,7 @@ export function Review({ projectId }: { projectId: string }) {
     p.then(() => setError(null)).catch((e: Error) => setError(e.message));
 
   const shown = candidates.filter((c) => c.status === tab);
+  const failedRun = sessions.find((s) => s.last_run_error)?.last_run_error;
   const approved = candidates
     .filter((c) => c.status === "approved")
     .map((c) => c.edited_text ?? c.text);
@@ -112,14 +102,9 @@ export function Review({ projectId }: { projectId: string }) {
             </a>
             <Text size="xs" variant="secondary">
               started {new Date(s.started_at).toLocaleTimeString()}
-              {s.last_run_at &&
-                ` · last run ${new Date(s.last_run_at).toLocaleTimeString()}`}
+              {s.last_run_at && ` · last run ${new Date(s.last_run_at).toLocaleTimeString()}`}
             </Text>
-            {s.last_run_error && (
-              <Badge variant="destructive">
-                last run failed
-              </Badge>
-            )}
+            {s.last_run_error && <Badge variant="destructive">last run failed</Badge>}
             <Button
               size="xs"
               variant="secondary"
@@ -130,9 +115,9 @@ export function Review({ projectId }: { projectId: string }) {
             </Button>
           </div>
         ))}
-        {sessions.find((s) => s.last_run_error) && (
+        {failedRun && (
           <Text size="xs" variant="error">
-            {sessions.find((s) => s.last_run_error)!.last_run_error}
+            {failedRun}
           </Text>
         )}
       </Surface>
@@ -147,7 +132,7 @@ export function Review({ projectId }: { projectId: string }) {
         <Tabs
           tabs={TABS.map((t) => ({
             value: t.value,
-            label: `${t.label} (${candidates.filter((c) => c.status === t.value).length})`
+            label: `${t.label} (${candidates.filter((c) => c.status === t.value).length})`,
           }))}
           value={tab}
           onValueChange={(v) => setTab(v as CandidateStatus)}
@@ -174,9 +159,7 @@ export function Review({ projectId }: { projectId: string }) {
           key={c.id}
           candidate={c}
           session={sessionLabel(c.session_id)}
-          decide={(status, edited) =>
-            run(agent.call("decide", [c.id, status, edited]))
-          }
+          decide={(status, edited) => run(agent.call("decide", [c.id, status, edited]))}
         />
       ))}
     </Shell>
@@ -186,7 +169,7 @@ export function Review({ projectId }: { projectId: string }) {
 function CandidateCard({
   candidate: c,
   session,
-  decide
+  decide,
 }: {
   candidate: Candidate;
   session: string;

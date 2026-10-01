@@ -6,7 +6,7 @@ const p = (text: string): Proposed => ({
   text,
   quote: "",
   rationale: "",
-  scores: { clarity: 3, divisiveness: 3, novelty: 3 }
+  scores: { clarity: 3, divisiveness: 3, novelty: 3 },
 });
 const reasons = (texts: string[], existing: string[] = []) =>
   filterProposed(texts.map(p), existing).map((f) => f.reason);
@@ -20,12 +20,17 @@ describe("filterProposed", () => {
     expect(reasons(["", "x".repeat(MAX_LENGTH + 1), "Should we ban cars?"])).toEqual([
       "empty",
       "too_long",
-      "question"
+      "question",
     ]);
   });
 
   it("drops what's already in the project, ignoring case and punctuation", () => {
-    expect(reasons(["bike lanes make the street safer for everyone"], ["Bike lanes make the street safer for everyone."])).toEqual(["duplicate"]);
+    expect(
+      reasons(
+        ["bike lanes make the street safer for everyone"],
+        ["Bike lanes make the street safer for everyone."],
+      ),
+    ).toEqual(["duplicate"]);
   });
 
   it("drops near duplicates within one batch, keeping the first", () => {
@@ -33,8 +38,8 @@ describe("filterProposed", () => {
       reasons([
         "The city should fund more bike lanes downtown.",
         "The city should fund more bike lanes downtown now.",
-        "Parking should cost more downtown."
-      ])
+        "Parking should cost more downtown.",
+      ]),
     ).toEqual([null, "duplicate", null]);
   });
 
