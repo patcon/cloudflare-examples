@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { useVoiceInput } from "agents/voice/react";
 import { Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
 import { ArrowClockwiseIcon, MicrophoneIcon, SparkleIcon, StopIcon } from "@phosphor-icons/react";
 import { useNow } from "../hooks/use-now";
-import { useWakeLock } from "../hooks/use-wake-lock";
+import { useVoiceRecorder } from "../hooks/use-voice-recorder";
 import type {
   Reply,
   Segment,
@@ -23,8 +22,6 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   const [replies, setReplies] = useState<Reply[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
-  /** This page is recording, or waiting for the microphone to start. */
-  const [recording, setRecording] = useState<"starting" | "recording" | null>(null);
 
   const agent = useAgent<SessionAgent, SessionState>({
     agent: "SessionAgent",
@@ -56,8 +53,8 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
       .catch((e: Error) => setError(e.message));
   }, [agent, projectId]);
 
-  const voice = useVoiceInput({ agent: "SessionAgent", name: sessionId });
-  const wakeLock = useWakeLock();
+  const voice = useVoiceRecorder({ agent: "SessionAgent", name: sessionId });
+  const recording = voice.status !== "idle";
   const now = useNow();
   const seconds = state ? recordedSecondsAt(state, now) : 0;
   const notYet = state
@@ -77,41 +74,15 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
 
   const record = async () => {
     setError(null);
-    setRecording("starting");
-    try {
-      // Asks for the microphone before the call: `voice.start()` opens the
-      // call first, and reports a refusal only through `voice.error`.
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      for (const track of stream.getTracks()) track.stop();
-    } catch (e) {
-      setRecording(null);
-      setError(`Couldn't use the microphone: ${(e as Error).message}`);
-      return;
-    }
     try {
       await voice.start();
+      // The recorded time starts once the microphone is on.
       await agent.call("micReady");
     } catch (e) {
       voice.stop();
-      setRecording(null);
-      setError(`Couldn't start recording: ${(e as Error).message}`);
-      return;
+      setError((e as Error).message);
     }
-    void wakeLock.acquire();
-    setRecording("recording");
   };
-
-  const stop = () => {
-    voice.stop();
-    wakeLock.release();
-    setRecording(null);
-  };
-
-  // The microphone failed after all, such as one in use by another app.
-  // The error stays on the page.
-  useEffect(() => {
-    if (recording === "recording" && voice.error) stop();
-  });
 
   // Another page, or one that's gone, is recording this session.
   const elsewhere = !recording && state?.recordingSince != null;
@@ -134,12 +105,17 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
     <Shell title={projectId}>
       {replay && <Replay projectId={projectId} sessionId={sessionId} />}
       <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3 items-center">
-        {replay ? null : recording === "starting" ? (
+        {replay ? null : voice.status === "starting" ? (
           <Button variant="primary" size="lg" icon={<MicrophoneIcon size={20} />} disabled>
             Waiting for the microphone…
           </Button>
         ) : recording ? (
-          <Button variant="destructive" size="lg" icon={<StopIcon size={20} />} onClick={stop}>
+          <Button
+            variant="destructive"
+            size="lg"
+            icon={<StopIcon size={20} />}
+            onClick={voice.stop}
+          >
             Stop
           </Button>
         ) : (
