@@ -48,27 +48,59 @@ export function buildTranscript(segments: readonly Timed[], replies: readonly Ti
  * As in the original, the cut is a rough one, by the ratio of the budget to
  * the whole.
  */
-export function formatOther(name: string, transcript: string, budget = TOKENS_PER_SESSION) {
+export function formatOther(
+  name: string,
+  transcript: string,
+  budget = TOKENS_PER_SESSION,
+): { text: string; cut: boolean } {
   const whole = formatConversation(name, transcript);
   const tokens = estimateTokens(whole);
-  if (tokens <= budget) return whole;
+  if (tokens <= budget) return { text: whole, cut: false };
   const chars = [...transcript];
-  const cut = chars.slice(0, Math.trunc((chars.length * budget) / tokens)).join("");
-  return formatConversation(name, `${cut}\n[Truncated for brevity...]`);
+  const kept = chars.slice(0, Math.trunc((chars.length * budget) / tokens)).join("");
+  return { text: formatConversation(name, `${kept}\n[Truncated for brevity...]`), cut: true };
+}
+
+/** How one other session goes into a prompt. */
+export type ContextStatus = "whole" | "cut" | "over-limit" | "empty";
+
+export interface ContextEntry {
+  id: string;
+  status: ContextStatus;
+  /** About how many tokens it adds, or would add, to a prompt. */
+  tokens: number;
+  /** Exactly what the prompt gets, or would get. Empty for an empty session. */
+  text: string;
 }
 
 /**
- * Joins formatted sessions in order, and stops at the first that would go
- * over the total.
+ * Works out how each other session goes into a prompt, in the order given:
+ * each cut to about its budget, stopping at the first that would go over
+ * the total. Nothing after that one goes in, as in the original.
  */
-export function withinLimit(formatted: readonly string[], limit = OTHERS_TOKEN_LIMIT): string {
-  let total = 0;
-  let out = "";
-  for (const f of formatted) {
-    const tokens = estimateTokens(f);
-    if (total + tokens > limit) break;
-    out += f;
-    total += tokens;
-  }
-  return out;
+export function planContext(
+  sessions: readonly { id: string; transcript: string }[],
+  { perSession = TOKENS_PER_SESSION, total = OTHERS_TOKEN_LIMIT } = {},
+): ContextEntry[] {
+  let used = 0;
+  let full = false;
+  return sessions.map(({ id, transcript }) => {
+    if (!transcript.trim()) return { id, status: "empty", tokens: 0, text: "" };
+    const { text, cut } = formatOther(sessionLabel(id), transcript, perSession);
+    const tokens = estimateTokens(text);
+    if (full || used + tokens > total) {
+      full = true;
+      return { id, status: "over-limit", tokens, text };
+    }
+    used += tokens;
+    return { id, status: cut ? "cut" : "whole", tokens, text };
+  });
+}
+
+/** The text of every entry that goes in, for the prompt's other transcripts. */
+export function contextText(entries: readonly ContextEntry[]): string {
+  return entries
+    .filter((e) => e.status === "whole" || e.status === "cut")
+    .map((e) => e.text)
+    .join("");
 }

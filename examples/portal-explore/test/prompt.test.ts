@@ -11,7 +11,8 @@ import {
   estimateTokens,
   formatConversation,
   formatOther,
-  withinLimit,
+  contextText,
+  planContext,
 } from "../src/server/explore/transcript";
 
 describe("buildTranscript", () => {
@@ -35,11 +36,15 @@ describe("buildTranscript", () => {
 
 describe("formatOther", () => {
   it("keeps a session within the budget whole", () => {
-    expect(formatOther("A", "short", 100)).toBe(formatConversation("A", "short"));
+    expect(formatOther("A", "short", 100)).toEqual({
+      text: formatConversation("A", "short"),
+      cut: false,
+    });
   });
 
   it("cuts a session to about the budget, and says so", () => {
-    const formatted = formatOther("A", "x".repeat(64_000), 4000);
+    const { text: formatted, cut } = formatOther("A", "x".repeat(64_000), 4000);
+    expect(cut).toBe(true);
     expect(formatted).toContain("\n[Truncated for brevity...]</transcript>");
     // The cut is rough: the tags and the note go a little over.
     expect(estimateTokens(formatted)).toBeGreaterThan(3900);
@@ -47,13 +52,34 @@ describe("formatOther", () => {
   });
 });
 
-describe("withinLimit", () => {
-  it("stops at the first session that would go over the total", () => {
-    const a = "a".repeat(40); // 10 tokens
-    const b = "b".repeat(80); // 20 tokens
-    const c = "c".repeat(4); // 1 token
-    expect(withinLimit([a, b, c], 25)).toBe(a);
-    expect(withinLimit([a, c], 25)).toBe(a + c);
+describe("planContext", () => {
+  // Each session's tags add about 23 tokens to its transcript.
+  const sessions = [
+    { id: "aaaaaaaa-1", transcript: "a".repeat(40) },
+    { id: "bbbbbbbb-2", transcript: "" },
+    { id: "cccccccc-3", transcript: "c".repeat(400) },
+    { id: "dddddddd-4", transcript: "d".repeat(4) },
+  ];
+
+  it("marks each session whole, cut, over the limit or empty", () => {
+    const plan = planContext(sessions, { perSession: 50, total: 120 });
+    expect(plan.map((e) => [e.id, e.status])).toEqual([
+      ["aaaaaaaa-1", "whole"],
+      ["bbbbbbbb-2", "empty"],
+      ["cccccccc-3", "cut"],
+      ["dddddddd-4", "over-limit"],
+    ]);
+  });
+
+  it("stops at the first that would go over the total, as the original does", () => {
+    const plan = planContext(sessions, { perSession: 500, total: 100 });
+    expect(plan.map((e) => e.status)).toEqual(["whole", "empty", "over-limit", "over-limit"]);
+  });
+
+  it("puts only what goes in into the prompt, in order", () => {
+    const plan = planContext(sessions, { perSession: 50, total: 120 });
+    expect(contextText(plan)).toBe(plan[0].text + plan[2].text);
+    expect(contextText(plan)).toContain("<name>Session aaaaaaaa</name>");
   });
 });
 

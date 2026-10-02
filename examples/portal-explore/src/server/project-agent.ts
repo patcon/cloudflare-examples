@@ -5,7 +5,12 @@ import {
   DEFAULT_PROJECT_SETTINGS,
   type ProjectSettings,
 } from "./explore/settings";
-import { formatOther, sessionLabel, withinLimit } from "./explore/transcript";
+import {
+  contextText,
+  planContext,
+  type ContextEntry,
+  type ContextStatus,
+} from "./explore/transcript";
 
 /** The project's Explore settings, synced to every page connected to it. */
 export type ProjectState = ProjectSettings;
@@ -13,6 +18,13 @@ export type ProjectState = ProjectSettings;
 export interface SessionRow {
   id: string;
   started_at: number;
+}
+
+/** One session on the settings page, and how it goes into a reply. */
+export interface ContextPreview extends Omit<ContextEntry, "status"> {
+  /** `unavailable` when the session didn't answer. */
+  status: ContextStatus | "unavailable";
+  startedAt: number;
 }
 
 /** What the project broadcasts when its session list changes, so pages refetch. */
@@ -49,27 +61,47 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   }
 
   /**
-   * For a session's `explore()`, over RPC: every other session's
-   * transcript, newest session first, each cut to its budget, and stopping
-   * at the total. A session that doesn't answer is skipped.
+   * For a session's `explore()`, over RPC: the project's other sessions,
+   * as the prompt's other transcripts.
    */
   async otherTranscripts(excludeId: string): Promise<string> {
+    return contextText(await this.#planContext(excludeId));
+  }
+
+  /**
+   * For the settings page: every session, and how it goes into another
+   * session's reply. A session's own Explore leaves itself out, so this is
+   * what a new session would see.
+   */
+  @callable()
+  async contextPreview(): Promise<ContextPreview[]> {
+    const sessions = this.listSessions();
+    const plan = new Map((await this.#planContext(null)).map((e) => [e.id, e]));
+    return sessions.map((s) => ({
+      ...(plan.get(s.id) ?? { id: s.id, status: "unavailable", tokens: 0, text: "" }),
+      startedAt: s.started_at,
+    }));
+  }
+
+  /**
+   * Asks each session, but the one excluded, for its transcript, in
+   * parallel, then plans them newest first. A session that doesn't answer
+   * is skipped and logged.
+   */
+  async #planContext(excludeId: string | null): Promise<ContextEntry[]> {
     const others = this.listSessions().filter((s) => s.id !== excludeId);
     const results = await Promise.allSettled(
       others.map(async ({ id }) =>
         (await getAgentByName(this.env.SessionAgent, id)).transcriptForContext(),
       ),
     );
-    const formatted: string[] = [];
+    const answered: { id: string; transcript: string }[] = [];
     results.forEach((result, i) => {
       const { id } = others[i];
-      if (result.status === "rejected") {
-        console.error(`[${this.name}] Skipped session ${id} as context: ${result.reason}`);
-      } else if (result.value.trim()) {
-        formatted.push(formatOther(sessionLabel(id), result.value));
-      }
+      if (result.status === "fulfilled") answered.push({ id, transcript: result.value });
+      else console.error(`[${this.name}] Skipped session ${id} as context: ${result.reason}`);
     });
-    return withinLimit(formatted);
+    return planContext(answered);
   }
 
   /** Changes some settings, from the settings page. */
