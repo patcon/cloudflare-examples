@@ -78,11 +78,19 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
     setError(null);
     setRecording("starting");
     try {
-      // Resolves once the microphone is on, after any permission prompt.
+      // Asks for the microphone before the call: `voice.start()` opens the
+      // call first, and reports a refusal only through `voice.error`.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      for (const track of stream.getTracks()) track.stop();
+    } catch (e) {
+      setRecording(null);
+      setError(`Couldn't use the microphone: ${(e as Error).message}`);
+      return;
+    }
+    try {
       await voice.start();
       await agent.call("micReady");
     } catch (e) {
-      // The call is open on both ends even when the microphone isn't.
       voice.stop();
       setRecording(null);
       setError(`Couldn't start recording: ${(e as Error).message}`);
@@ -97,6 +105,12 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
     wakeLock.release();
     setRecording(null);
   };
+
+  // The microphone failed after all, such as one in use by another app.
+  // The error stays on the page.
+  useEffect(() => {
+    if (recording === "recording" && voice.error) stop();
+  });
 
   // Another page, or one that's gone, is recording this session.
   const elsewhere = !recording && state?.recordingSince != null;
