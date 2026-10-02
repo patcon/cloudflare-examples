@@ -1,10 +1,11 @@
-import { Agent, callable, type Connection } from "agents";
+import { Agent, callable, getAgentByName, type Connection } from "agents";
 import { isSessionId } from "../shared/ids";
 import {
   checkSettingsChange,
   DEFAULT_PROJECT_SETTINGS,
   type ProjectSettings,
 } from "./explore/settings";
+import { formatOther, sessionLabel, withinLimit } from "./explore/transcript";
 
 /** The project's Explore settings, synced to every page connected to it. */
 export type ProjectState = ProjectSettings;
@@ -45,6 +46,30 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   /** For a session's `explore()`, over RPC. */
   settings(): ProjectSettings {
     return this.state;
+  }
+
+  /**
+   * For a session's `explore()`, over RPC: every other session's
+   * transcript, newest session first, each cut to its budget, and stopping
+   * at the total. A session that doesn't answer is skipped.
+   */
+  async otherTranscripts(excludeId: string): Promise<string> {
+    const others = this.listSessions().filter((s) => s.id !== excludeId);
+    const results = await Promise.allSettled(
+      others.map(async ({ id }) =>
+        (await getAgentByName(this.env.SessionAgent, id)).transcriptForContext(),
+      ),
+    );
+    const formatted: string[] = [];
+    results.forEach((result, i) => {
+      const { id } = others[i];
+      if (result.status === "rejected") {
+        console.error(`[${this.name}] Skipped session ${id} as context: ${result.reason}`);
+      } else if (result.value.trim()) {
+        formatted.push(formatOther(sessionLabel(id), result.value));
+      }
+    });
+    return withinLimit(formatted);
   }
 
   /** Changes some settings, from the settings page. */

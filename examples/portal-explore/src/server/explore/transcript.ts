@@ -23,6 +23,11 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
+/** How a session is named in a prompt. */
+export function sessionLabel(sessionId: string) {
+  return `Session ${sessionId.slice(0, 8)}`;
+}
+
 export function formatConversation(name: string, transcript: string): string {
   return `<conversation>\n\t<name>${name}</name>\n\t<transcript>${transcript}</transcript>\n</conversation>\n`;
 }

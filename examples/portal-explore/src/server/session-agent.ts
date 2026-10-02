@@ -7,7 +7,7 @@ import { recordedSecondsAt, whyNotExplore, type ReplyStatus } from "../shared/ru
 import { streamReply } from "./explore/gemini";
 import { buildPrompt } from "./explore/prompt";
 import type { ProjectSettings } from "./explore/settings";
-import { buildTranscript, formatConversation } from "./explore/transcript";
+import { buildTranscript, formatConversation, sessionLabel } from "./explore/transcript";
 import { BATCH_MODEL, LIVE_MODEL, LOCATION, REPLY_MODEL } from "./models";
 
 export interface SessionState {
@@ -166,7 +166,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       }
     }, SLOW_AFTER_MS);
     try {
-      const prompt = buildPrompt(settings, this.#formatted(), "");
+      const prompt = buildPrompt(settings, this.#formatted(), await this.#otherSessions());
       let text = "";
       for await (const piece of streamReply(this.#vertex(REPLY_MODEL), prompt)) {
         clearTimeout(slow);
@@ -204,6 +204,30 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
 
   #replyFailed(message: string) {
     this.setState({ ...this.state, replyStatus: "failed", replyDraft: "", replyError: message });
+  }
+
+  /**
+   * For another session's prompt, over RPC from the project: this
+   * session's transcript, with its replies written in.
+   */
+  transcriptForContext(): string {
+    return buildTranscript(this.listSegments(), this.listReplies());
+  }
+
+  /**
+   * The project's other sessions, as context. Without them the reply still
+   * comes, from this session alone.
+   */
+  async #otherSessions(): Promise<string> {
+    const { projectId } = this.state;
+    if (!projectId) return "";
+    try {
+      const project = await getAgentByName(this.env.ProjectAgent, projectId);
+      return await project.otherTranscripts(this.name);
+    } catch (error) {
+      console.error(`[${this.name}] No other sessions as context: ${error}`);
+      return "";
+    }
   }
 
   /** This session's transcript, with its replies written in, for a prompt. */
@@ -305,9 +329,4 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   #notify(message: SessionMessage) {
     this.broadcast(JSON.stringify(message));
   }
-}
-
-/** How a session is named in a prompt. */
-export function sessionLabel(sessionId: string) {
-  return `Session ${sessionId.slice(0, 8)}`;
 }
