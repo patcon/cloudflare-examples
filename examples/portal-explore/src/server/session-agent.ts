@@ -5,7 +5,8 @@ import { isProjectId } from "../shared/ids";
 import { SLOW_AFTER_MS } from "../shared/limits";
 import { recordedSecondsAt, whyNotExplore, type ReplyStatus } from "../shared/rules";
 import { streamReply } from "./explore/gemini";
-import { buildPrompt, DEFAULT_SETTINGS } from "./explore/prompt";
+import { buildPrompt } from "./explore/prompt";
+import type { ProjectSettings } from "./explore/settings";
 import { buildTranscript, formatConversation } from "./explore/transcript";
 import { BATCH_MODEL, LIVE_MODEL, LOCATION, REPLY_MODEL } from "./models";
 
@@ -126,7 +127,9 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
    * open page sees it, and a page that reloads catches up.
    */
   @callable()
-  explore() {
+  async explore() {
+    const { projectId } = this.state;
+    if (!projectId) throw new Error("This session isn't in a project yet");
     const [{ segments }] = this.sql<{ segments: number }>`
       SELECT COUNT(*) AS segments FROM live_segments`;
     const reason = whyNotExplore({
@@ -137,21 +140,33 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       now: Date.now(),
     });
     if (reason) throw new Error(reason);
+    // Taken before the settings call below, so a second press while it's
+    // waiting is refused.
+    const { replyStatus, replyError } = this.state;
     this.setState({ ...this.state, replyStatus: "thinking", replyDraft: "", replyError: null });
+
+    let settings: ProjectSettings;
+    try {
+      settings = await (await getAgentByName(this.env.ProjectAgent, projectId)).settings();
+      if (!settings.exploreEnabled) throw new Error("Explore is off for this project");
+    } catch (error) {
+      this.setState({ ...this.state, replyStatus, replyError });
+      throw error;
+    }
     // Not awaited, so the call returns now. This keeps the object awake
     // until the reply is done, even with no page connected.
-    void this.keepAliveWhile(() => this.#generateReply());
+    void this.keepAliveWhile(() => this.#generateReply(settings));
   }
 
   /** Streams the reply into state, then saves it. Never throws. */
-  async #generateReply() {
+  async #generateReply(settings: ProjectSettings) {
     const slow = setTimeout(() => {
       if (this.state.replyStatus === "thinking") {
         this.setState({ ...this.state, replyStatus: "slow" });
       }
     }, SLOW_AFTER_MS);
     try {
-      const prompt = buildPrompt(DEFAULT_SETTINGS, this.#formatted(), "");
+      const prompt = buildPrompt(settings, this.#formatted(), "");
       let text = "";
       for await (const piece of streamReply(this.#vertex(REPLY_MODEL), prompt)) {
         clearTimeout(slow);

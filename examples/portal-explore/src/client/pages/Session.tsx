@@ -4,6 +4,7 @@ import { Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
 import { ArrowClockwiseIcon, MicrophoneIcon, SparkleIcon, StopIcon } from "@phosphor-icons/react";
 import { useNow } from "../hooks/use-now";
 import { useVoiceRecorder } from "../hooks/use-voice-recorder";
+import type { ProjectAgent, ProjectState } from "../../server/project-agent";
 import type {
   Reply,
   Segment,
@@ -38,6 +39,14 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         setReplies((r) => (r.some((x) => x.id === message.reply.id) ? r : [...r, message.reply]));
       }
     },
+  });
+
+  // The project's settings, to hide Explore when it's off.
+  const [project, setProject] = useState<ProjectState | null>(null);
+  useAgent<ProjectAgent, ProjectState>({
+    agent: "ProjectAgent",
+    name: projectId,
+    onStateUpdate: setProject,
   });
 
   // Joins the session to this page's project, then loads what's there.
@@ -137,29 +146,31 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         <Text size="xs" variant="secondary">
           Recorded {formatDuration(seconds)}
         </Text>
-        <div className="flex flex-col gap-1 items-center w-full max-w-xs">
-          <Button
-            variant="secondary"
-            icon={<SparkleIcon size={16} />}
-            onClick={explore}
-            disabled={notYet !== null}
-          >
-            Explore
-          </Button>
-          {seconds < MIN_RECORDED_SECONDS && (
-            <Meter
-              className="w-full"
-              label="Explore"
-              showValue={false}
-              value={(100 * seconds) / MIN_RECORDED_SECONDS}
-            />
-          )}
-          {notYet && (
-            <Text size="xs" variant="secondary">
-              {notYet}
-            </Text>
-          )}
-        </div>
+        {project?.exploreEnabled && (
+          <div className="flex flex-col gap-1 items-center w-full max-w-xs">
+            <Button
+              variant="secondary"
+              icon={<SparkleIcon size={16} />}
+              onClick={explore}
+              disabled={notYet !== null}
+            >
+              Explore
+            </Button>
+            {seconds < MIN_RECORDED_SECONDS && (
+              <Meter
+                className="w-full"
+                label="Explore"
+                showValue={false}
+                value={(100 * seconds) / MIN_RECORDED_SECONDS}
+              />
+            )}
+            {notYet && (
+              <Text size="xs" variant="secondary">
+                {notYet}
+              </Text>
+            )}
+          </div>
+        )}
         {(error || voice.error) && (
           <Text size="sm" variant="error">
             {error || voice.error}

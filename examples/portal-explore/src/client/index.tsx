@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { isProjectId, isSessionId } from "../shared/ids";
 import { Home } from "./pages/Home";
 import { Session } from "./pages/Session";
+import { Settings } from "./pages/Settings";
 import { Start } from "./pages/Start";
 import { Shell } from "./ui";
 import "./styles.css";
@@ -21,6 +22,7 @@ function App() {
   }
   if (isProjectId(projectId) && rest.length === 0) {
     if (page === "start" && !sessionId) return <Start projectId={projectId} />;
+    if (page === "settings" && !sessionId) return <Settings projectId={projectId} />;
     if (page === "sessions" && isSessionId(sessionId)) {
       return <Session projectId={projectId} sessionId={sessionId} />;
     }
