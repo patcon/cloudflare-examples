@@ -4,6 +4,14 @@ A group sits around one phone, which records their conversation, and Gemini tran
 
 It's a port of the **Explore** half of the dembrane portal's ECHO button, from `dembrane-echo`. It's based on [`polis-statement-extraction`](../polis-statement-extraction), with its recording and live transcription, but without statement extraction, review or diarization. There's no login.
 
+| image-1 | image-2 | image-3 |
+|---|---|---|
+| ![image-1](docs/image-1.png) | ![image-2](docs/image-2.png) | ![image-3](docs/image-3.png) |
+
+| image-4 | image-5 | image-6 |
+|---|---|---|
+| ![image-4](docs/image-4.png) | ![image-5](docs/image-5.png) | ![image-6](docs/image-6.png) |
+
 ## Run it
 
 ```bash
