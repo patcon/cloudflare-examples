@@ -84,6 +84,21 @@ describe("buildPrompt", () => {
     expect(prompt).toContain(`<global_prompt>\n${SUMMARIZE_PROMPT}\n</global_prompt>`);
     expect(prompt).toMatch(/<other_transcripts>\n<conversation>[\s\S]*rents are too high/);
     expect(prompt).toMatch(/<main_user_transcript>\n<conversation>[\s\S]*we need more homes/);
+  });
+});
+
+describe("rendering", () => {
+  it("doesn't escape or re-read what goes in", () => {
+    const transcript = "we said <b>this</b> & {{ that }} {% if x %}";
+    const prompt = buildPrompt(DEFAULT_SETTINGS, formatConversation("A", transcript), "");
+    expect(prompt).toContain(transcript);
+  });
+
+  it("drops the personal-details block", () => {
+    const prompt = buildPrompt(DEFAULT_SETTINGS, "", "");
     expect(prompt).not.toContain("PII");
+    expect(prompt).toMatch(
+      /always write "dembrane" in lowercase, even at the start of a sentence$/,
+    );
   });
 });
