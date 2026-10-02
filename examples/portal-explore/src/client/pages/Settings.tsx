@@ -232,7 +232,7 @@ function Sessions({
           {s.text && (
             <details>
               <summary className="text-xs text-kumo-subtle cursor-pointer">
-                What a prompt gets
+                What is contributed to Explore prompt
               </summary>
               <pre className="mt-1 text-xs whitespace-pre-wrap text-kumo-default">{s.text}</pre>
             </details>
