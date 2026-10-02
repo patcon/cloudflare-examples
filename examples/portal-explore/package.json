@@ -1,0 +1,53 @@
+{
+  "name": "portal-explore",
+  "version": "1.0.0",
+  "description": "Transcribes a group conversation live with Gemini, and replies to it in a few sentences when asked",
+  "scripts": {
+    "dev": "vite dev",
+    "dev:share": "vite dev --mode share",
+    "google-token": "node scripts/google-token.mjs",
+    "deploy": "vite build && wrangler deploy",
+    "types": "wrangler types env.d.ts --include-runtime false",
+    "typecheck": "tsc && tsc --project tsconfig.client.json",
+    "test": "vitest run && pnpm --filter @cloudflare/voice-gemini test",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint ."
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.5",
+  "private": true,
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
+  },
+  "dependencies": {
+    "@cloudflare/kumo": "^2.6.0",
+    "@cloudflare/voice-gemini": "workspace:*",
+    "@phosphor-icons/react": "^2.1.10",
+    "agents": "^0.24.0",
+    "hono": "^4.13.12",
+    "hono-agents": "^3.0.12",
+    "liquidjs": "^10.30.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@cloudflare/vite-plugin": "^1.48.0",
+    "@cloudflare/workers-types": "^5.20260729.1",
+    "@tailwindcss/vite": "^4",
+    "@types/node": "^26.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "tailwindcss": "^4.3.2",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.0",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.115.0"
+  }
+}
