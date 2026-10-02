@@ -22,8 +22,8 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   const [replies, setReplies] = useState<Reply[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
-  /** This page is recording. */
-  const [recording, setRecording] = useState(false);
+  /** This page is recording, or waiting for the microphone to start. */
+  const [recording, setRecording] = useState<"starting" | "recording" | null>(null);
 
   const agent = useAgent<SessionAgent, SessionState>({
     agent: "SessionAgent",
@@ -76,15 +76,26 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
 
   const record = async () => {
     setError(null);
-    await voice.start();
+    setRecording("starting");
+    try {
+      // Resolves once the microphone is on, after any permission prompt.
+      await voice.start();
+      await agent.call("micReady");
+    } catch (e) {
+      // The call is open on both ends even when the microphone isn't.
+      voice.stop();
+      setRecording(null);
+      setError(`Couldn't start recording: ${(e as Error).message}`);
+      return;
+    }
     void wakeLock.acquire();
-    setRecording(true);
+    setRecording("recording");
   };
 
   const stop = () => {
     voice.stop();
     wakeLock.release();
-    setRecording(false);
+    setRecording(null);
   };
 
   // Another page, or one that's gone, is recording this session.
@@ -108,7 +119,11 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
     <Shell title={projectId}>
       {replay && <Replay projectId={projectId} sessionId={sessionId} />}
       <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3 items-center">
-        {replay ? null : recording ? (
+        {replay ? null : recording === "starting" ? (
+          <Button variant="primary" size="lg" icon={<MicrophoneIcon size={20} />} disabled>
+            Waiting for the microphone…
+          </Button>
+        ) : recording ? (
           <Button variant="destructive" size="lg" icon={<StopIcon size={20} />} onClick={stop}>
             Stop
           </Button>

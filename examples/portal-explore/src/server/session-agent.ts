@@ -233,11 +233,23 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   beforeCallStart(_connection: Connection) {
     // Recording only makes sense once the session knows its project, and
     // one phone records at a time.
-    return this.state.projectId !== null && this.state.recordingSince === null;
+    return this.state.projectId !== null && this.#caller === null;
   }
 
   onCallStart(connection: Connection) {
+    // The clock starts at `micReady`: the page sends `start_call` before it
+    // asks for the microphone, and the prompt can stay up a while.
     this.#caller = connection.id;
+  }
+
+  /**
+   * Called by the recording page once the microphone is on, which
+   * `useVoiceInput`'s `start()` waits for. Starts counting recorded time.
+   */
+  @callable()
+  micReady() {
+    if (this.#caller === null) throw new Error("This session isn't recording");
+    if (this.state.recordingSince !== null) return;
     this.setState({ ...this.state, recordingSince: Date.now() });
   }
 
