@@ -1,21 +1,25 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
 import { useVoiceInput } from "agents/voice/react";
-import { Button, Surface, Text } from "@cloudflare/kumo";
-import { MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
+import { Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
+import { ArrowClockwiseIcon, MicrophoneIcon, SparkleIcon, StopIcon } from "@phosphor-icons/react";
 import { useWakeLock } from "../audio/wake-lock";
 import type {
+  Reply,
   Segment,
   SessionAgent,
   SessionMessage,
   SessionState,
 } from "../../server/session-agent";
+import { MIN_RECORDED_SECONDS } from "../../shared/limits";
+import { recordedSecondsAt, whyNotExplore } from "../../shared/rules";
 import { Shell } from "../ui";
 import { Replay } from "./Replay";
 
 /** For the recording phone: records, and shows the live transcript. */
 export function Session({ projectId, sessionId }: { projectId: string; sessionId: string }) {
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [replies, setReplies] = useState<Reply[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
   /** This page is recording. */
@@ -32,6 +36,9 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
           s.some((x) => x.id === message.segment.id) ? s : [...s, message.segment],
         );
       }
+      if (message?.type === "reply") {
+        setReplies((r) => (r.some((x) => x.id === message.reply.id) ? r : [...r, message.reply]));
+      }
     },
   });
 
@@ -39,13 +46,33 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   useEffect(() => {
     agent.ready
       .then(() => agent.call("attach", [projectId]))
-      .then(() => agent.call("listSegments").then(setSegments))
+      .then(() =>
+        Promise.all([
+          agent.call("listSegments").then(setSegments),
+          agent.call("listReplies").then(setReplies),
+        ]),
+      )
       .catch((e: Error) => setError(e.message));
   }, [agent, projectId]);
 
   const voice = useVoiceInput({ agent: "SessionAgent", name: sessionId });
   const wakeLock = useWakeLock();
-  const seconds = useRecordedSeconds(state);
+  const now = useNow();
+  const seconds = state ? recordedSecondsAt(state, now) : 0;
+  const notYet = state
+    ? whyNotExplore({
+        recordedSeconds: seconds,
+        segments: segments.length,
+        lastReplyAt: state.lastReplyAt,
+        replyStatus: state.replyStatus,
+        now,
+      })
+    : "Connecting…";
+
+  const explore = () => {
+    setError(null);
+    agent.call("explore").catch((e: Error) => setError(e.message));
+  };
 
   const record = async () => {
     setError(null);
@@ -104,6 +131,29 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         <Text size="xs" variant="secondary">
           Recorded {formatDuration(seconds)}
         </Text>
+        <div className="flex flex-col gap-1 items-center w-full max-w-xs">
+          <Button
+            variant="secondary"
+            icon={<SparkleIcon size={16} />}
+            onClick={explore}
+            disabled={notYet !== null}
+          >
+            Explore
+          </Button>
+          {seconds < MIN_RECORDED_SECONDS && (
+            <Meter
+              className="w-full"
+              label="Explore"
+              showValue={false}
+              value={(100 * seconds) / MIN_RECORDED_SECONDS}
+            />
+          )}
+          {notYet && (
+            <Text size="xs" variant="secondary">
+              {notYet}
+            </Text>
+          )}
+        </div>
         {(error || voice.error) && (
           <Text size="sm" variant="error">
             {error || voice.error}
@@ -130,6 +180,10 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         )}
       </Surface>
 
+      {state && (replies.length > 0 || state.replyStatus !== "idle") && (
+        <Replies replies={replies} state={state} retry={explore} />
+      )}
+
       {empty && !replay && (
         <a className="self-end text-xs text-kumo-subtle underline" href="?debug=true">
           debug
@@ -139,17 +193,67 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   );
 }
 
-/** The session's total recorded time, ticking while it records. */
-function useRecordedSeconds(state: SessionState | null) {
+/** Explore's replies, then the one on its way, or why it failed. */
+function Replies({
+  replies,
+  state,
+  retry,
+}: {
+  replies: Reply[];
+  state: SessionState;
+  retry: () => void;
+}) {
+  return (
+    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
+      <Text size="xs" variant="secondary">
+        Replies
+      </Text>
+      {replies.map((r) => (
+        <div key={r.id} className="flex flex-col gap-0.5">
+          <Text size="xs" variant="secondary">
+            {new Date(r.at).toLocaleTimeString()}
+          </Text>
+          <p className="text-sm text-kumo-default">{r.text}</p>
+        </div>
+      ))}
+      {(state.replyStatus === "thinking" || state.replyStatus === "slow") && (
+        <div className="flex gap-2 items-center">
+          <Loader size="sm" />
+          <Text size="sm" variant="secondary">
+            {state.replyStatus === "slow" ? "Still working on it…" : "Thinking…"}
+          </Text>
+        </div>
+      )}
+      {state.replyStatus === "streaming" && (
+        <p className="text-sm text-kumo-default">{state.replyDraft}</p>
+      )}
+      {state.replyStatus === "failed" && (
+        <div className="flex flex-col gap-2 items-start">
+          <Text size="sm" variant="error">
+            {state.replyError}
+          </Text>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<ArrowClockwiseIcon size={14} />}
+            onClick={retry}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
+    </Surface>
+  );
+}
+
+/** The time, ticking each second, for the recorded time and the cooldown. */
+function useNow() {
   const [now, setNow] = useState(Date.now());
-  const since = state?.recordingSince ?? null;
   useEffect(() => {
-    if (since === null) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [since]);
-  if (!state) return 0;
-  return state.recordedSeconds + (since === null ? 0 : Math.max(0, now - since) / 1000);
+  }, []);
+  return now;
 }
 
 function formatDuration(seconds: number) {
