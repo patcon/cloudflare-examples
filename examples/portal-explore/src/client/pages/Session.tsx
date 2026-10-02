@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
+import { Badge, Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
 import {
   ArrowClockwiseIcon,
   CaretRightIcon,
@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { useNow } from "../hooks/use-now";
 import { useVoiceRecorder } from "../hooks/use-voice-recorder";
+import type { ExploreMode } from "../../server/explore/prompt";
 import type { ProjectAgent, ProjectState } from "../../server/project-agent";
 import type {
   Reply,
@@ -222,6 +223,12 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   );
 }
 
+const MODE_LABELS: Record<ExploreMode, string> = {
+  summarize: "Summarize",
+  brainstorm: "Brainstorm",
+  custom: "Custom",
+};
+
 /** Explore's replies, then the one on its way, or why it failed. */
 function Replies({
   replies,
@@ -239,9 +246,12 @@ function Replies({
       </Text>
       {replies.map((r) => (
         <div key={r.id} className="flex flex-col gap-0.5">
-          <Text size="xs" variant="secondary">
-            {new Date(r.at).toLocaleTimeString()}
-          </Text>
+          <div className="flex gap-2 items-center">
+            <Text size="xs" variant="secondary">
+              {new Date(r.at).toLocaleTimeString()}
+            </Text>
+            {r.mode && <Badge variant="secondary">{MODE_LABELS[r.mode]}</Badge>}
+          </div>
           <p className="text-sm text-kumo-default">{r.text}</p>
         </div>
       ))}

@@ -4,6 +4,7 @@ import {
   buildPrompt,
   DEFAULT_SETTINGS,
   globalPrompt,
+  modeUsed,
   SUMMARIZE_PROMPT,
 } from "../src/server/explore/prompt";
 import {
@@ -90,6 +91,14 @@ describe("globalPrompt", () => {
     expect(globalPrompt({ ...DEFAULT_SETTINGS, mode: "custom", customPrompt: "Be terse." })).toBe(
       "Be terse.",
     );
+  });
+
+  it("says which mode a reply is written in", () => {
+    expect(modeUsed({ ...DEFAULT_SETTINGS, mode: "brainstorm" })).toBe("brainstorm");
+    expect(modeUsed({ ...DEFAULT_SETTINGS, mode: "custom", customPrompt: "Be terse." })).toBe(
+      "custom",
+    );
+    expect(modeUsed({ ...DEFAULT_SETTINGS, mode: "custom", customPrompt: " " })).toBe("summarize");
   });
 
   it("falls back to summarize for an empty custom prompt", () => {

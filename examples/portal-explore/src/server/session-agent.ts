@@ -5,7 +5,7 @@ import { isProjectId } from "../shared/ids";
 import { SLOW_AFTER_MS } from "../shared/constants";
 import { recordedSecondsAt, whyNotExplore, type ReplyStatus } from "../shared/rules";
 import { streamReply } from "./explore/gemini";
-import { buildPrompt } from "./explore/prompt";
+import { buildPrompt, modeUsed, type ExploreMode } from "./explore/prompt";
 import type { ProjectSettings } from "./explore/settings";
 import { buildTranscript, formatConversation, sessionLabel } from "./explore/transcript";
 import { BATCH_MODEL, LIVE_MODEL, LOCATION, REPLY_MODEL } from "./models";
@@ -40,6 +40,8 @@ export interface Reply {
   id: number;
   at: number;
   text: string;
+  /** How it was written. Null for replies from before this was kept. */
+  mode: ExploreMode | null;
 }
 
 /** What the session broadcasts, beside the voice pipeline's own messages. */
@@ -79,8 +81,15 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       "CREATE TABLE IF NOT EXISTS live_segments (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, text TEXT NOT NULL)",
     );
     this.ctx.storage.sql.exec(
-      "CREATE TABLE IF NOT EXISTS replies (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, text TEXT NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS replies (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, text TEXT NOT NULL, mode TEXT)",
     );
+    // Sessions from before replies kept their mode have the table without it.
+    const columns = this.ctx.storage.sql
+      .exec<{ name: string }>("SELECT name FROM pragma_table_info('replies')")
+      .toArray();
+    if (!columns.some((c) => c.name === "mode")) {
+      this.ctx.storage.sql.exec("ALTER TABLE replies ADD COLUMN mode TEXT");
+    }
   }
 
   onStart() {
@@ -118,7 +127,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
 
   @callable()
   listReplies(): Reply[] {
-    return this.sql<Reply>`SELECT id, at, text FROM replies ORDER BY id`;
+    return this.sql<Reply>`SELECT id, at, text, mode FROM replies ORDER BY id`;
   }
 
   /**
@@ -174,7 +183,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
         this.setState({ ...this.state, replyStatus: "streaming", replyDraft: text });
       }
       if (!text.trim()) throw new Error("Gemini sent an empty reply");
-      this.#saveReply(text.trim());
+      this.#saveReply(text.trim(), modeUsed(settings));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[${this.name}] Reply failed: ${message}`);
@@ -188,10 +197,10 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
    * The one place a finished reply lands. Speaking it, with `speakAll`
    * after a switch to `withVoice`, would go here.
    */
-  #saveReply(text: string) {
+  #saveReply(text: string, mode: ExploreMode) {
     const [reply] = this.sql<Reply>`
-      INSERT INTO replies (at, text) VALUES (${Date.now()}, ${text})
-      RETURNING id, at, text`;
+      INSERT INTO replies (at, text, mode) VALUES (${Date.now()}, ${text}, ${mode})
+      RETURNING id, at, text, mode`;
     console.log(`[${this.name}] Replied: "${text}"`);
     this.#notify({ type: "reply", reply });
     this.setState({

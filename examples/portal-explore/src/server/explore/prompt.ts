@@ -40,10 +40,16 @@ const renderSystem = template(systemTemplate);
 export const SUMMARIZE_PROMPT = template(summarizeTemplate)();
 export const BRAINSTORM_PROMPT = template(brainstormTemplate)();
 
+/** The mode a reply is written in: custom with no prompt summarizes, as in `reply.ts`. */
+export function modeUsed(settings: ReplySettings): ExploreMode {
+  return settings.mode === "custom" && !settings.customPrompt.trim() ? "summarize" : settings.mode;
+}
+
 /** The mode's own prompt, as `reply.ts` picks it. */
 export function globalPrompt(settings: ReplySettings): string {
-  if (settings.mode === "brainstorm") return BRAINSTORM_PROMPT;
-  if (settings.mode === "custom" && settings.customPrompt.trim()) return settings.customPrompt;
+  const mode = modeUsed(settings);
+  if (mode === "brainstorm") return BRAINSTORM_PROMPT;
+  if (mode === "custom") return settings.customPrompt;
   return SUMMARIZE_PROMPT;
 }
 
