@@ -4,13 +4,13 @@ A group sits around one phone, which records their conversation, and Gemini tran
 
 It's a port of the **Explore** half of the dembrane portal's ECHO button, from `dembrane-echo`. It's based on [`polis-statement-extraction`](../polis-statement-extraction), with its recording and live transcription, but without statement extraction, review or diarization. There's no login.
 
-| image-1 | image-2 | image-3 |
+| start a new session | record from your mic | load test audio from file |
 |---|---|---|
-| ![image-1](docs/image-1.png) | ![image-2](docs/image-2.png) | ![image-3](docs/image-3.png) |
+| ![start a new session](docs/start-a-new-session.png) | ![record from your mic](docs/record-from-your-mic.png) | ![load test audio from file](docs/load-test-audio-from-file.png) |
 
-| image-4 | image-5 | image-6 |
+| Explore mode reply: summary | set Explore mode to brainstorm | Explore mode reply: brainstorm |
 |---|---|---|
-| ![image-4](docs/image-4.png) | ![image-5](docs/image-5.png) | ![image-6](docs/image-6.png) |
+| ![Explore mode reply: summary](docs/explore-mode-reply-summary.png) | ![set Explore mode to brainstorm](docs/set-explore-mode-to-brainstorm.png) | ![Explore mode reply: brainstorm](docs/explore-mode-reply-brainstorm.png) |
 
 ## Run it
 
