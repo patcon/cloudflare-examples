@@ -1,7 +1,7 @@
 {
-  "name": "polis-statement-extraction",
+  "name": "portal-explore",
   "version": "1.0.0",
-  "description": "Transcribes a group conversation live with Gemini, and pulls out Polis-style statements for a host to review",
+  "description": "Transcribes a group conversation live with Gemini, and replies to it in a few sentences when asked",
   "scripts": {
     "dev": "vite dev",
     "dev:share": "vite dev --mode share",

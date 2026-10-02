@@ -8,11 +8,11 @@ export function Home() {
   const [name, setName] = useState("demo");
   const valid = isProjectId(name);
   return (
-    <Shell title="Polis Statement Extraction">
+    <Shell title="Portal Explore">
       <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
         <Text size="sm">
-          A project holds many recorded group conversations, and one review page for the statements
-          pulled out of them.
+          A project holds many recorded group conversations. Any of them can ask for a short reply
+          to what's been said so far.
         </Text>
         <form
           className="flex gap-2 items-end"

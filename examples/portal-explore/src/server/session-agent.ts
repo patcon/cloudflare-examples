@@ -1,54 +1,20 @@
 import { Agent, callable, getAgentByName, type Connection } from "agents";
 import { withVoiceInput, type Transcriber } from "agents/voice";
-import { GeminiBatchSTT, GeminiLiveSTT, type TranscriptSegment } from "@cloudflare/voice-gemini";
-import { extractStatements, isRetryable } from "./extract/gemini";
+import { GeminiBatchSTT, GeminiLiveSTT } from "@cloudflare/voice-gemini";
 import { isProjectId } from "../shared/ids";
-import { CONTEXT_SEGMENTS, MAX_RECORDING_BYTES } from "../shared/limits";
-import { BATCH_MODEL, EXTRACT_MODEL, LIVE_MODEL, LOCATION } from "./models";
+import { BATCH_MODEL, LIVE_MODEL, LOCATION } from "./models";
 
 export interface SessionState {
   /** Set by the first page to connect, from its URL. */
   projectId: string | null;
-  recording: boolean;
-  /** The compressed recording the page uploads, in R2. */
-  audio: { mimeType: string; parts: number; bytes: number } | null;
-  /** Diarizing the whole recording once it stops, then one last extraction. */
-  final: {
-    status: "running" | "done" | "failed";
-    error: string | null;
-    /** Statements the last extraction sent to review, once it's done. */
-    kept?: number;
-  } | null;
+  /** When the current recording started, or null when not recording. */
+  recordingSince: number | null;
+  /**
+   * Seconds recorded before the current recording, across every Start and
+   * Stop. A replay adds its file's length.
+   */
+  recordedSeconds: number;
 }
-
-/** One speaker's stretch of the diarized transcript. */
-export interface FinalSegment {
-  seq: number;
-  /** Numbered from 0, in the order speakers are first heard. */
-  speaker: number | null;
-  text: string;
-}
-
-/** The window ID statements from the final pass are saved with. */
-const FINAL_WINDOW = 0;
-
-/** One extraction run over a stretch of the transcript, kept as a log. */
-export interface WindowRow {
-  id: number;
-  /** The segments it covered, inclusive. */
-  from_seg: number;
-  to_seg: number;
-  status: "running" | "done" | "failed";
-  error: string | null;
-  kept: number;
-  filtered: number;
-  created_at: number;
-}
-
-/** How often extraction runs by itself while recording. */
-const EXTRACT_EVERY_SECONDS = 300;
-/** Fewer new words than this, and the timer skips its run. */
-const MIN_NEW_WORDS = 150;
 
 export interface Segment {
   id: number;
@@ -57,44 +23,43 @@ export interface Segment {
 }
 
 /** What the session broadcasts, beside the voice pipeline's own messages. */
-export type SessionMessage =
-  | { type: "segment"; segment: Segment }
-  | { type: "windows" }
-  | { type: "final" };
+export type SessionMessage = { type: "segment"; segment: Segment };
+
+/** 16kHz mono 16-bit WAV, as the replay page sends, after its 44-byte header. */
+const WAV_BYTES_PER_SECOND = 16_000 * 2;
+const WAV_HEADER_BYTES = 44;
 
 const InputAgent = withVoiceInput(Agent);
 
 /**
  * One recorded conversation, named by a random UUID. The recording phone
  * streams audio to it, and it keeps the live transcript, one segment per
- * utterance Gemini Live finalizes.
+ * utterance Gemini Live finalizes. It can be stopped and started again as
+ * often as needed, and keeps adding to the same transcript.
  */
 export class SessionAgent extends InputAgent<Env, SessionState> {
   initialState: SessionState = {
     projectId: null,
-    recording: false,
-    audio: null,
-    final: null,
+    recordingSince: null,
+    recordedSeconds: 0,
   };
+
+  /** The connection that's recording. A call keeps the object awake. */
+  #caller: string | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ctx.storage.sql.exec(
       "CREATE TABLE IF NOT EXISTS live_segments (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, text TEXT NOT NULL)",
     );
-    this.ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS windows (
-      id INTEGER PRIMARY KEY,
-      from_seg INTEGER NOT NULL,
-      to_seg INTEGER NOT NULL,
-      status TEXT NOT NULL,
-      error TEXT,
-      kept INTEGER NOT NULL DEFAULT 0,
-      filtered INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL
-    )`);
-    this.ctx.storage.sql.exec(
-      "CREATE TABLE IF NOT EXISTS final_transcript (seq INTEGER PRIMARY KEY, speaker INTEGER, text TEXT NOT NULL)",
-    );
+  }
+
+  onStart() {
+    // A fresh instance has no call, so a recording left open was cut off,
+    // such as by a deploy. When it stopped isn't known, so it isn't counted.
+    if (this.state.recordingSince !== null) {
+      this.setState({ ...this.state, recordingSince: null });
+    }
   }
 
   /**
@@ -118,234 +83,22 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     return this.sql<Segment>`SELECT id, at, text FROM live_segments ORDER BY id`;
   }
 
-  @callable()
-  listWindows(): WindowRow[] {
-    return this.sql<WindowRow>`SELECT * FROM windows ORDER BY id DESC`;
-  }
-
-  /** Pulls statements out of what's been said since the last run. */
-  @callable()
-  async extractNow() {
-    // The queue runs one at a time, so runs never overlap. Pressing twice
-    // queues twice, but the second finds nothing new and returns.
-    await this.queue("processWindow", {}, { retry: { maxAttempts: 3 } });
-  }
-
-  /** From the timer: runs extraction once enough has been said. */
-  async tick() {
-    if (!this.state.recording) return this.#stopTimer();
-    const words = this.#pendingSegments()
-      .map((s) => s.text.split(/\s+/).filter(Boolean).length)
-      .reduce((a, b) => a + b, 0);
-    if (words >= MIN_NEW_WORDS) await this.extractNow();
-  }
-
-  async #stopTimer() {
-    for (const s of await this.listSchedules({ type: "interval" })) {
-      if (s.callback === "tick") await this.cancelSchedule(s.id);
-    }
-  }
-
-  /** What's been said since the last run that worked. */
-  #pendingSegments(): Segment[] {
-    return this.sql<Segment>`
-      SELECT id, at, text FROM live_segments
-      WHERE id > (SELECT COALESCE(MAX(to_seg), 0) FROM windows WHERE status = 'done')
-      ORDER BY id`;
-  }
-
-  /**
-   * One extraction run, from the queue, which runs them one at a time. A
-   * run that fails without a retry leaves its segments for the next one.
-   */
-  async processWindow({ contextSegments = CONTEXT_SEGMENTS }: { contextSegments?: number } = {}) {
-    const { projectId } = this.state;
-    if (!projectId) return;
-    const segments = this.#pendingSegments();
-    const first = segments[0];
-    const last = segments[segments.length - 1];
-    if (!first || !last) return;
-    const context = this.sql<Segment>`
-      SELECT id, at, text FROM live_segments WHERE id < ${first.id}
-      ORDER BY id DESC LIMIT ${contextSegments}`.reverse();
-
-    const [win] = this.sql<{ id: number }>`
-      INSERT INTO windows (from_seg, to_seg, status, created_at)
-      VALUES (${first.id}, ${last.id}, 'running', ${Date.now()})
-      RETURNING id`;
-    this.#notify({ type: "windows" });
-
-    const project = await getAgentByName(this.env.ProjectAgent, projectId);
-    try {
-      const { topic, existing } = await project.promptContext();
-      const proposed = await extractStatements(this.#vertex(EXTRACT_MODEL), {
-        topic,
-        existing,
-        context: context.map((s) => s.text).join("\n"),
-        transcript: segments.map((s) => s.text).join("\n"),
-        pass: "live",
-      });
-      const { kept, filtered } = await project.addCandidates(this.name, win.id, "live", proposed);
-      this.sql`UPDATE windows SET status = 'done', kept = ${kept}, filtered = ${filtered}
-        WHERE id = ${win.id}`;
-      console.log(`[${this.name}] Window ${win.id}: ${kept} kept, ${filtered} filtered`);
-      await project.runFinished(this.name, null);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.sql`UPDATE windows SET status = 'failed', error = ${message} WHERE id = ${win.id}`;
-      console.error(`[${this.name}] Window ${win.id} failed: ${message}`);
-      await project.runFinished(this.name, message);
-      // Rethrowing lets the queue retry it, as a new window row.
-      if (isRetryable(error)) throw error;
-    } finally {
-      this.#notify({ type: "windows" });
-    }
-  }
-
-  /**
-   * Stores one piece of the page's compressed recording, from the Worker's
-   * upload route. Pieces come every 10 seconds, numbered from 0; the first
-   * holds the file's header, so joined in order they make one file.
-   */
-  async storePart(projectId: string, n: number, mimeType: string, body: ArrayBuffer) {
-    if (projectId !== this.state.projectId) throw new Error("Wrong project");
-    if (this.state.final) throw new Error("This session has already finished");
-    const audio = this.state.audio ?? { mimeType, parts: 0, bytes: 0 };
-    // A retried upload may repeat the last piece. Anything else is a gap.
-    if (!Number.isInteger(n) || n < 0 || n > audio.parts) {
-      throw new Error(`Expected piece ${audio.parts}, got ${n}`);
-    }
-    if (mimeType !== audio.mimeType) throw new Error("The format changed mid-recording");
-    await this.env.RECORDINGS.put(partKey(this.name, n), body);
-    if (n === audio.parts) {
-      this.setState({
-        ...this.state,
-        audio: { mimeType, parts: n + 1, bytes: audio.bytes + body.byteLength },
-      });
-    }
-  }
-
   /**
    * For `?debug=true`: one WAV window of an uploaded file, from the
    * Worker's replay route. The batch model transcribes it in place of the
-   * live text, then the usual extraction runs. Windows come in order, one at
-   * a time, so the page waits for each.
+   * live text. Windows come in order, one at a time, so the page waits for
+   * each.
    */
-  async replayWindow(projectId: string, wav: ArrayBuffer, contextSegments = CONTEXT_SEGMENTS) {
+  async replayWindow(projectId: string, wav: ArrayBuffer) {
     if (projectId !== this.state.projectId) throw new Error("Wrong project");
-    if (this.state.recording || this.state.final) {
-      throw new Error("This session is recording or has finished");
-    }
+    if (this.state.recordingSince !== null) throw new Error("This session is recording");
     const segments = await new GeminiBatchSTT(this.#vertex(BATCH_MODEL)).transcribe(
       new Uint8Array(wav),
     );
     for (const { text } of segments) this.#saveSegment(text);
-    await this.queue("processWindow", { contextSegments }, { retry: { maxAttempts: 3 } });
+    const seconds = Math.max(0, wav.byteLength - WAV_HEADER_BYTES) / WAV_BYTES_PER_SECOND;
+    this.setState({ ...this.state, recordedSeconds: this.state.recordedSeconds + seconds });
     return { segments: segments.length };
-  }
-
-  /** For the Worker's download route: the recording's pieces, in order. */
-  recordingParts(projectId: string): { mimeType: string; keys: string[] } | null {
-    const { audio } = this.state;
-    if (projectId !== this.state.projectId || !audio) return null;
-    return {
-      mimeType: audio.mimeType,
-      keys: Array.from({ length: audio.parts }, (_, n) => partKey(this.name, n)),
-    };
-  }
-
-  /**
-   * Called by the page once it has stopped and uploaded the last piece.
-   * Diarizes the whole recording, then runs one last extraction over it.
-   */
-  @callable()
-  async finish() {
-    if (!this.state.audio || this.state.final?.status === "running") return;
-    if (this.state.final?.status === "done") return;
-    this.setState({ ...this.state, final: { status: "running", error: null } });
-    await this.queue("finalize", {}, { retry: { maxAttempts: 3 } });
-  }
-
-  @callable()
-  listFinalTranscript(): FinalSegment[] {
-    return this.sql<FinalSegment>`SELECT seq, speaker, text FROM final_transcript ORDER BY seq`;
-  }
-
-  /** From the queue. A retry skips the transcription if it's already done. */
-  async finalize() {
-    const { projectId, audio } = this.state;
-    if (!projectId || !audio) return;
-    const project = await getAgentByName(this.env.ProjectAgent, projectId);
-    try {
-      let segments = this.listFinalTranscript();
-      if (segments.length === 0) {
-        segments = (await this.#diarize(audio)).map((s, seq) => ({ seq, ...s }));
-        for (const s of segments) {
-          this.sql`INSERT INTO final_transcript (seq, speaker, text)
-            VALUES (${s.seq}, ${s.speaker}, ${s.text})`;
-        }
-        this.#notify({ type: "final" });
-      }
-      const { topic, existing } = await project.promptContext();
-      const proposed = await extractStatements(this.#vertex(EXTRACT_MODEL), {
-        topic,
-        existing,
-        context: "",
-        transcript: segments
-          .map((s) => (s.speaker === null ? s.text : `Speaker ${s.speaker + 1}: ${s.text}`))
-          .join("\n"),
-        pass: "final",
-      });
-      const { kept, filtered } = await project.addCandidates(
-        this.name,
-        FINAL_WINDOW,
-        "final",
-        proposed,
-      );
-      console.log(`[${this.name}] Final pass: ${kept} kept, ${filtered} filtered`);
-      this.setState({ ...this.state, final: { status: "done", error: null, kept } });
-      await project.runFinished(this.name, null);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[${this.name}] Final pass failed: ${message}`);
-      if (isRetryable(error)) throw error;
-      this.setState({ ...this.state, final: { status: "failed", error: message } });
-      await project.runFinished(this.name, message);
-    }
-  }
-
-  /** Lets the page try the final pass again, such as after a new token. */
-  @callable()
-  async retryFinish() {
-    if (this.state.final?.status !== "failed") return;
-    this.setState({ ...this.state, final: null });
-    await this.finish();
-  }
-
-  async #diarize(audio: NonNullable<SessionState["audio"]>): Promise<TranscriptSegment[]> {
-    if (audio.bytes > MAX_RECORDING_BYTES) {
-      throw new Error(
-        `The recording is ${(audio.bytes / 1024 / 1024).toFixed(1)}MB, more than the ${MAX_RECORDING_BYTES / 1024 / 1024}MB Gemini takes in one request`,
-      );
-    }
-    const bytes = new Uint8Array(audio.bytes);
-    let offset = 0;
-    for (let n = 0; n < audio.parts; n++) {
-      const part = await this.env.RECORDINGS.get(partKey(this.name, n));
-      if (!part) throw new Error(`Piece ${n} of the recording is missing`);
-      const chunk = new Uint8Array(await part.arrayBuffer());
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    const started = Date.now();
-    const segments = await new GeminiBatchSTT(this.#vertex(BATCH_MODEL)).transcribe(
-      offset === bytes.length ? bytes : bytes.slice(0, offset),
-      { diarize: true, mimeType: audio.mimeType.split(";")[0] },
-    );
-    console.log(
-      `[${this.name}] Diarized ${(offset / 1024 / 1024).toFixed(1)}MB in ${Math.round((Date.now() - started) / 1000)}s: ${segments.length} segments`,
-    );
-    return segments;
   }
 
   #vertex(model: string) {
@@ -362,21 +115,35 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   }
 
   beforeCallStart(_connection: Connection) {
-    // Recording only makes sense once the session knows its project.
-    return this.state.projectId !== null;
+    // Recording only makes sense once the session knows its project, and
+    // one phone records at a time.
+    return this.state.projectId !== null && this.state.recordingSince === null;
   }
 
-  async onCallStart(_connection: Connection) {
-    this.setState({ ...this.state, recording: true });
-    // Idempotent: a second start doesn't add a second timer.
-    await this.scheduleEvery(EXTRACT_EVERY_SECONDS, "tick");
+  onCallStart(connection: Connection) {
+    this.#caller = connection.id;
+    this.setState({ ...this.state, recordingSince: Date.now() });
   }
 
-  async onCallEnd(_connection: Connection) {
-    this.setState({ ...this.state, recording: false });
-    await this.#stopTimer();
-    // Whatever was said since the last run.
-    await this.extractNow();
+  onCallEnd(_connection: Connection) {
+    this.#stopRecording();
+  }
+
+  onClose(connection: Connection) {
+    // `onCallEnd` only runs on Stop, not when the page goes away mid-call.
+    if (connection.id === this.#caller) this.#stopRecording();
+  }
+
+  /** Adds the recording that just ended to the total. */
+  #stopRecording() {
+    const { recordingSince, recordedSeconds } = this.state;
+    this.#caller = null;
+    if (recordingSince === null) return;
+    this.setState({
+      ...this.state,
+      recordingSince: null,
+      recordedSeconds: recordedSeconds + (Date.now() - recordingSince) / 1000,
+    });
   }
 
   onTranscript(text: string, _connection: Connection) {
@@ -395,8 +162,4 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   #notify(message: SessionMessage) {
     this.broadcast(JSON.stringify(message));
   }
-}
-
-function partKey(sessionId: string, n: number) {
-  return `sessions/${sessionId}/parts/${String(n).padStart(6, "0")}`;
 }

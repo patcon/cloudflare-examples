@@ -17,9 +17,6 @@ export function Start({ projectId }: { projectId: string }) {
         >
           Start a session
         </Button>
-        <a className="text-sm underline" href={`/${encodeURIComponent(projectId)}/review`}>
-          Review this project's statements
-        </a>
       </Surface>
     </Shell>
   );

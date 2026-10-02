@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "polis-statement-extraction",
+  "name": "portal-explore",
   "compatibility_date": "2026-06-11",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -14,11 +14,6 @@
     ]
   },
   "main": "src/server/server.ts",
-  // Each session's compressed recording, for diarizing once it stops.
-  // `vite dev` keeps it on disk, under .wrangler/state.
-  "r2_buckets": [
-    { "binding": "RECORDINGS", "bucket_name": "polis-statement-extraction-recordings" }
-  ],
   "migrations": [
     {
       "new_sqlite_classes": ["ProjectAgent", "SessionAgent"],

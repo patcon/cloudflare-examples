@@ -18,12 +18,12 @@ export default defineConfig(({ mode }) => ({
   ],
   server: {
     // Each example has its own port, so they can run side by side.
-    port: 8794,
+    port: 8795,
     strictPort: true,
     // Listens on every network, as `--host` does, so other devices can reach it.
     host: true,
     // `.ts.net` lets a phone on your tailnet reach it over HTTPS, through
-    // `tailscale serve --bg 8794`. The microphone needs HTTPS.
+    // `tailscale serve --bg 8795`. The microphone needs HTTPS.
     allowedHosts: [".ts.net"],
   },
 }));
