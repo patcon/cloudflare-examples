@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkSettingsChange } from "../src/server/explore/settings";
-import { MAX_CONTEXT_CHARS } from "../src/shared/limits";
+import { MAX_CONTEXT_CHARS } from "../src/shared/constants";
 
 describe("checkSettingsChange", () => {
   it("keeps the fields it knows, and drops the rest", () => {

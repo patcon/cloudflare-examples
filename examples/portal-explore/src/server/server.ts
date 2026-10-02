@@ -1,13 +1,11 @@
 import { getAgentByName } from "agents";
 import { Hono, type Context } from "hono";
 import { agentsMiddleware } from "hono-agents";
+import { MAX_REPLAY_WINDOW_BYTES } from "../shared/constants";
 import { isProjectId, isSessionId } from "../shared/ids";
 
 export { ProjectAgent } from "./project-agent";
 export { SessionAgent } from "./session-agent";
-
-/** A 5-minute 16kHz WAV window, for `?debug=true`, is about 9.6MB. */
-const MAX_WINDOW_BYTES = 12 * 1024 * 1024;
 
 type AppEnv = { Bindings: Env };
 
@@ -35,7 +33,7 @@ app.post("/api/:projectId/sessions/:sessionId/replay", async (c) => {
     return c.text("Content-Type must be audio/wav", 415);
   }
   const wav = await c.req.arrayBuffer();
-  if (wav.byteLength === 0 || wav.byteLength > MAX_WINDOW_BYTES) {
+  if (wav.byteLength === 0 || wav.byteLength > MAX_REPLAY_WINDOW_BYTES) {
     return c.text("Bad window size", 413);
   }
   try {

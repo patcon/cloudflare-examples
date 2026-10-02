@@ -1,4 +1,4 @@
-import { MAX_CONTEXT_CHARS, MAX_CUSTOM_PROMPT_CHARS } from "../../shared/limits";
+import { MAX_CONTEXT_CHARS, MAX_CUSTOM_PROMPT_CHARS } from "../../shared/constants";
 import { DEFAULT_SETTINGS, type ExploreMode, type ReplySettings } from "./prompt";
 
 /** A project's Explore settings: whether it's on, and how replies are written. */

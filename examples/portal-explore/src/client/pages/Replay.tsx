@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { Button, Surface, Text } from "@cloudflare/kumo";
 import { UploadSimpleIcon } from "@phosphor-icons/react";
+import { REPLAY_WINDOW_SECONDS } from "../../shared/constants";
 import { decodeTo16kMono } from "../audio/replay";
 import { cutWindows, toWav } from "../audio/wav";
-
-/** How much of the file each batch transcription covers. */
-const WINDOW_SECONDS = 300;
 
 /**
  * For `?debug=true`: runs an audio file through the session in place of the
@@ -25,7 +23,7 @@ export function Replay({ projectId, sessionId }: { projectId: string; sessionId:
     setError(null);
     try {
       setProgress("Decoding…");
-      const windows = cutWindows(await decodeTo16kMono(file), WINDOW_SECONDS);
+      const windows = cutWindows(await decodeTo16kMono(file), REPLAY_WINDOW_SECONDS);
       for (const [i, samples] of windows.entries()) {
         setProgress(`Transcribing window ${i + 1} of ${windows.length}…`);
         const resp = await fetch(`${base}/replay`, {
@@ -49,8 +47,9 @@ export function Replay({ projectId, sessionId }: { projectId: string; sessionId:
         Debug: replay an audio file
       </Text>
       <Text size="xs" variant="secondary">
-        Instead of recording, each {WINDOW_SECONDS / 60} minutes of the file is transcribed and
-        added to the transcript, as if it had been said live. Its length counts as recorded time.
+        Instead of recording, each {REPLAY_WINDOW_SECONDS / 60} minutes of the file is transcribed
+        and added to the transcript, as if it had been said live. Its length counts as recorded
+        time.
       </Text>
       <input
         type="file"

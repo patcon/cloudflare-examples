@@ -1,13 +1,10 @@
+import { CHARS_PER_TOKEN, OTHERS_TOKEN_LIMIT, TOKENS_PER_SESSION } from "../../shared/constants";
+
 /**
  * Turns sessions into the text the reply prompt quotes, ported from the
  * dembrane portal's `reply.ts`. Sessions have no participant name or tags,
  * so each is named by a label and has no `<tags>`.
  */
-
-/** The most the other sessions add to a prompt, in all. */
-export const OTHERS_TOKEN_LIMIT = 80_000;
-/** Each other session is cut to about this many tokens. */
-export const TOKENS_PER_SESSION = 4_000;
 
 export interface Timed {
   /** Milliseconds since the epoch. */
@@ -15,12 +12,9 @@ export interface Timed {
   text: string;
 }
 
-/**
- * There's no tokenizer in a Worker, so tokens are estimated at 4 characters
- * each, which is about right for English.
- */
+/** There's no tokenizer in a Worker, so tokens are estimated from length. */
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
 }
 
 /** How a session is named in a prompt. */

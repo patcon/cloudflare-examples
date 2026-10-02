@@ -3,7 +3,7 @@ import { useAgent } from "agents/react";
 import { Button, InputArea, Radio, Surface, Switch, Text } from "@cloudflare/kumo";
 import type { ProjectAgent, ProjectState } from "../../server/project-agent";
 import type { ExploreMode } from "../../server/explore/prompt";
-import { MAX_CONTEXT_CHARS, MAX_CUSTOM_PROMPT_CHARS } from "../../shared/limits";
+import { MAX_CONTEXT_CHARS, MAX_CUSTOM_PROMPT_CHARS } from "../../shared/constants";
 import { Shell } from "../ui";
 
 const MODES: { value: ExploreMode; label: string; description: string }[] = [

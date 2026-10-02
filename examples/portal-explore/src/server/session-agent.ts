@@ -2,7 +2,7 @@ import { Agent, callable, getAgentByName, type Connection } from "agents";
 import { withVoiceInput, type Transcriber } from "agents/voice";
 import { GeminiBatchSTT, GeminiLiveSTT } from "@cloudflare/voice-gemini";
 import { isProjectId } from "../shared/ids";
-import { SLOW_AFTER_MS } from "../shared/limits";
+import { SLOW_AFTER_MS } from "../shared/constants";
 import { recordedSecondsAt, whyNotExplore, type ReplyStatus } from "../shared/rules";
 import { streamReply } from "./explore/gemini";
 import { buildPrompt } from "./explore/prompt";

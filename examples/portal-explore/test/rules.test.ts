@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COOLDOWN_MS } from "../src/shared/limits";
+import { COOLDOWN_MS } from "../src/shared/constants";
 import { recordedSecondsAt, whyNotExplore, type ExploreFacts } from "../src/shared/rules";
 
 const ready: ExploreFacts = {

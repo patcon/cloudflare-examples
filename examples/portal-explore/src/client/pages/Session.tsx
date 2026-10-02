@@ -12,7 +12,7 @@ import type {
   SessionMessage,
   SessionState,
 } from "../../server/session-agent";
-import { MIN_RECORDED_SECONDS } from "../../shared/limits";
+import { MIN_RECORDED_SECONDS } from "../../shared/constants";
 import { recordedSecondsAt, whyNotExplore } from "../../shared/rules";
 import { Shell } from "../ui";
 import { Replay } from "./Replay";

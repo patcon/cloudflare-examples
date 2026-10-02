@@ -1,4 +1,4 @@
-import { COOLDOWN_MS, MIN_RECORDED_SECONDS } from "./limits";
+import { COOLDOWN_MS, MIN_RECORDED_SECONDS } from "./constants";
 
 export type ReplyStatus = "idle" | "thinking" | "streaming" | "slow" | "failed";
 
