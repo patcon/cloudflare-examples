@@ -4,6 +4,17 @@ A group sits around one phone, which records their conversation, and Gemini tran
 
 It's a port of the **Explore** half of the dembrane portal's ECHO button, from `dembrane-echo`. It's based on [`polis-statement-extraction`](../polis-statement-extraction), with its recording and live transcription, but without statement extraction, review or diarization. There's no login.
 
+**Contents**
+
+- [Run it](#run-it)
+- [Pages](#pages)
+- [How a reply works](#how-a-reply-works)
+  - [The prompts](#the-prompts)
+  - [Limits](#limits)
+- [Replaying an audio file](#replaying-an-audio-file)
+- [How it works](#how-it-works)
+  - [Files](#files)
+
 | start a new session | record from your mic | load test audio from file |
 |---|---|---|
 | ![start a new session](docs/start-a-new-session.png) | ![record from your mic](docs/record-from-your-mic.png) | ![load test audio from file](docs/load-test-audio-from-file.png) |
@@ -11,6 +22,42 @@ It's a port of the **Explore** half of the dembrane portal's ECHO button, from `
 | Explore mode reply: summary | set Explore mode to brainstorm | Explore mode reply: brainstorm |
 |---|---|---|
 | ![Explore mode reply: summary](docs/explore-mode-reply-summary.png) | ![set Explore mode to brainstorm](docs/set-explore-mode-to-brainstorm.png) | ![Explore mode reply: brainstorm](docs/explore-mode-reply-brainstorm.png) |
+
+How the parts connect. Each name, such as session `a1` or project `demo`, gets its own Durable Object. Pages and Gemini stay connected to the session's object and stream as they go, and objects call each other directly. [How it works](#how-it-works) has more.
+
+```text
+BROWSER    ┌───────────────────────┐                ┌───────────────────────┐
+           │ Recording phone       │                │ Settings page         │
+           │ /demo/sessions/a1     │                │ /demo/settings        │
+           └───────────╥───────────┘                └───────────╥───────────┘
+                       ║ WebSocket: audio up;                   ║ WebSocket:
+                       ║ transcript, reply down                 ║ settings, synced
+WORKER     ┌───────────╨────────────────────────────────────────╨───────────┐
+           │ Hono: /agents/:agent/:name goes to the object with that name   │
+           └───────────╥────────────────────────────────────────╥───────────┘
+                       ║ same WebSocket                         ║
+DURABLE    ┌───────────╨───────────┐   RPC:         ┌───────────╨───────────┐
+OBJECTS    │ SessionAgent "a1"     │   settings()   │ ProjectAgent "demo"   │
+           │ SQLite: segments,     │ ─────────────▶ │ SQLite: sessions      │
+           │   replies             │   otherTrans-  │ state: settings       │
+           │ state: reply, draft   │   cripts()     └───────────┬───────────┘
+           └─────╥───────────╥─────┘                            │ RPC, in parallel:
+                 ║           ║                                  │ transcriptForContext()
+   WebSocket:    ║           ║ HTTPS: prompt up                 ▼
+   audio up,     ║           ║ SSE: the reply       ┌───────────────────────┐
+   transcript    ║           ║ streams down         │ SessionAgent "b2"     ├┐
+   down          ║           ║                      │ SessionAgent "c3" …   ││
+                 ║           ║                      └┬──────────────────────┘│
+VERTEX AI        ║           ║                       └───────────────────────┘
+           ┌─────╨─────┐ ┌───╨───────┐
+           │Gemini Live│ │Gemini     │
+           │transcribes│ │Flash      │
+           └───────────┘ │writes the │
+                         │reply      │
+                         └───────────┘
+
+ ║  stays open, streams both ways     ─▶  RPC: one call, one answer
+```
 
 ## Run it
 
@@ -49,6 +96,48 @@ A project is any name, made the first time it's used. `/:projectId/` on its own 
 3. **The prompt.** The agent builds it from the original's `get_reply_system` template. It holds the project's context; the mode's prompt (`summarize`, `brainstorm`, or the project's own); the project's other sessions; and this session's transcript, with its earlier replies written in where they came.
 4. **Other sessions.** The project asks each of its other sessions for its transcript, in parallel. Newest first, each is cut to about 4,000 tokens, and they stop at 80,000 in all. A session that doesn't answer is skipped. The settings page shows what each session adds.
 5. **The reply** streams from `gemini-3.5-flash`. Each piece goes into the agent's state, so every open page sees it, and a page that reloads mid-reply catches up. With nothing back after 20 seconds, the page says it's still working. The finished reply is saved and listed under the transcript. If it fails, the error shows with **Try again**.
+
+The same steps, in order. While recording, both WebSockets stay open. Once the reply starts, `explore()` returns, and the rest runs inside `keepAliveWhile()`. The reply reaches the page through state sync, a piece at a time, not as `explore()`'s return value.
+
+```mermaid
+sequenceDiagram
+  participant Page as Recording page
+  participant S as SessionAgent "a1"
+  participant L as Gemini Live
+  participant P as ProjectAgent "demo"
+  participant O as Other SessionAgents
+  participant G as Gemini Flash
+  rect rgba(13, 148, 136, 0.12)
+    Note over Page,L: Recording: two WebSockets stay open
+    loop while recording
+      Page->>S: audio (WebSocket)
+      S->>L: audio (WebSocket)
+      L-->>S: each finished utterance
+      S-->>Page: broadcast: new segment
+    end
+  end
+  Page->>S: explore()
+  Note right of S: checks the rules,<br/>status: thinking
+  S->>P: settings()
+  P-->>S: settings
+  S-->>Page: returns
+  rect rgba(234, 88, 12, 0.12)
+    Note over S,G: inside keepAliveWhile(), even with no page connected
+    S->>P: otherTranscripts("a1")
+    par each other session
+      P->>O: transcriptForContext()
+      O-->>P: transcript
+    end
+    P-->>S: newest first, cut to the token budget
+    S->>G: prompt (HTTPS)
+    loop SSE: a piece every few hundred ms
+      G-->>S: next piece
+      S-->>Page: state sync to every open page: replyDraft
+    end
+    S->>S: saves it to replies
+    S-->>Page: broadcast: the finished reply
+  end
+```
 
 ### The prompts
 
