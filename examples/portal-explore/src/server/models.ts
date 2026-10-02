@@ -9,3 +9,6 @@ export const LIVE_MODEL = "gemini-3.5-transcribe-live-preview";
 
 /** Transcribes each window of a replayed file, for `?debug=true`. */
 export const BATCH_MODEL = "gemini-3.5-transcribe-preview";
+
+/** Writes the 1–3 sentence reply that Explore asks for. */
+export const REPLY_MODEL = "gemini-3.5-flash";

@@ -1,0 +1,6 @@
+data: {"candidates": [{"content": {"role": "model","parts": [{"text": "It sounds like","thoughtSignature": "abc"}]}}],"modelVersion": "gemini-3.5-flash"}
+
+data: {"candidates": [{"content": {"role": "model","parts": [{"text": " we keep coming back to housing."}]}}],"modelVersion": "gemini-3.5-flash"}
+
+data: {"candidates": [{"content": {"role": "model","parts": [{"text": ""}]},"finishReason": "STOP"}],"usageMetadata": {"promptTokenCount": 900,"candidatesTokenCount": 12,"totalTokenCount": 912},"modelVersion": "gemini-3.5-flash"}
+
