@@ -158,6 +158,25 @@ Generation builds the prompt from this session's transcript and default settings
 
 **Estimated scope:** Small
 
+## Task 7b: List the project's sessions on the settings page
+
+**Description:** On `/:projectId/settings`, list the project's sessions, newest first, each linking back to its session page. For each, show what it adds to another session's reply: about how many tokens, and whether it goes in whole, is cut to its budget, is left out over the total, is empty, or didn't answer. Each can be opened to show the exact text that goes into the prompt. A session's own Explore leaves itself out, so the list shows what a new session would see.
+
+**Acceptance criteria:**
+- [ ] Every session in the project is listed, with a link back to it.
+- [ ] Each shows its status and token estimate, and opens to the text a prompt gets.
+- [ ] The list uses the same functions as `otherTranscripts`, so it can't drift from what replies see.
+
+**Verification:**
+- [ ] `pnpm typecheck && pnpm lint && pnpm test`, with the planning as a pure function in `test/prompt.test.ts`
+- [ ] Manual check: two replayed sessions show as included, with their text
+
+**Dependencies:** Tasks 6, 7
+
+**Files likely touched:** `src/server/explore/transcript.ts`, `src/server/project-agent.ts`, `src/client/pages/Settings.tsx`, `test/prompt.test.ts`
+
+**Estimated scope:** Small
+
 ### Checkpoint: Whole feature
 - [ ] `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test` pass
 - [ ] Every acceptance criterion above is met

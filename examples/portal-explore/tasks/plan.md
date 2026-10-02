@@ -92,6 +92,7 @@ The tasks and their checks are in [`todo.md`](todo.md).
 **Phase 3: Project context**
 - [ ] Task 6: Project settings and the settings page
 - [ ] Task 7: Other sessions as context
+- [ ] Task 7b: List the project's sessions on the settings page
 - [ ] Checkpoint: whole feature
 
 **Phase 4: Docs**
