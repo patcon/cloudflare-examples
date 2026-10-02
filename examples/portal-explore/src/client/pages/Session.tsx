@@ -3,7 +3,8 @@ import { useAgent } from "agents/react";
 import { useVoiceInput } from "agents/voice/react";
 import { Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
 import { ArrowClockwiseIcon, MicrophoneIcon, SparkleIcon, StopIcon } from "@phosphor-icons/react";
-import { useWakeLock } from "../audio/wake-lock";
+import { useNow } from "../hooks/use-now";
+import { useWakeLock } from "../hooks/use-wake-lock";
 import type {
   Reply,
   Segment,
@@ -273,16 +274,6 @@ function Replies({
       )}
     </Surface>
   );
-}
-
-/** The time, ticking each second, for the recorded time and the cooldown. */
-function useNow() {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  return now;
 }
 
 function formatDuration(seconds: number) {
