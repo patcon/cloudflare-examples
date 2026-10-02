@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
 import { Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
-import { ArrowClockwiseIcon, MicrophoneIcon, SparkleIcon, StopIcon } from "@phosphor-icons/react";
+import {
+  ArrowClockwiseIcon,
+  CaretRightIcon,
+  MicrophoneIcon,
+  SparkleIcon,
+  StopIcon,
+} from "@phosphor-icons/react";
 import { useNow } from "../hooks/use-now";
 import { useVoiceRecorder } from "../hooks/use-voice-recorder";
 import type { ProjectAgent, ProjectState } from "../../server/project-agent";
@@ -178,23 +184,29 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         )}
       </Surface>
 
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2 min-h-48">
-        <Text size="xs" variant="secondary">
-          Live transcript
-        </Text>
-        {segments.length === 0 && !voice.interimTranscript && (
-          <Text size="sm" variant="secondary">
-            Nothing yet.
-          </Text>
-        )}
-        {segments.map((s) => (
-          <p key={s.id} className="text-sm text-kumo-default">
-            {s.text}
-          </p>
-        ))}
-        {voice.interimTranscript && (
-          <p className="text-sm text-kumo-subtle">{voice.interimTranscript}</p>
-        )}
+      <Surface className="p-4 rounded-xl ring ring-kumo-line">
+        {/* Open on every load; whether it was closed isn't kept. */}
+        <details open className="group">
+          <summary className="flex items-center gap-1 cursor-pointer list-none text-xs text-kumo-subtle [&::-webkit-details-marker]:hidden">
+            <CaretRightIcon size={12} className="transition-transform group-open:rotate-90" />
+            Live transcript
+          </summary>
+          <div className="flex flex-col gap-2 mt-2 min-h-40">
+            {segments.length === 0 && !voice.interimTranscript && (
+              <Text size="sm" variant="secondary">
+                Nothing yet.
+              </Text>
+            )}
+            {segments.map((s) => (
+              <p key={s.id} className="text-sm text-kumo-default">
+                {s.text}
+              </p>
+            ))}
+            {voice.interimTranscript && (
+              <p className="text-sm text-kumo-subtle">{voice.interimTranscript}</p>
+            )}
+          </div>
+        </details>
       </Surface>
 
       {state && (replies.length > 0 || state.replyStatus !== "idle") && (
