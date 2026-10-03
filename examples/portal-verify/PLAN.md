@@ -14,6 +14,7 @@ This is a plan. No code exists yet. It starts from [`portal-explore`](../portal-
   - [What uses approved outcomes](#what-uses-approved-outcomes)
 - [The prototype](#the-prototype)
   - [What the participant sees](#what-the-participant-sees-1)
+  - [The flow](#the-flow)
   - [What the host sees](#what-the-host-sees-1)
   - [Agents and data](#agents-and-data)
   - [Rules](#rules)
@@ -22,7 +23,7 @@ This is a plan. No code exists yet. It starts from [`portal-explore`](../portal-
 - [How it differs from the original](#how-it-differs-from-the-original)
 - [What doesn't make the cut](#what-doesnt-make-the-cut)
 - [Steps](#steps)
-- [Open questions](#open-questions)
+- [Decisions](#decisions)
 
 ## Sources
 
@@ -91,7 +92,7 @@ Outside Verify itself, approved outcomes feed:
 
 ## The prototype
 
-Copied from `portal-explore`, with Explore taken out (see [Open questions](#open-questions)) and Verify put in. The recording, live transcription, replay, the two agents and the settings page stay as they are.
+Copied from `portal-explore`, with Explore taken out (see [Decisions](#decisions)) and Verify put in. The recording, live transcription, replay, the two agents and the settings page stay as they are.
 
 ### What the participant sees
 
@@ -103,6 +104,43 @@ Everything is on the session page, `/:projectId/sessions/:sessionId`, so the rec
 4. **The outcome**, rendered as Markdown, with **Revise**, **Edit** and **Approve**, and **Back** to leave it pending. Revise shows the original's "No new feedback" message and 30-second wait. Edit is a plain text area, saved to the agent on **Save**.
 5. **Approved outcomes** are listed under the transcript with the topic's emoji, label and time. Tapping one expands it in place.
 6. A pending outcome, made but not yet approved, comes back when the page reloads. Starting a new one replaces it, and the old one stays in the table, unapproved, as in the original.
+
+### The flow
+
+The phone records the whole time, and everything said goes into `segments`, whatever view the page is on.
+
+```text
+ PHONE (session page)              SessionAgent "a1"               ProjectAgent      Gemini
+ ═══════════════ mic → Gemini Live → segments s1 s2 s3 … (never stops) ═══════════════
+
+ [Verify] ──── verify("agreements") ──▶ rules ok? ── topic(key) ──────▶ prompt
+                                                ◀──────────────────────
+ ┌ instructions ┐                       generate_artifact:
+ │ 1 you'll get │                       transcript + earlier ─────────────────────▶ ┐
+ │ 2 read aloud │  ◀── state sync ───── outcomes                                   │
+ │ 3 revise     │      (text streams    verifyDraft ◀─────────────────────────────── ┘
+ │ 4 approve    │       in)             saved as outcome v1, pending
+ └ [Next] ──────┘
+        │
+        ▼
+ ┌ outcome v1 ──────────────┐
+ │ group reads it aloud,    │ ── voice ──▶ s5 s6 …  (just more segments)
+ │ says what's wrong        │
+ │                          │
+ │ [Revise] ─── revise() ───┼────────────▶ feedback = segments since v1 was
+ │                          │              made or last revised
+ │                          │              revise_artifact:
+ │                          │              transcript + v1 + feedback ───────────────▶ ┐
+ │                          │ ◀ state sync  v2 ◀──────────────────────────────────────── ┘
+ │ [Edit] ─ text ───────────┼────────────▶ editOutcome(): saved in the agent
+ │                          │
+ │ [Approve] ── approve() ──┼────────────▶ approved_at = now
+ └──────────────────────────┘                    │
+        │                                        │
+        ▼                                        ▼
+ approved outcomes listed            Settings page ── approvedOutcomes() over RPC
+ under the transcript                (the host sees them)
+```
 
 ### What the host sees
 
@@ -198,7 +236,7 @@ Each of these is left out of the prototype. The ones marked **later** are worth 
 
 | Left out | Why |
 |---|---|
-| **Explore** | Keeps the example about Verify. See [Open questions](#open-questions) |
+| **Explore** | Keeps the example about Verify. See [Decisions](#decisions) |
 | **"Verify on finish"**: the banner and the prompt on Stop | A nudge, not the feature. Stopping here doesn't end the session either. **Later**, and small |
 | **Read aloud** | Dead in the Bun server: `read_aloud_stream_url` is always `""` |
 | **Other languages** for labels and outcomes | `portal-explore` is English only too. **Later**, from the 8-language labels in `defaults.ts` |
@@ -227,9 +265,43 @@ Each step ends with something to check by hand or by test.
 8. **The host's view.** `approvedOutcomes()` over RPC, under each session on the settings page. *Check:* approve in one tab and see it on the settings page.
 9. **Docs.** README in the style of `portal-explore`'s, with screenshots in a table and the diagrams; this plan's differences table carried into its own `PLAN.md`. *Check:* every command in the README works as written.
 
-## Open questions
+## Decisions
 
-1. ~~**Explore alongside Verify, or Verify alone?**~~ Decided: Verify alone.
-2. **Revise feedback since the last revision, or since the outcome was made?** The plan takes "since the last revision", so feedback isn't applied twice. The original's "since it was made" may be on purpose: the full feedback each time, against an outcome that already reflects some of it.
-3. **Edits saved to the agent at once, or kept in the browser until Approve?** The plan saves them, so Revise starts from the edit and other tabs see it. The original keeps them in the browser.
-4. **Which model?** Outcomes are longer and more careful than Explore's 1–3 sentences, and the original uses its pro model with thinking. The plan starts on `gemini-3.5-flash` to match `portal-explore`, and leaves the swap for later.
+Settled on 3 October 2026.
+
+1. **Verify alone, without Explore.** It keeps the example small and about one thing. Keeping Explore would have made this the whole ECHO button, with its choice screen.
+2. **Revise sends what's been said since the outcome was made or last revised.** The original sends everything since it was made, every time, so feedback an earlier revision already used goes in again. Both send the whole transcript and the current outcome too.
+
+   ```text
+   time ───────────────────────────────────────────────────────────────▶
+   segments:  s1 s2 s3 s4 │ s5 s6 │ s7 s8 │
+                          ▲       ▲       ▲
+                      v1 made  Revise#1  Revise#2
+
+   Original ("since it was made"):
+     Revise#1 feedback = s5 s6
+     Revise#2 feedback = s5 s6 s7 s8   ← s5 s6 a second time, already in v2
+
+   Here ("since it was made or last revised"):
+     Revise#1 feedback = s5 s6
+     Revise#2 feedback = s7 s8
+   ```
+
+3. **Edits are saved to the agent at once.** Revise then starts from the edit, every tab sees it, and a reload keeps it. The original keeps an edit in the browser until Approve.
+
+   ```text
+   Original:
+     v2 ──[Edit]──▶ v2' (only in this phone's browser)
+                      ├─[Approve]──▶ v2' is saved and approved   ✓
+                      ├─[Revise] ──▶ the server revises v2;
+                      │              v2' is thrown away          ✗
+                      └─ reload ───▶ v2' is lost                 ✗
+
+   Here:
+     v2 ──[Edit]──▶ v2' saved in the agent (every open tab sees it)
+                      ├─[Approve]──▶ v2' is approved
+                      ├─[Revise] ──▶ v2' is revised, with the new feedback
+                      └─ reload ───▶ v2' is still there
+   ```
+
+4. **`gemini-3.5-flash`, without a thinking budget,** for both generating and revising, to match `portal-explore`. The original uses its pro model with a 2048-token thinking budget. Swapping is one constant in `models.ts`, left for later.
