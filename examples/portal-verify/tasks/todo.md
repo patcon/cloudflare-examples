@@ -1,320 +1,274 @@
 # Tasks: portal-verify
 
-See [`../PLAN.md`](../PLAN.md) for the design, the order and the risks. Original sources are in `~/repos/dembrane-echo` at `feat/bun-migration`: `dembrane/platform/packages/verify/` and `dembrane/frontend/src/components/participant/verify/`.
+[`../PLAN.md`](../PLAN.md) has the design, the sequence and the risks. Original sources: `~/repos/dembrane-echo` at `feat/bun-migration`, in `dembrane/platform/packages/verify/` and `dembrane/frontend/src/components/participant/verify/`.
 
-Every task also clears `pnpm test`, `pnpm typecheck` and `pnpm lint`. Any check that calls Vertex uses a replay of a few seconds of speech, made with `say`.
+For each task:
+
+- Make sure that `pnpm test`, `pnpm typecheck` and `pnpm lint` pass. The tasks below show only the tests that are specific to them.
+- For a check that calls Vertex, use a replay of a few seconds of speech, made with `say`.
 
 ## Task 1: Copy `portal-explore` as `portal-verify`
 
-**Description:** Copy `examples/portal-explore` to `examples/portal-verify`, leaving out `node_modules/`, `.wrangler/`, `.dev.vars`, `docs/`, `PLAN.md` and `README.md`, and keeping this folder's `PLAN.md` and `tasks/`. Rename it in `package.json` and `wrangler.jsonc`. Set the dev port to 8796, since 8790 and 8793–8795 are taken. Start a stub `README.md` that says it's in progress.
+Scope: S. Depends on: none.
 
-**Acceptance criteria:**
-- [ ] No file in the folder names `portal-explore`, except where it credits it as the source
-- [ ] `pnpm install` makes its own lockfile; the folder has its own `.gitignore`
+1. Copy `examples/portal-explore` to `examples/portal-verify`. Do not copy `node_modules/`, `.wrangler/`, `.dev.vars`, `docs/`, `PLAN.md` or `README.md`. Keep the `PLAN.md` and `tasks/` of this folder.
+2. Change the name in `package.json` and `wrangler.jsonc`.
+3. Set the dev port to 8796. Ports 8790 and 8793–8795 are in use.
+4. Write a stub `README.md` that says the work is in progress.
+
+- [ ] No file names `portal-explore`, except to credit it as the source
+- [ ] `pnpm install` makes a lockfile for this folder. The folder has its own `.gitignore`
 - [ ] `pnpm dev` serves on <http://localhost:8796>
+- [ ] Manual: a session at `/demo/start` records from the mic and shows the live transcript
 
-**Verification:**
-- [ ] Tests pass: `pnpm test`
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: a session at `/demo/start` records from the mic and shows the live transcript
-
-**Dependencies:** None
-
-**Files likely touched:** `package.json`, `pnpm-lock.yaml`, `wrangler.jsonc`, `vite.config.ts`, `README.md`
-
-**Estimated scope:** S (a copy and four edits)
+Files: `package.json`, `pnpm-lock.yaml`, `wrangler.jsonc`, `vite.config.ts`, `README.md`
 
 ## Task 2: Remove Explore from the session
 
-**Description:** Take Explore out of `SessionAgent` and the session page: `explore()`, `#generateReply`, `#saveReply`, `#otherSessions`, `#formatted`, `transcriptForContext`, the `replies` table and its migration, and the `reply*` and `lastReplyAt` state. On the page, the Explore button, meter and `Replies`. In `rules.ts`, `whyNotExplore` and `cooldownLeft`; keep `recordedSecondsAt`. Keep `streamReply` and the SSE parser for Task 7.
+Scope: M. Depends on: Task 1.
 
-**Acceptance criteria:**
-- [ ] `SessionState` holds only `projectId`, `recordingSince` and `recordedSeconds`
-- [ ] The session page shows recording, the recorded time, the transcript and replay, and nothing about Explore
+1. In `SessionAgent`, remove `explore()`, `#generateReply`, `#saveReply`, `#otherSessions`, `#formatted`, `transcriptForContext`, the `replies` table and its migration, and the `reply*` and `lastReplyAt` state.
+2. On the session page, remove the Explore button, the meter and `Replies`.
+3. In `rules.ts`, remove `whyNotExplore` and `cooldownLeft`. Keep `recordedSecondsAt`.
+4. Keep `streamReply` and the SSE parser for Task 7.
+
+- [ ] `SessionState` has only `projectId`, `recordingSince` and `recordedSeconds`
+- [ ] The session page shows the recording, the recorded time, the transcript and replay. It shows nothing about Explore
 - [ ] `test/rules.test.ts` keeps its `recordedSecondsAt` cases
+- [ ] Manual: record, stop and record again. The transcript continues to grow
 
-**Verification:**
-- [ ] Tests pass: `pnpm test`
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: record, stop and record again; the transcript keeps growing
-
-**Dependencies:** Task 1
-
-**Files likely touched:** `src/server/session-agent.ts`, `src/client/pages/Session.tsx`, `src/shared/rules.ts`, `test/rules.test.ts`
-
-**Estimated scope:** M
+Files: `src/server/session-agent.ts`, `src/client/pages/Session.tsx`, `src/shared/rules.ts`, `test/rules.test.ts`
 
 ## Task 3: Remove Explore from the project
 
-**Description:** Take Explore out of `ProjectAgent` and the settings page: `otherTranscripts`, `contextPreview` and `#planContext`; the Explore settings and their checks; `explore/prompt.ts`, the `get_reply_*` templates, and the planning functions in `explore/transcript.ts`. Keep the session list on the settings page. Rename `src/server/explore/` to `src/server/verify/`, keeping `gemini.ts`, `sse.ts` and a transcript helper that joins segments. Remove the constants nothing uses any more.
+Scope: M. Depends on: Task 2.
 
-**Acceptance criteria:**
-- [ ] `ProjectState` is an empty settings object, ready for Task 12
-- [ ] The settings page lists the project's sessions, and nothing about Explore
-- [ ] No file imports `explore/`; `grep -ri explore src test` finds only comments that credit the source
+1. In `ProjectAgent` and the settings page, remove `otherTranscripts`, `contextPreview`, `#planContext`, and the Explore settings and their checks.
+2. Remove `explore/prompt.ts`, the `get_reply_*` templates, and the planning functions in `explore/transcript.ts`.
+3. Keep the session list on the settings page.
+4. Rename `src/server/explore/` to `src/server/verify/`. Keep `gemini.ts`, `sse.ts` and a transcript helper that joins segments.
+5. Remove the constants that nothing uses now.
 
-**Verification:**
-- [ ] Tests pass: `pnpm test`, with `prompt.test.ts` and `settings.test.ts` removed or reduced to what's left
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: a new session shows up on `/demo/settings`
+- [ ] `ProjectState` is an empty settings object, for Task 12
+- [ ] The settings page shows the sessions of the project, and nothing about Explore
+- [ ] No file imports `explore/`. `grep -ri explore src test` finds only comments that credit the source
+- [ ] `prompt.test.ts` and `settings.test.ts` are removed, or have only the remaining cases
+- [ ] Manual: a new session shows on `/demo/settings`
 
-**Dependencies:** Task 2
-
-**Files likely touched:** `src/server/project-agent.ts`, `src/client/pages/Settings.tsx`, `src/server/verify/*` (from `explore/`), `src/shared/constants.ts`, `test/prompt.test.ts`, `test/settings.test.ts`
-
-**Estimated scope:** M
+Files: `src/server/project-agent.ts`, `src/client/pages/Settings.tsx`, `src/server/verify/*` (from `explore/`), `src/shared/constants.ts`, `test/prompt.test.ts`, `test/settings.test.ts`
 
 ## Checkpoint: Foundation
 
 - [ ] Tests, typecheck and lint pass
-- [ ] A session records, transcribes, stops and records again; it shows on the settings page
+- [ ] A session records, transcribes, stops and records again. It shows on the settings page
 - [ ] Review with the user
 
 ## Task 4: The Verify prompts
 
-**Description:** Copy `generate_artifact.en.jinja` and `revise_artifact.en.jinja` unchanged into `src/server/prompts/`. In `src/server/verify/prompt.ts`, render them with LiquidJS as `portal-explore` did, with `language: "English"` and `pii_redaction: false`, and build both prompts:
-- `generatePrompt(topicPrompt, projectName, earlier, transcript)` returns `{system, user}`. The user message keeps `service.ts`'s shape: `Project:`, earlier outcomes as `- [time] (key) content` or `Previous artifacts: None`, `Conversation transcript:`, or `No transcript available.`, and `Audio attachments: None.`
-- `revisePrompt(transcript, outcome, feedback)` returns `{system, user}`, the user message being the original's fixed instruction.
+Scope: S. Depends on: Task 3.
 
-**Acceptance criteria:**
-- [ ] The rendered system prompts hold the topic's prompt, or the transcript, outcome and feedback, and no `{{` or `{%`
-- [ ] Nothing is HTML-escaped: a transcript with `<` and `&` goes in as written
-- [ ] The PII block isn't rendered
+1. Copy `generate_artifact.en.jinja` and `revise_artifact.en.jinja` into `src/server/prompts/`, with no changes.
+2. In `src/server/verify/prompt.ts`, render them with LiquidJS, as `portal-explore` does. Use `language: "English"` and `pii_redaction: false`.
+3. Write `generatePrompt(topicPrompt, projectName, earlier, transcript)`. It returns `{system, user}`. The user message has the shape in `service.ts`:
+   - `Project:`
+   - Earlier outcomes as `- [time] (key) content`, or `Previous artifacts: None`
+   - `Conversation transcript:`, or `No transcript available.`
+   - `Audio attachments: None.`
+4. Write `revisePrompt(transcript, outcome, feedback)`. It returns `{system, user}`. The user message is the fixed instruction of the original.
 
-**Verification:**
-- [ ] Tests pass: `pnpm test prompt`, with one snapshot of each prompt
-- [ ] Build succeeds: `pnpm typecheck`
+- [ ] The system prompts have the topic prompt, or the transcript, outcome and feedback. They have no `{{` or `{%`
+- [ ] There is no HTML escape: a transcript with `<` and `&` stays the same
+- [ ] The PII block does not render
+- [ ] `pnpm test prompt` has one snapshot of each prompt
 
-**Dependencies:** Task 3
-
-**Files likely touched:** `src/server/prompts/generate_artifact.en.jinja`, `src/server/prompts/revise_artifact.en.jinja`, `src/server/verify/prompt.ts`, `test/prompt.test.ts`
-
-**Estimated scope:** S
+Files: `src/server/prompts/generate_artifact.en.jinja`, `src/server/prompts/revise_artifact.en.jinja`, `src/server/verify/prompt.ts`, `test/prompt.test.ts`
 
 ## Task 5: A system prompt in `streamReply`
 
-**Description:** Give `streamReply` an optional system prompt, sent as `systemInstruction: {parts: [{text}]}` beside `contents`. Rename it `streamText`, since it writes outcomes now.
+Scope: XS. Depends on: Task 3.
 
-**Acceptance criteria:**
-- [ ] With a system prompt, the request body has `systemInstruction`; without one, it doesn't
-- [ ] Errors and blocked replies behave as before
+1. Add an optional system prompt to `streamReply`. Send it as `systemInstruction: {parts: [{text}]}`, next to `contents`.
+2. Rename the function `streamText`, because it now writes outcomes.
 
-**Verification:**
-- [ ] Tests pass: `pnpm test gemini`, a new test that stubs `fetch` and checks the request body, and replays `test/fixtures/stream.txt`
-- [ ] Build succeeds: `pnpm typecheck`
+- [ ] With a system prompt, the request body has `systemInstruction`. Without one, it does not
+- [ ] Errors and blocked replies do not change
+- [ ] New `pnpm test gemini`: it stubs `fetch`, examines the request body, and replays `test/fixtures/stream.txt`
 
-**Dependencies:** Task 3
-
-**Files likely touched:** `src/server/verify/gemini.ts`, `test/gemini.test.ts`
-
-**Estimated scope:** XS
+Files: `src/server/verify/gemini.ts`, `test/gemini.test.ts`
 
 ## Task 6: Default topics and `whyNotVerify`
 
-**Description:** `src/shared/topics.ts` holds the six default topics from `verify/src/defaults.ts`, in order: key, English label, emoji (from the portal's `TOPIC_ICON_MAP`) and prompt. In `src/shared/rules.ts`, `whyNotVerify(facts)` gives the reason Verify can't run, or null: an outcome being written, under 60 seconds recorded, nothing transcribed, or under 2 minutes since the last outcome finished. Add `VERIFY_COOLDOWN_MS` to `constants.ts` with its source, and keep `MIN_RECORDED_SECONDS`.
+Scope: S. Depends on: Task 3.
 
-**Acceptance criteria:**
-- [ ] The six prompts match `defaults.ts` word for word
-- [ ] Each rule has its own reason, in the order listed, as `whyNotExplore` had
-- [ ] Constants name the file each comes from
+1. In `src/shared/topics.ts`, put the six default topics from `verify/src/defaults.ts`, in their order. Each has a key, an English label, an emoji (from `TOPIC_ICON_MAP` in the portal) and a prompt.
+2. In `src/shared/rules.ts`, write `whyNotVerify(facts)`. It returns null, or the reason that Verify cannot start:
+   - An outcome is in generation.
+   - Less than 60 seconds are recorded.
+   - No text is transcribed.
+   - Less than 2 minutes passed since the last outcome was complete.
+3. Add `VERIFY_COOLDOWN_MS` to `constants.ts`, with its source. Keep `MIN_RECORDED_SECONDS`.
 
-**Verification:**
-- [ ] Tests pass: `pnpm test rules`, one case per reason and one that passes
-- [ ] Build succeeds: `pnpm typecheck`
+- [ ] The six prompts are word for word the same as in `defaults.ts`
+- [ ] Each rule has its own reason, in the order above, as `whyNotExplore` did
+- [ ] Each constant names its source file
+- [ ] `pnpm test rules` has one case for each reason, and one case that passes
 
-**Dependencies:** Task 3
-
-**Files likely touched:** `src/shared/topics.ts`, `src/shared/rules.ts`, `src/shared/constants.ts`, `test/rules.test.ts`
-
-**Estimated scope:** S
+Files: `src/shared/topics.ts`, `src/shared/rules.ts`, `src/shared/constants.ts`, `test/rules.test.ts`
 
 ## Task 7: Generate an outcome
 
-**Description:** The riskiest slice, end to end with a bare page:
-- **Agent.** An `outcomes` table: `id, topic_key, topic_label, topic_icon, content, created_at, revised_at, approved_at`. State gains `verifyStatus` (`idle | generating | revising | slow | failed`), `verifyDraft`, `verifyError`, `pendingOutcomeId` and `lastVerifyAt`.
-- **`verify(topicKey)`.** Checks `whyNotVerify`. Asks `ProjectAgent.topic(key)` over RPC, which for now answers from the default topics. Then it streams the outcome into `verifyDraft` inside `keepAliveWhile()`, with the "still working" message after 20 seconds, and saves it as the pending outcome. `created_at` is set when it's saved, as in the original.
-- **`onStart`** marks an outcome cut off by a restart as failed.
-- **Page.** A Verify button with the rule's reason, a plain list of the six topics to press, the streaming text, and the error with **Try again**.
+Scope: M. Depends on: Tasks 4, 5, 6.
 
-**Acceptance criteria:**
-- [ ] Pressing a topic streams an outcome onto the page; two tabs see the same text
-- [ ] The finished outcome is in `outcomes`, unapproved, and `pendingOutcomeId` names it
-- [ ] Verify refuses on the server for each rule, even when called from the console
-- [ ] A failed call, such as an expired token, shows the reason and **Try again**
+This task has the highest risk. Do it end to end, with a bare page.
 
-**Verification:**
-- [ ] Tests pass: `pnpm test`
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: replay a few seconds of speech with `?debug=true`. Wait out the 60 seconds, or replay a longer `say` file. Generate one outcome and read it. Ask the user before the first Vertex call.
+1. **Agent:** add an `outcomes` table: `id, topic_key, topic_label, topic_icon, content, created_at, revised_at, approved_at`. Add to the state: `verifyStatus` (`idle | generating | revising | slow | failed`), `verifyDraft`, `verifyError`, `pendingOutcomeId` and `lastVerifyAt`.
+2. **`verify(topicKey)`:**
+   1. Check `whyNotVerify`.
+   2. Get the topic with `ProjectAgent.topic(key)` over RPC. For now, it answers from the default topics.
+   3. Stream the outcome into `verifyDraft` inside `keepAliveWhile()`. Show the "still working" message after 20 seconds.
+   4. Save the outcome as pending. Set `created_at` when it is saved, as in the original.
+3. **`onStart`:** if a restart stopped an outcome, set it to `failed`.
+4. **Page:** a Verify button with the reason from the rules, a plain list of the six topics, the streamed text, and the error with **Try again**.
 
-**Dependencies:** Tasks 4, 5, 6
+- [ ] A push on a topic streams an outcome onto the page. Two tabs show the same text
+- [ ] The complete outcome is in `outcomes`, unapproved. `pendingOutcomeId` names it
+- [ ] The server refuses Verify for each rule, also when called from the console
+- [ ] A failed call (for example, an expired token) shows the reason and **Try again**
+- [ ] Manual: ask the user before the first Vertex call. Replay a few seconds of speech with `?debug=true`. Wait for 60 seconds, or replay a longer `say` file. Generate one outcome and read it
 
-**Files likely touched:** `src/server/session-agent.ts`, `src/server/project-agent.ts`, `src/client/pages/Session.tsx`
-
-**Estimated scope:** M
+Files: `src/server/session-agent.ts`, `src/server/project-agent.ts`, `src/client/pages/Session.tsx`
 
 ## Checkpoint: An outcome streams
 
 - [ ] Tests, typecheck and lint pass
-- [ ] An outcome from a short replay reads sensibly, has a title, and uses "we"
+- [ ] An outcome from a short replay is clear, has a title, and uses "we"
 - [ ] Review with the user
 
 ## Task 8: Instructions, topic picker and the pending outcome
 
-**Description:** Turn Task 7's bare page into the original's flow, on the session page, without navigating:
-- **Topic chips**, with emoji, under "What do you want to verify?". With only one topic, it starts at once.
-- **The five instructions** while the outcome is written, with **Next** once it's done.
-- **The outcome**, rendered as Markdown, with **Back**, which calls a new `leaveOutcome()`.
+Scope: M. Depends on: Task 7.
 
-A reload goes straight back to the outcome being written, or the pending one. Pick a Markdown renderer, such as `react-markdown`, and add it.
+Change the bare page of Task 7 into the flow of the original. Keep it on the session page, with no navigation.
 
-**Acceptance criteria:**
-- [ ] The views go: chips, then instructions, then the outcome; recording carries on through all of them
-- [ ] A reload while it's being written, and a reload on the pending outcome, both come back to the right view
+1. **Topic chips** with emoji, below "What do you want to verify?". If there is only one topic, start it immediately.
+2. **The five instructions** during generation. **Next** becomes active when the outcome is complete.
+3. **The outcome** as Markdown, with **Back**. Back calls a new `leaveOutcome()`.
+4. After a reload, go directly to the outcome in generation, or to the pending outcome.
+5. Select a Markdown renderer, for example `react-markdown`, and add it.
+
+- [ ] The views are in this sequence: chips, instructions, outcome. The recording continues in all of them
+- [ ] A reload during generation, and a reload on the pending outcome, both show the correct view
 - [ ] **Back** clears `pendingOutcomeId` and keeps the row
+- [ ] `vite build` passes with the new dependency
+- [ ] Manual: the flow in a phone-width window, and the reloads above
 
-**Verification:**
-- [ ] Tests pass: `pnpm test`
-- [ ] Build succeeds: `pnpm typecheck`, and `vite build` with the new dependency
-- [ ] Manual check: the flow on a phone-width window, and the reloads above
-
-**Dependencies:** Task 7
-
-**Files likely touched:** `src/client/pages/Session.tsx`, `src/client/pages/Verify.tsx` (new, for the views), `src/server/session-agent.ts`, `package.json`
-
-**Estimated scope:** M
+Files: `src/client/pages/Session.tsx`, `src/client/pages/Verify.tsx` (new, for the views), `src/server/session-agent.ts`, `package.json`
 
 ## Task 9: Revise
 
-**Description:** `revise()` takes the segments since the pending outcome's `revised_at`, or its `created_at` when it hasn't been revised, as the feedback. It streams the rewrite as `verify()` does, with `verifyStatus: "revising"`, and saves it with a new `revised_at`. `whyNotRevise(facts)` in `rules.ts` refuses while something is being written, within 30 seconds of the last revision, or with nothing new said. On the page, **Revise** shows the 30-second countdown, and "No new feedback detected yet…" when there's nothing new.
+Scope: M. Depends on: Task 8.
 
-**Acceptance criteria:**
-- [ ] A second revision gets only what was said after the first
-- [ ] With nothing said since, the server refuses with the original's message, and the page shows it
-- [ ] The revised text replaces the old on the page and in `outcomes`
+1. Write `revise()`. The feedback is the segments since the `revised_at` of the pending outcome, or since `created_at` if there is no revision.
+2. Stream the new text as `verify()` does, with `verifyStatus: "revising"`. Save it with a new `revised_at`.
+3. Write `whyNotRevise(facts)` in `rules.ts`. It refuses during generation or revision, less than 30 seconds after the last revision, and if there is no new speech.
+4. On the page, **Revise** shows the 30-second countdown. If there is no new speech, it shows "No new feedback detected yet…".
 
-**Verification:**
-- [ ] Tests pass: `pnpm test rules`, plus a test of choosing the feedback segments by time
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: with the mic, say a correction after the outcome appears, press **Revise**, and see it in the text. Press **Revise** again at once and see the wait.
+- [ ] A second revision gets only the speech after the first revision
+- [ ] With no new speech, the server refuses with the message of the original, and the page shows it
+- [ ] The new text replaces the old text on the page and in `outcomes`
+- [ ] `pnpm test rules`, and a test that selects the feedback segments by time
+- [ ] Manual: with the mic, say a correction after the outcome shows. Push **Revise** and find the correction in the text. Push **Revise** again immediately and see the wait
 
-**Dependencies:** Task 8
-
-**Files likely touched:** `src/server/session-agent.ts`, `src/shared/rules.ts`, `src/shared/constants.ts`, `src/client/pages/Verify.tsx`, `test/rules.test.ts`
-
-**Estimated scope:** M
+Files: `src/server/session-agent.ts`, `src/shared/rules.ts`, `src/shared/constants.ts`, `src/client/pages/Verify.tsx`, `test/rules.test.ts`
 
 ## Task 10: Edit
 
-**Description:** `editOutcome(content)` replaces the pending outcome's text, refusing empty text, text over a set length, or an edit while something is being written. On the page, a pencil opens a text area with **Save** and **Cancel**.
+Scope: S. Depends on: Task 8.
 
-**Acceptance criteria:**
-- [ ] A saved edit shows in every open tab, and survives a reload
+1. Write `editOutcome(content)`. It replaces the text of the pending outcome. It refuses empty text, text longer than a set limit, and an edit during generation or revision.
+2. On the page, a pencil opens a text area with **Save** and **Cancel**.
+
+- [ ] A saved edit shows in all open tabs, and a reload keeps it
 - [ ] **Revise** after an edit starts from the edited text
-- [ ] The length limit is in `constants.ts`, marked as made up for this example
+- [ ] The length limit is in `constants.ts`, marked as specific to this example
+- [ ] Manual: edit, reload, revise
 
-**Verification:**
-- [ ] Tests pass: `pnpm test`
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: edit, reload, revise
-
-**Dependencies:** Task 8
-
-**Files likely touched:** `src/server/session-agent.ts`, `src/client/pages/Verify.tsx`, `src/shared/constants.ts`
-
-**Estimated scope:** S
+Files: `src/server/session-agent.ts`, `src/client/pages/Verify.tsx`, `src/shared/constants.ts`
 
 ## Task 11: Approve, and the approved list
 
-**Description:** `approve()` sets `approved_at` on the pending outcome, clears `pendingOutcomeId` and broadcasts the outcome. `listOutcomes()` returns the approved ones, newest first. Under the transcript, each shows its emoji, label and time, and expands in place when pressed.
+Scope: S. Depends on: Task 8.
 
-**Acceptance criteria:**
-- [ ] Approving goes back to the transcript, and the outcome is at the top of the list in every tab
-- [ ] An outcome left with **Back**, or replaced by a new one, is never listed
-- [ ] The list survives a reload
+1. Write `approve()`. It sets `approved_at` on the pending outcome, clears `pendingOutcomeId` and broadcasts the outcome.
+2. Write `listOutcomes()`. It returns the approved outcomes, newest first.
+3. Below the transcript, show each approved outcome with its emoji, label and time. A push expands it in place.
 
-**Verification:**
-- [ ] Tests pass: `pnpm test`
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: approve two outcomes on different topics, then reload
+- [ ] Approve goes back to the transcript. The outcome is at the top of the list in all tabs
+- [ ] The list never shows an outcome that **Back** left, or that a new outcome replaced
+- [ ] A reload keeps the list
+- [ ] Manual: approve two outcomes on different topics, then reload
 
-**Dependencies:** Task 8
-
-**Files likely touched:** `src/server/session-agent.ts`, `src/client/pages/Session.tsx`, `src/client/pages/Verify.tsx`
-
-**Estimated scope:** S
+Files: `src/server/session-agent.ts`, `src/client/pages/Session.tsx`, `src/client/pages/Verify.tsx`
 
 ## Checkpoint: Verify works for a participant
 
 - [ ] Tests, typecheck and lint pass
-- [ ] One pass in a browser with the mic: verify, revise from something said, edit, approve, reload
+- [ ] One pass in a browser with the mic: verify, revise from speech, edit, approve, reload
 - [ ] Review with the user
 
 ## Task 12: The host's topic settings
 
-**Description:** `ProjectState` gains `verifyEnabled`, `selectedTopics` and `customTopics`. Callables:
-- `updateSettings`, checked as `checkSettingsChange` was.
-- `addTopic({label, icon, prompt})`, with the original's key: a slug of the label plus 8 random characters.
-- `removeTopic(key)`, which also drops it from the selection.
+Scope: M. Depends on: Task 7.
 
-`topic(key)` refuses a topic that isn't offered, and `whyNotVerify` gains "Verify is off". Topics are offered in a fixed order: the defaults, then custom ones oldest first. When `selectedTopics` is empty, all of them are offered. The session's chips come from the project's state. The settings page gets a Verify switch, a checkbox per topic, a form to add one, and **Remove** on each custom topic.
+1. Add `verifyEnabled`, `selectedTopics` and `customTopics` to `ProjectState`.
+2. Write these callables:
+   - `updateSettings`, with the checks of `checkSettingsChange`.
+   - `addTopic({label, icon, prompt})`. The key is the key of the original: a slug of the label plus 8 random characters.
+   - `removeTopic(key)`. It also removes the topic from the selection.
+3. `topic(key)` refuses a topic that is not offered. Add "Verify is off" to `whyNotVerify`.
+4. Offer topics in a fixed order: the defaults, then custom topics oldest first. If `selectedTopics` is empty, offer all topics.
+5. The session chips come from the project state.
+6. On the settings page, add a Verify switch, a checkbox for each topic, a form to add a topic, and **Remove** on each custom topic.
 
-**Acceptance criteria:**
-- [ ] Unticking a topic removes its chip from an open session page, without a reload
+- [ ] If you clear a topic checkbox, its chip goes off an open session page, with no reload
 - [ ] An added topic is offered, and makes outcomes with its own prompt
-- [ ] With Verify off, the session's button says why, and the server refuses
+- [ ] With Verify off, the session button shows why, and the server refuses
+- [ ] `pnpm test settings` covers the checks, the slug, and which topics are offered
+- [ ] Manual: change settings in two tabs at the same time
 
-**Verification:**
-- [ ] Tests pass: `pnpm test settings`, covering the checks, the slug, and which topics are offered
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: change settings in two tabs at once
-
-**Dependencies:** Task 7
-
-**Files likely touched:** `src/server/project-agent.ts`, `src/server/verify/settings.ts`, `src/client/pages/Settings.tsx`, `src/client/pages/Verify.tsx`, `test/settings.test.ts`
-
-**Estimated scope:** M
+Files: `src/server/project-agent.ts`, `src/server/verify/settings.ts`, `src/client/pages/Settings.tsx`, `src/client/pages/Verify.tsx`, `test/settings.test.ts`
 
 ## Task 13: Approved outcomes on the settings page
 
-**Description:** `ProjectAgent.approvedOutcomes()` asks each session for its approved outcomes over RPC, in parallel, skipping any that don't answer, as `contextPreview` did. The settings page lists them under each session, collapsed, and refetches when a session broadcasts an approval to the project.
+Scope: S. Depends on: Tasks 11, 12.
 
-**Acceptance criteria:**
-- [ ] Approving in a session shows the outcome on an open settings page
-- [ ] A session that doesn't answer is skipped and logged, and the rest still show
+1. Write `ProjectAgent.approvedOutcomes()`. It asks each session for its approved outcomes over RPC, in parallel. It skips a session that does not answer, as `contextPreview` did.
+2. The settings page shows them below each session, collapsed.
+3. When a session sends an approval to the project, the settings page gets the outcomes again.
 
-**Verification:**
-- [ ] Tests pass: `pnpm test`
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: approve in one tab, and watch the settings page in another
+- [ ] An approval in a session shows on an open settings page
+- [ ] A session that does not answer is skipped and logged. The other sessions show
+- [ ] Manual: approve in one tab, and monitor the settings page in a different tab
 
-**Dependencies:** Tasks 11, 12
-
-**Files likely touched:** `src/server/project-agent.ts`, `src/server/session-agent.ts`, `src/client/pages/Settings.tsx`
-
-**Estimated scope:** S
+Files: `src/server/project-agent.ts`, `src/server/session-agent.ts`, `src/client/pages/Settings.tsx`
 
 ## Task 14: README and PLAN
 
-**Description:** A README in the shape of `portal-explore`'s: what it is, Run it, Pages, how an outcome works with a sequence diagram, the prompts, limits, replay, how it works, and files. Add screenshots in a table, as dash-named PNGs in `docs/`. Move `PLAN.md`'s "How it differs" and "What doesn't make the cut" in line with what was built, and add a "Checked against Vertex" note. Delete `tasks/todo.md` once every box is ticked.
+Scope: S. Depends on: Tasks 1–13.
 
-**Acceptance criteria:**
-- [ ] Every command in the README runs as written
-- [ ] The README mentions the two timing quirks in `PLAN.md`'s risks
+1. Write a README with the layout of the `portal-explore` README: what it is, Run it, Pages, how an outcome works (with a sequence diagram), the prompts, limits, replay, how it works, and files.
+2. Add screenshots in a table, as PNG files with dash names in `docs/`.
+3. Update "Differences from the original" and "Not in the prototype" in `PLAN.md` to agree with the result. Add a "Checked against Vertex" note.
+4. When all boxes are ticked, delete `tasks/todo.md`.
+
+- [ ] All commands in the README run as written
+- [ ] The README tells the two timing risks in `PLAN.md`
 - [ ] Screenshots: topic picker, instructions, an outcome, a revised outcome, the approved list, the settings page
+- [ ] Manual: do the README steps from a new clone of the folder
 
-**Verification:**
-- [ ] Tests pass: `pnpm test`
-- [ ] Build succeeds: `pnpm typecheck`
-- [ ] Manual check: follow the README from a fresh clone of the folder
-
-**Dependencies:** Tasks 1–13
-
-**Files likely touched:** `README.md`, `PLAN.md`, `docs/*.png`, `tasks/`
-
-**Estimated scope:** S
+Files: `README.md`, `PLAN.md`, `docs/*.png`, `tasks/`
 
 ## Checkpoint: Complete
 
-- [ ] Every acceptance criterion above is ticked
+- [ ] All acceptance criteria above are ticked
 - [ ] Ready for review
