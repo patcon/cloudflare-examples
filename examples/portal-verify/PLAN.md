@@ -2,7 +2,7 @@
 
 A port of the dembrane portal's **Verify** feature to Cloudflare. A phone records a group conversation and Gemini Live transcribes it. When someone presses **Verify**, the group picks a topic, such as "What we actually agreed on", and Gemini writes an **outcome**: a short document drawn from the conversation. The group reads it aloud and says what's wrong, while the phone keeps recording. **Revise** rewrites it from what they said. When the group is happy, **Approve** keeps it, and the host sees it.
 
-This is a plan. No code exists yet. It starts from [`portal-explore`](../portal-explore), copied in whole, per the rule that each example stands alone.
+This is a plan. No code exists yet; [`tasks/`](tasks/) breaks it into tasks. It starts from [`portal-explore`](../portal-explore), copied in whole, per the rule that each example stands alone.
 
 **Contents**
 
@@ -253,17 +253,7 @@ Each of these is left out of the prototype. The ones marked **later** are worth 
 
 ## Steps
 
-Each step ends with something to check by hand or by test.
-
-1. **Copy.** Copy `portal-explore` to `examples/portal-verify` without `node_modules`, `.wrangler`, `.dev.vars` or `docs/`. Rename it in `package.json`, `wrangler.jsonc` and the README. Change the dev port. *Check:* `pnpm install`, `pnpm test`, `pnpm typecheck`, and a session records and transcribes.
-2. **Take Explore out.** Remove `explore()`, the reply state, the `replies` table, the `get_reply_*` templates, `otherTranscripts` and the context preview, and the Explore section of the settings page. Keep `streamReply` and the SSE parser. *Check:* tests and typecheck pass; recording still works.
-3. **Topics in the project.** `src/shared/topics.ts` with the six defaults; `verifyEnabled`, `selectedTopics` and `customTopics` in `ProjectAgent`'s state; `addTopic`, `removeTopic`, `updateSettings` and `topic(key)`, with their checks. The settings page's Verify section. *Check:* unit tests for the checks and the slug; topics change in two tabs at once.
-4. **Rules.** `whyNotVerify` and `whyNotRevise` in `src/shared/rules.ts`, with the constants and their sources in `constants.ts`. *Check:* unit tests for each rule.
-5. **Generating.** The templates, rendered with LiquidJS; the system prompt in `streamReply`; the `outcomes` table; `verify(topicKey)` streaming into state; `onStart` cleanup. *Check:* prompt tests against the templates; one short replayed file makes an outcome. Keep test files to a few seconds of speech.
-6. **The participant's views.** Verify button, topic chips with the one-topic skip, instructions, the outcome in Markdown, **Back**. *Check:* in a browser, from a replayed file, through to a pending outcome, and reload in the middle.
-7. **Revise, edit, approve.** `revise()`, `editOutcome()`, `approve()`, the 30-second wait, the "no new feedback" message, and the approved list on the session page. *Check:* say something after the outcome appears, revise, and see it in the text; revise again with nothing new, and see the message.
-8. **The host's view.** `approvedOutcomes()` over RPC, under each session on the settings page. *Check:* approve in one tab and see it on the settings page.
-9. **Docs.** README in the style of `portal-explore`'s, with screenshots in a table and the diagrams; this plan's differences table carried into its own `PLAN.md`. *Check:* every command in the README works as written.
+The work is broken into 14 tasks in four phases, with a checkpoint after each phase: [`tasks/plan.md`](tasks/plan.md) has the order, the dependencies and the risks, and [`tasks/todo.md`](tasks/todo.md) has each task's acceptance criteria and checks.
 
 ## Decisions
 
