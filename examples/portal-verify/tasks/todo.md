@@ -1,6 +1,6 @@
 # Tasks: portal-verify
 
-See [`plan.md`](plan.md) for the order and the risks, and [`../PLAN.md`](../PLAN.md) for the design. Original sources are in `~/repos/dembrane-echo` at `feat/bun-migration`: `dembrane/platform/packages/verify/` and `dembrane/frontend/src/components/participant/verify/`.
+See [`../PLAN.md`](../PLAN.md) for the design, the order and the risks. Original sources are in `~/repos/dembrane-echo` at `feat/bun-migration`: `dembrane/platform/packages/verify/` and `dembrane/frontend/src/components/participant/verify/`.
 
 Every task also clears `pnpm test`, `pnpm typecheck` and `pnpm lint`. Any check that calls Vertex uses a replay of a few seconds of speech, made with `say`.
 
@@ -296,11 +296,11 @@ A reload goes straight back to the outcome being written, or the pending one. Pi
 
 ## Task 14: README and PLAN
 
-**Description:** A README in the shape of `portal-explore`'s: what it is, Run it, Pages, how an outcome works with a sequence diagram, the prompts, limits, replay, how it works, and files. Add screenshots in a table, as dash-named PNGs in `docs/`. Move `PLAN.md`'s "How it differs" and "What doesn't make the cut" in line with what was built, and add a "Checked against Vertex" note. Archive `tasks/` to `tasks/archive/<date>-portal-verify/`.
+**Description:** A README in the shape of `portal-explore`'s: what it is, Run it, Pages, how an outcome works with a sequence diagram, the prompts, limits, replay, how it works, and files. Add screenshots in a table, as dash-named PNGs in `docs/`. Move `PLAN.md`'s "How it differs" and "What doesn't make the cut" in line with what was built, and add a "Checked against Vertex" note. Delete `tasks/todo.md` once every box is ticked.
 
 **Acceptance criteria:**
 - [ ] Every command in the README runs as written
-- [ ] The README mentions the two timing quirks in `plan.md`'s risks
+- [ ] The README mentions the two timing quirks in `PLAN.md`'s risks
 - [ ] Screenshots: topic picker, instructions, an outcome, a revised outcome, the approved list, the settings page
 
 **Verification:**

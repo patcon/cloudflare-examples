@@ -2,7 +2,7 @@
 
 A port of the dembrane portal's **Verify** feature to Cloudflare. A phone records a group conversation and Gemini Live transcribes it. When someone presses **Verify**, the group picks a topic, such as "What we actually agreed on", and Gemini writes an **outcome**: a short document drawn from the conversation. The group reads it aloud and says what's wrong, while the phone keeps recording. **Revise** rewrites it from what they said. When the group is happy, **Approve** keeps it, and the host sees it.
 
-This is a plan. No code exists yet; [`tasks/`](tasks/) breaks it into tasks. It starts from [`portal-explore`](../portal-explore), copied in whole, per the rule that each example stands alone.
+This is a plan. No code exists yet; [Steps](#steps) breaks it into tasks. It starts from [`portal-explore`](../portal-explore), copied in whole, per the rule that each example stands alone.
 
 **Contents**
 
@@ -253,7 +253,47 @@ Each of these is left out of the prototype. The ones marked **later** are worth 
 
 ## Steps
 
-The work is broken into 14 tasks in four phases, with a checkpoint after each phase: [`tasks/plan.md`](tasks/plan.md) has the order, the dependencies and the risks, and [`tasks/todo.md`](tasks/todo.md) has each task's acceptance criteria and checks.
+Fourteen tasks in four phases. Each task's acceptance criteria and checks are in [`tasks/todo.md`](tasks/todo.md), the checklist to tick off while building.
+
+1. **A recording-only example** (Tasks 1–3): copy `portal-explore`, then take Explore out in two passes, so tests and typecheck pass after each.
+2. **One outcome, end to end** (Tasks 4–7): the prompts, a system prompt for Gemini, the default topics and rules, then generating an outcome with a bare page. Generating is the riskiest part, a new prompt shape on Vertex, so it comes before any polish, with the default topics hard-wired until Phase 4.
+3. **The participant's loop** (Tasks 8–11): instructions and topic picker, Revise, Edit, Approve and the approved list.
+4. **The host, and docs** (Tasks 12–14): topic settings, approved outcomes on the settings page, the README.
+
+After each phase there's a checkpoint: tests, typecheck and lint pass, the phase works in a browser, and the user reviews it.
+
+### Dependencies
+
+```text
+ 1 Copy portal-explore
+ └─ 2 Remove Explore from the session
+    └─ 3 Remove Explore from the project
+       ├─ 4 Verify prompts (templates, render, tests) ─┐
+       ├─ 5 System prompt in streamReply ──────────────┤
+       └─ 6 Default topics and whyNotVerify ───────────┤
+                                                       └─ 7 Generate an outcome (agent + bare UI)
+                                                          ├─ 8 Instructions, topic picker, pending outcome
+                                                          │  ├─ 9  Revise
+                                                          │  ├─ 10 Edit
+                                                          │  └─ 11 Approve, and the approved list
+                                                          │      └─ 13 Approved outcomes for the host
+                                                          └─ 12 The host's topic settings
+                                                                      └─ 14 README and PLAN
+```
+
+4, 5 and 6 don't depend on each other. Nor do 9, 10 and 11, but they all change the same two files, `session-agent.ts` and `Session.tsx`, so they go one after another.
+
+### Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Vertex treats `systemInstruction` differently from the original's AI SDK `system` | Med | Task 5 adds it, and Task 7 checks a real outcome before anything builds on it |
+| Each Vertex call costs money, and outcomes are longer than Explore's replies | Low | Replay clips of a few seconds. Ask before any longer or repeated run |
+| Speech while the outcome is being written counts as feedback, as in the original, which saves `date_created` after generating | Low | Keep the original's timing: `created_at` and `revised_at` are set when the text is saved. Note it in the README |
+| An utterance that started before the outcome was made but was finalized after it counts as feedback | Low | Accept it. Segments are stamped when Gemini Live finalizes them. Note it in the README |
+| A Markdown renderer is a new dependency for the page | Low | Task 8 picks one, such as `react-markdown`, and checks the bundle builds |
+| Removing Explore touches many files at once | Med | Split over Tasks 2 and 3, each leaving tests and typecheck passing |
+| Streaming a long outcome as many state updates | Low | Explore already does this. Watch it in Task 7, and throttle only if it lags |
 
 ## Decisions
 
