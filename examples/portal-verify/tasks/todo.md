@@ -130,18 +130,18 @@ This task has the highest risk. Do it end to end, with a bare page.
 3. **`onStart`:** if a restart stopped an outcome, set it to `failed`.
 4. **Page:** a Verify button with the reason from the rules, a plain list of the six topics, the streamed text, and the error with **Try again**.
 
-- [ ] A push on a topic streams an outcome onto the page. Two tabs show the same text
-- [ ] The complete outcome is in `outcomes`, unapproved. `pendingOutcomeId` names it
-- [ ] The server refuses Verify for each rule, also when called from the console
-- [ ] A failed call (for example, an expired token) shows the reason and **Try again**
-- [ ] Manual: ask the user before the first Vertex call. Replay a few seconds of speech with `?debug=true`. Wait for 60 seconds, or replay a longer `say` file. Generate one outcome and read it
+- [x] A push on a topic streams an outcome onto the page. Two tabs show the same text
+- [x] The complete outcome is in `outcomes`, unapproved. `pendingOutcome` holds it (the whole row, not only its ID)
+- [x] The server refuses Verify for each rule, also when called from the console
+- [x] A failed call (for example, an expired token) shows the reason and **Try again**
+- [x] Manual: ask the user before the first Vertex call. Replay a few seconds of speech with `?debug=true`. Wait for 60 seconds, or replay a longer `say` file. Generate one outcome and read it
 
 Files: `src/server/session-agent.ts`, `src/server/project-agent.ts`, `src/client/pages/Session.tsx`
 
 ## Checkpoint: An outcome streams
 
-- [ ] Tests, typecheck and lint pass
-- [ ] An outcome from a short replay is clear, has a title, and uses "we"
+- [x] Tests, typecheck and lint pass
+- [x] An outcome from a short replay is clear, has a title, and uses "we"
 - [ ] Review with the user
 
 ## Task 8: Instructions, topic picker and the pending outcome
