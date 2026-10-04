@@ -27,14 +27,14 @@ Files: `package.json`, `pnpm-lock.yaml`, `wrangler.jsonc`, `vite.config.ts`, `RE
 
 Scope: M. Depends on: Task 1.
 
-1. In `SessionAgent`, remove `explore()`, `#generateReply`, `#saveReply`, `#otherSessions`, `#formatted`, `transcriptForContext`, the `replies` table and its migration, and the `reply*` and `lastReplyAt` state.
+1. In `SessionAgent`, remove `explore()`, `#generateReply`, `#saveReply`, `#otherSessions`, `#formatted`, the `replies` table and its migration, and the `reply*` and `lastReplyAt` state.
 2. On the session page, remove the Explore button, the meter and `Replies`.
 3. In `rules.ts`, remove `whyNotExplore` and `cooldownLeft`. Keep `recordedSecondsAt`.
 4. Keep `streamReply` and the SSE parser for Task 7.
 
-- [ ] `SessionState` has only `projectId`, `recordingSince` and `recordedSeconds`
-- [ ] The session page shows the recording, the recorded time, the transcript and replay. It shows nothing about Explore
-- [ ] `test/rules.test.ts` keeps its `recordedSecondsAt` cases
+- [x] `SessionState` has only `projectId`, `recordingSince` and `recordedSeconds`
+- [x] The session page shows the recording, the recorded time, the transcript and replay. It shows nothing about Explore
+- [x] `test/rules.test.ts` keeps its `recordedSecondsAt` cases
 - [ ] Manual: record, stop and record again. The transcript continues to grow
 
 Files: `src/server/session-agent.ts`, `src/client/pages/Session.tsx`, `src/shared/rules.ts`, `test/rules.test.ts`
@@ -43,7 +43,7 @@ Files: `src/server/session-agent.ts`, `src/client/pages/Session.tsx`, `src/share
 
 Scope: M. Depends on: Task 2.
 
-1. In `ProjectAgent` and the settings page, remove `otherTranscripts`, `contextPreview`, `#planContext`, and the Explore settings and their checks.
+1. In `ProjectAgent` and the settings page, remove `otherTranscripts`, `SessionAgent.transcriptForContext` (its caller), `contextPreview`, `#planContext`, and the Explore settings and their checks.
 2. Remove `explore/prompt.ts`, the `get_reply_*` templates, and the planning functions in `explore/transcript.ts`.
 3. Keep the session list on the settings page.
 4. Rename `src/server/explore/` to `src/server/verify/`. Keep `gemini.ts`, `sse.ts` and a transcript helper that joins segments.

@@ -1,33 +1,22 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Badge, Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
-import {
-  ArrowClockwiseIcon,
-  CaretRightIcon,
-  MicrophoneIcon,
-  SparkleIcon,
-  StopIcon,
-} from "@phosphor-icons/react";
+import { Button, Surface, Text } from "@cloudflare/kumo";
+import { CaretRightIcon, MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
 import { useNow } from "../hooks/use-now";
 import { useVoiceRecorder } from "../hooks/use-voice-recorder";
-import type { ExploreMode } from "../../server/explore/prompt";
-import type { ProjectAgent, ProjectState } from "../../server/project-agent";
 import type {
-  Reply,
   Segment,
   SessionAgent,
   SessionMessage,
   SessionState,
 } from "../../server/session-agent";
-import { MIN_RECORDED_SECONDS } from "../../shared/constants";
-import { recordedSecondsAt, whyNotExplore } from "../../shared/rules";
+import { recordedSecondsAt } from "../../shared/rules";
 import { Shell } from "../ui";
 import { Replay } from "./Replay";
 
 /** For the recording phone: records, and shows the live transcript. */
 export function Session({ projectId, sessionId }: { projectId: string; sessionId: string }) {
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [replies, setReplies] = useState<Reply[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
 
@@ -42,30 +31,15 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
           s.some((x) => x.id === message.segment.id) ? s : [...s, message.segment],
         );
       }
-      if (message?.type === "reply") {
-        setReplies((r) => (r.some((x) => x.id === message.reply.id) ? r : [...r, message.reply]));
-      }
     },
-  });
-
-  // The project's settings, to hide Explore when it's off.
-  const [project, setProject] = useState<ProjectState | null>(null);
-  useAgent<ProjectAgent, ProjectState>({
-    agent: "ProjectAgent",
-    name: projectId,
-    onStateUpdate: setProject,
   });
 
   // Joins the session to this page's project, then loads what's there.
   useEffect(() => {
     agent.ready
       .then(() => agent.call("attach", [projectId]))
-      .then(() =>
-        Promise.all([
-          agent.call("listSegments").then(setSegments),
-          agent.call("listReplies").then(setReplies),
-        ]),
-      )
+      .then(() => agent.call("listSegments"))
+      .then(setSegments)
       .catch((e: Error) => setError(e.message));
   }, [agent, projectId]);
 
@@ -73,21 +47,6 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   const recording = voice.status !== "idle";
   const now = useNow();
   const seconds = state ? recordedSecondsAt(state, now) : 0;
-  const notYet = state
-    ? whyNotExplore({
-        recordedSeconds: seconds,
-        segments: segments.length,
-        lastReplyAt: state.lastReplyAt,
-        replyStatus: state.replyStatus,
-        now,
-      })
-    : "Connecting…";
-
-  const explore = () => {
-    setError(null);
-    agent.call("explore").catch((e: Error) => setError(e.message));
-  };
-
   const record = async () => {
     setError(null);
     try {
@@ -153,31 +112,6 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         <Text size="xs" variant="secondary">
           Recorded {formatDuration(seconds)}
         </Text>
-        {project?.exploreEnabled && (
-          <div className="flex flex-col gap-1 items-center w-full max-w-xs">
-            <Button
-              variant="secondary"
-              icon={<SparkleIcon size={16} />}
-              onClick={explore}
-              disabled={notYet !== null}
-            >
-              Explore
-            </Button>
-            {seconds < MIN_RECORDED_SECONDS && (
-              <Meter
-                className="w-full"
-                label="Explore"
-                showValue={false}
-                value={(100 * seconds) / MIN_RECORDED_SECONDS}
-              />
-            )}
-            {notYet && (
-              <Text size="xs" variant="secondary">
-                {notYet}
-              </Text>
-            )}
-          </div>
-        )}
         {(error || voice.error) && (
           <Text size="sm" variant="error">
             {error || voice.error}
@@ -210,78 +144,12 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         </details>
       </Surface>
 
-      {state && (replies.length > 0 || state.replyStatus !== "idle") && (
-        <Replies replies={replies} state={state} retry={explore} />
-      )}
-
       {empty && !replay && (
         <a className="self-end text-xs text-kumo-subtle underline" href="?debug=true">
           debug
         </a>
       )}
     </Shell>
-  );
-}
-
-const MODE_LABELS: Record<ExploreMode, string> = {
-  summarize: "Summarize",
-  brainstorm: "Brainstorm",
-  custom: "Custom",
-};
-
-/** Explore's replies, then the one on its way, or why it failed. */
-function Replies({
-  replies,
-  state,
-  retry,
-}: {
-  replies: Reply[];
-  state: SessionState;
-  retry: () => void;
-}) {
-  return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
-      <Text size="xs" variant="secondary">
-        Replies
-      </Text>
-      {replies.map((r) => (
-        <div key={r.id} className="flex flex-col gap-0.5">
-          <div className="flex gap-2 items-center">
-            <Text size="xs" variant="secondary">
-              {new Date(r.at).toLocaleTimeString()}
-            </Text>
-            {r.mode && <Badge variant="secondary">{MODE_LABELS[r.mode]}</Badge>}
-          </div>
-          <p className="text-sm text-kumo-default">{r.text}</p>
-        </div>
-      ))}
-      {(state.replyStatus === "thinking" || state.replyStatus === "slow") && (
-        <div className="flex gap-2 items-center">
-          <Loader size="sm" />
-          <Text size="sm" variant="secondary">
-            {state.replyStatus === "slow" ? "Still working on it…" : "Thinking…"}
-          </Text>
-        </div>
-      )}
-      {state.replyStatus === "streaming" && (
-        <p className="text-sm text-kumo-default">{state.replyDraft}</p>
-      )}
-      {state.replyStatus === "failed" && (
-        <div className="flex flex-col gap-2 items-start">
-          <Text size="sm" variant="error">
-            {state.replyError}
-          </Text>
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<ArrowClockwiseIcon size={14} />}
-            onClick={retry}
-          >
-            Try again
-          </Button>
-        </div>
-      )}
-    </Surface>
   );
 }
 
