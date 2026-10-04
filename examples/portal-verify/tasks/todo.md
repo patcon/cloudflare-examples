@@ -49,11 +49,11 @@ Scope: M. Depends on: Task 2.
 4. Rename `src/server/explore/` to `src/server/verify/`. Keep `gemini.ts`, `sse.ts` and a transcript helper that joins segments.
 5. Remove the constants that nothing uses now.
 
-- [ ] `ProjectState` is an empty settings object, for Task 12
-- [ ] The settings page shows the sessions of the project, and nothing about Explore
-- [ ] No file imports `explore/`. `grep -ri explore src test` finds only comments that credit the source
-- [ ] `prompt.test.ts` and `settings.test.ts` are removed, or have only the remaining cases
-- [ ] Manual: a new session shows on `/demo/settings`
+- [x] `ProjectState` is an empty settings object, for Task 12
+- [x] The settings page shows the sessions of the project, and nothing about Explore
+- [x] No file imports `explore/`. `grep -ri explore src test` finds only comments that credit the source
+- [x] `prompt.test.ts` and `settings.test.ts` are removed, or have only the remaining cases
+- [x] Manual: a new session shows on `/demo/settings`
 
 Files: `src/server/project-agent.ts`, `src/client/pages/Settings.tsx`, `src/server/verify/*` (from `explore/`), `src/shared/constants.ts`, `test/prompt.test.ts`, `test/settings.test.ts`
 

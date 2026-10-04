@@ -2,7 +2,6 @@ import { Agent, callable, getAgentByName, type Connection } from "agents";
 import { withVoiceInput, type Transcriber } from "agents/voice";
 import { GeminiBatchSTT, GeminiLiveSTT } from "@cloudflare/voice-gemini";
 import { isProjectId } from "../shared/ids";
-import { buildTranscript } from "./explore/transcript";
 import { BATCH_MODEL, LIVE_MODEL, LOCATION } from "./models";
 
 export interface SessionState {
@@ -82,14 +81,6 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   @callable()
   listSegments(): Segment[] {
     return this.sql<Segment>`SELECT id, at, text FROM live_segments ORDER BY id`;
-  }
-
-  /**
-   * For another session's prompt, over RPC from the project: this
-   * session's transcript.
-   */
-  transcriptForContext(): string {
-    return buildTranscript(this.listSegments(), []);
   }
 
   /**

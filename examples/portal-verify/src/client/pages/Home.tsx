@@ -8,7 +8,7 @@ export function Home() {
   const [name, setName] = useState("demo");
   const valid = isProjectId(name);
   return (
-    <Shell title="Portal Explore">
+    <Shell title="Portal Verify">
       <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
         <Text size="sm">
           A project holds many recorded group conversations. Any of them can ask for a short reply
