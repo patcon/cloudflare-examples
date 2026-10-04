@@ -1,0 +1,4 @@
+# The Gemini provider lives in packages/, shaped like the ones in
+# cloudflare/agents' voice-providers/, so it can move there later.
+packages:
+  - "packages/*"

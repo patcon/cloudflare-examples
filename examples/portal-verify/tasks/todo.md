@@ -16,9 +16,9 @@ Scope: S. Depends on: none.
 3. Set the dev port to 8796. Ports 8790 and 8793–8795 are in use.
 4. Write a stub `README.md` that says the work is in progress.
 
-- [ ] No file names `portal-explore`, except to credit it as the source
-- [ ] `pnpm install` makes a lockfile for this folder. The folder has its own `.gitignore`
-- [ ] `pnpm dev` serves on <http://localhost:8796>
+- [x] No file names `portal-explore`, except to credit it as the source
+- [x] `pnpm install` makes a lockfile for this folder. The folder has its own `.gitignore`
+- [x] `pnpm dev` serves on <http://localhost:8796>
 - [ ] Manual: a session at `/demo/start` records from the mic and shows the live transcript
 
 Files: `package.json`, `pnpm-lock.yaml`, `wrangler.jsonc`, `vite.config.ts`, `README.md`
