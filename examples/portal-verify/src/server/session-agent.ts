@@ -76,7 +76,9 @@ const OUTCOME_COLUMNS = `id, topic_key AS topicKey, topic_label AS topicLabel,
   revised_at AS revisedAt, approved_at AS approvedAt`;
 
 /** What the session broadcasts, beside the voice pipeline's own messages. */
-export type SessionMessage = { type: "segment"; segment: Segment };
+export type SessionMessage =
+  | { type: "segment"; segment: Segment }
+  | { type: "approved"; outcome: Outcome };
 
 /** 16kHz mono 16-bit WAV, as the replay page sends, after its 44-byte header. */
 const WAV_BYTES_PER_SECOND = 16_000 * 2;
@@ -344,6 +346,36 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       )
       .toArray();
     this.setState({ ...this.state, pendingOutcome: edited, verifyError: null });
+  }
+
+  /**
+   * Approves the pending outcome, as it reads now, and tells every page.
+   * The pages go back to the transcript, where it heads the approved list.
+   */
+  @callable()
+  approve() {
+    const outcome = this.state.pendingOutcome;
+    if (!outcome) throw new Error("There's no outcome to approve");
+    if (isWriting(this.state.verifyStatus)) throw new Error("An outcome is being written");
+    const [approved] = this.ctx.storage.sql
+      .exec<Outcome>(
+        `UPDATE outcomes SET approved_at = ? WHERE id = ? RETURNING ${OUTCOME_COLUMNS}`,
+        Date.now(),
+        outcome.id,
+      )
+      .toArray();
+    console.log(`[${this.name}] Approved outcome ${outcome.id}`);
+    this.setState({ ...this.state, pendingOutcome: null, verifyError: null });
+    this.#notify({ type: "approved", outcome: approved });
+  }
+
+  /**
+   * The approved outcomes, newest approval first. One made and never
+   * approved, such as one a new outcome replaced, stays out.
+   */
+  @callable()
+  listOutcomes(): Outcome[] {
+    return this.#outcomes("WHERE approved_at IS NOT NULL ORDER BY approved_at DESC, id DESC");
   }
 
   /**

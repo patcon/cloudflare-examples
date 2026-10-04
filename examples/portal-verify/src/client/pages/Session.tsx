@@ -5,6 +5,7 @@ import { CaretRightIcon, CheckCircleIcon, MicrophoneIcon, StopIcon } from "@phos
 import { useNow } from "../hooks/use-now";
 import { useVoiceRecorder } from "../hooks/use-voice-recorder";
 import type {
+  Outcome,
   Segment,
   SessionAgent,
   SessionMessage,
@@ -16,11 +17,12 @@ import { DEFAULT_TOPICS } from "../../shared/topics";
 import { Shell } from "../ui";
 import { Replay } from "./Replay";
 import { verifyView } from "../../shared/verify-view";
-import { Instructions, OutcomeView, TopicPicker } from "./Verify";
+import { ApprovedList, Instructions, OutcomeView, TopicPicker } from "./Verify";
 
 /** For the recording phone: records, and shows the live transcript. */
 export function Session({ projectId, sessionId }: { projectId: string; sessionId: string }) {
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [approved, setApproved] = useState<Outcome[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
 
@@ -35,6 +37,9 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
           s.some((x) => x.id === message.segment.id) ? s : [...s, message.segment],
         );
       }
+      if (message?.type === "approved") {
+        setApproved((a) => [message.outcome, ...a.filter((x) => x.id !== message.outcome.id)]);
+      }
     },
   });
 
@@ -42,8 +47,12 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   useEffect(() => {
     agent.ready
       .then(() => agent.call("attach", [projectId]))
-      .then(() => agent.call("listSegments"))
-      .then(setSegments)
+      .then(() =>
+        Promise.all([
+          agent.call("listSegments").then(setSegments),
+          agent.call("listOutcomes").then(setApproved),
+        ]),
+      )
       .catch((e: Error) => setError(e.message));
   }, [agent, projectId]);
 
@@ -102,6 +111,7 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   };
   const revise = () => agent.call("revise");
   const save = (content: string) => agent.call("editOutcome", [content]);
+  const approve = () => agent.call("approve");
   const topicLabel =
     topics.find((t) => t.key === state?.verifyTopicKey)?.label ??
     state?.pendingOutcome?.topicLabel ??
@@ -222,7 +232,14 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         />
       )}
       {view === "outcome" && state && (
-        <OutcomeView state={state} now={now} back={back} revise={revise} save={save} />
+        <OutcomeView
+          state={state}
+          now={now}
+          back={back}
+          revise={revise}
+          save={save}
+          approve={approve}
+        />
       )}
 
       {view === "none" && (
@@ -251,6 +268,8 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
           </details>
         </Surface>
       )}
+
+      {view === "none" && approved.length > 0 && <ApprovedList outcomes={approved} />}
 
       {empty && !replay && (
         <a className="self-end text-xs text-kumo-subtle underline" href="?debug=true">

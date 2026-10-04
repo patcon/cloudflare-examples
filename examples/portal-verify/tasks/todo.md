@@ -203,16 +203,16 @@ Scope: S. Depends on: Task 8.
 2. Write `listOutcomes()`. It returns the approved outcomes, newest first.
 3. Below the transcript, show each approved outcome with its emoji, label and time. A push expands it in place.
 
-- [ ] Approve goes back to the transcript. The outcome is at the top of the list in all tabs
-- [ ] The list never shows an outcome that a new outcome replaced
-- [ ] A reload keeps the list
-- [ ] Manual: approve two outcomes on different topics, then reload
+- [x] Approve goes back to the transcript. The outcome is at the top of the list in all tabs
+- [x] The list never shows an outcome that a new outcome replaced
+- [x] A reload keeps the list
+- [x] Manual: approve two outcomes on different topics, then reload
 
 Files: `src/server/session-agent.ts`, `src/client/pages/Session.tsx`, `src/client/pages/Verify.tsx`
 
 ## Checkpoint: Verify works for a participant
 
-- [ ] Tests, typecheck and lint pass
+- [x] Tests, typecheck and lint pass
 - [ ] One pass in a browser with the mic: verify, revise from speech, edit, approve, reload
 - [ ] Review with the user
 

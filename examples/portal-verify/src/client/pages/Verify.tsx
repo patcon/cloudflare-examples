@@ -6,9 +6,10 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   ArrowsClockwiseIcon,
+  CheckIcon,
   PencilSimpleIcon,
 } from "@phosphor-icons/react";
-import type { SessionState } from "../../server/session-agent";
+import type { Outcome, SessionState } from "../../server/session-agent";
 import { MAX_OUTCOME_CHARS } from "../../shared/constants";
 import { isWriting, whyNotRevise } from "../../shared/rules";
 import type { Topic } from "../../shared/topics";
@@ -153,8 +154,8 @@ export function Instructions({
 }
 
 /**
- * The pending outcome, as Markdown, with **Back**, **Revise** and the
- * pencil, which edits it as plain text. A revision streams in over the old
+ * The pending outcome, as Markdown, with **Back**, **Revise**, **Approve**
+ * and the pencil, which edits it as plain text. A revision streams in over the old
  * text.
  */
 export function OutcomeView({
@@ -163,12 +164,14 @@ export function OutcomeView({
   back,
   revise,
   save,
+  approve,
 }: {
   state: SessionState;
   now: number;
   back: () => void;
   revise: () => Promise<unknown>;
   save: (content: string) => Promise<unknown>;
+  approve: () => Promise<unknown>;
 }) {
   const [notice, setNotice] = useState<string | null>(null);
   /** The text being edited, or null when not editing. */
@@ -270,7 +273,52 @@ export function OutcomeView({
               ? `Revise (${wait.match(/\d+/)?.[0]}s)`
               : "Revise"}
         </Button>
+        <Button
+          variant="primary"
+          className="ml-auto"
+          icon={<CheckIcon size={16} />}
+          disabled={revising}
+          onClick={() => {
+            setNotice(null);
+            approve().catch((e: Error) => setNotice(e.message));
+          }}
+        >
+          Approve
+        </Button>
       </div>
+    </Surface>
+  );
+}
+
+/**
+ * The approved outcomes, newest first, below the transcript. Each opens in
+ * place; the original opens a modal.
+ */
+export function ApprovedList({ outcomes }: { outcomes: readonly Outcome[] }) {
+  return (
+    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2">
+      <Text size="xs" variant="secondary">
+        Approved
+      </Text>
+      {outcomes.map((o) => (
+        <details key={o.id} className="group rounded-lg border border-kumo-line">
+          <summary className="flex items-center gap-2 cursor-pointer list-none p-3 [&::-webkit-details-marker]:hidden">
+            <span className="text-lg">{o.topicIcon}</span>
+            <span className="text-sm font-medium text-kumo-default flex-1">{o.topicLabel}</span>
+            {o.approvedAt && (
+              <Text size="xs" variant="secondary">
+                {new Date(o.approvedAt).toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </Text>
+            )}
+          </summary>
+          <div className="markdown text-sm text-kumo-default px-3 pb-3">
+            <Markdown>{o.content}</Markdown>
+          </div>
+        </details>
+      ))}
     </Surface>
   );
 }
