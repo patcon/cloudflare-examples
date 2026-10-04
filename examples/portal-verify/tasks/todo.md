@@ -108,10 +108,10 @@ Scope: S. Depends on: Task 3.
    - Less than 2 minutes passed since the last outcome was complete.
 3. Add `VERIFY_COOLDOWN_MS` to `constants.ts`, with its source. Keep `MIN_RECORDED_SECONDS`.
 
-- [ ] The six prompts are word for word the same as in `defaults.ts`
-- [ ] Each rule has its own reason, in the order above, as `whyNotExplore` did
-- [ ] Each constant names its source file
-- [ ] `pnpm test rules` has one case for each reason, and one case that passes
+- [x] The six prompts are word for word the same as in `defaults.ts`
+- [x] Each rule has its own reason, in the order above, as `whyNotExplore` did
+- [x] Each constant names its source file
+- [x] `pnpm test rules` has one case for each reason, and one case that passes
 
 Files: `src/shared/topics.ts`, `src/shared/rules.ts`, `src/shared/constants.ts`, `test/rules.test.ts`
 
