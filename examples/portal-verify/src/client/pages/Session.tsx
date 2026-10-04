@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Button, Surface, Text } from "@cloudflare/kumo";
-import { CaretRightIcon, MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
+import { Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
+import {
+  ArrowClockwiseIcon,
+  CaretRightIcon,
+  CheckCircleIcon,
+  MicrophoneIcon,
+  StopIcon,
+} from "@phosphor-icons/react";
 import { useNow } from "../hooks/use-now";
 import { useVoiceRecorder } from "../hooks/use-voice-recorder";
 import type {
@@ -10,7 +16,9 @@ import type {
   SessionMessage,
   SessionState,
 } from "../../server/session-agent";
-import { recordedSecondsAt } from "../../shared/rules";
+import { MIN_RECORDED_SECONDS } from "../../shared/constants";
+import { isWriting, recordedSecondsAt, whyNotVerify } from "../../shared/rules";
+import { DEFAULT_TOPICS } from "../../shared/topics";
 import { Shell } from "../ui";
 import { Replay } from "./Replay";
 
@@ -47,6 +55,24 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   const recording = voice.status !== "idle";
   const now = useNow();
   const seconds = state ? recordedSecondsAt(state, now) : 0;
+  const notYet = state
+    ? whyNotVerify({
+        verifyStatus: state.verifyStatus,
+        recordedSeconds: seconds,
+        segments: segments.length,
+        lastVerifyAt: state.lastVerifyAt,
+        now,
+      })
+    : "Connecting…";
+  // The topic list, shown after a press on Verify.
+  const [picking, setPicking] = useState(false);
+
+  const verify = (topicKey: string) => {
+    setError(null);
+    setPicking(false);
+    agent.call("verify", [topicKey]).catch((e: Error) => setError(e.message));
+  };
+
   const record = async () => {
     setError(null);
     try {
@@ -112,12 +138,38 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         <Text size="xs" variant="secondary">
           Recorded {formatDuration(seconds)}
         </Text>
+        <div className="flex flex-col gap-1 items-center w-full max-w-xs">
+          <Button
+            variant="secondary"
+            icon={<CheckCircleIcon size={16} />}
+            onClick={() => setPicking((p) => !p)}
+            disabled={notYet !== null}
+          >
+            Verify
+          </Button>
+          {seconds < MIN_RECORDED_SECONDS && (
+            <Meter
+              className="w-full"
+              label="Verify"
+              showValue={false}
+              value={(100 * seconds) / MIN_RECORDED_SECONDS}
+            />
+          )}
+          {notYet && (
+            <Text size="xs" variant="secondary">
+              {notYet}
+            </Text>
+          )}
+        </div>
         {(error || voice.error) && (
           <Text size="sm" variant="error">
             {error || voice.error}
           </Text>
         )}
       </Surface>
+
+      {picking && notYet === null && <Topics verify={verify} />}
+      {state && <Outcome state={state} retry={verify} />}
 
       <Surface className="p-4 rounded-xl ring ring-kumo-line">
         {/* Open on every load; whether it was closed isn't kept. */}
@@ -150,6 +202,68 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         </a>
       )}
     </Shell>
+  );
+}
+
+/** What participants can verify. */
+function Topics({ verify }: { verify: (topicKey: string) => void }) {
+  return (
+    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2 items-start">
+      <Text size="sm" bold>
+        What do you want to verify?
+      </Text>
+      {DEFAULT_TOPICS.map((t) => (
+        <Button key={t.key} variant="ghost" onClick={() => verify(t.key)}>
+          {t.icon} {t.label}
+        </Button>
+      ))}
+    </Surface>
+  );
+}
+
+/** The outcome being written, the pending one, or why the last one failed. */
+function Outcome({ state, retry }: { state: SessionState; retry: (topicKey: string) => void }) {
+  const { verifyStatus, verifyDraft, verifyError, verifyTopicKey, pendingOutcome } = state;
+  if (!isWriting(verifyStatus) && verifyStatus !== "failed" && !pendingOutcome) return null;
+  return (
+    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
+      {isWriting(verifyStatus) && !verifyDraft && (
+        <div className="flex gap-2 items-center">
+          <Loader size="sm" />
+          <Text size="sm" variant="secondary">
+            {verifyStatus === "slow" ? "Still working on it…" : "Writing the outcome…"}
+          </Text>
+        </div>
+      )}
+      {isWriting(verifyStatus) && verifyDraft && (
+        <p className="text-sm text-kumo-default whitespace-pre-wrap">{verifyDraft}</p>
+      )}
+      {verifyStatus === "failed" && (
+        <div className="flex flex-col gap-2 items-start">
+          <Text size="sm" variant="error">
+            {verifyError}
+          </Text>
+          {verifyTopicKey && (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<ArrowClockwiseIcon size={14} />}
+              onClick={() => retry(verifyTopicKey)}
+            >
+              Try again
+            </Button>
+          )}
+        </div>
+      )}
+      {!isWriting(verifyStatus) && pendingOutcome && (
+        <>
+          <Text size="xs" variant="secondary">
+            {pendingOutcome.topicIcon} {pendingOutcome.topicLabel}
+          </Text>
+          <p className="text-sm text-kumo-default whitespace-pre-wrap">{pendingOutcome.content}</p>
+        </>
+      )}
+    </Surface>
   );
 }
 

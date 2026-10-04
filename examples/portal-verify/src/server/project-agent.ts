@@ -1,5 +1,6 @@
 import { Agent, callable, type Connection } from "agents";
 import { isSessionId } from "../shared/ids";
+import { DEFAULT_TOPICS, type Topic } from "../shared/topics";
 
 /** The project's settings, synced to every page connected to it. None yet. */
 export type ProjectState = Record<string, never>;
@@ -32,6 +33,13 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   @callable()
   listSessions(): SessionRow[] {
     return this.sql<SessionRow>`SELECT * FROM sessions ORDER BY started_at DESC`;
+  }
+
+  /** For a session's `verify()`, over RPC: the topic to write an outcome on. */
+  topic(key: string): Topic {
+    const topic = DEFAULT_TOPICS.find((t) => t.key === key);
+    if (!topic) throw new Error(`Not a topic: ${key}`);
+    return topic;
   }
 
   validateStateChange(_next: ProjectState, source: Connection | "server") {
