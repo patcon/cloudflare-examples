@@ -168,7 +168,7 @@ There are two agents, as in `portal-explore`:
 SessionAgent "a1"                          ProjectAgent "demo"
   SQLite: live_segments, outcomes            SQLite: sessions
   state: recording, verifyStatus,            state: verifyEnabled, selectedTopics,
-         verifyDraft, pendingOutcomeId,             customTopics
+         verifyDraft, pendingOutcome,               customTopics
          lastVerifyAt, lastReviseAt
                     ── RPC: topic(key) ──▶
                     ◀── RPC: approvedOutcomes() ──
@@ -182,7 +182,7 @@ SessionAgent "a1"                          ProjectAgent "demo"
 | `revise()` | Checks the rules. Uses the segments since the pending outcome was made or last revised as feedback. Streams the new text in the same way |
 | `editOutcome(content)` | Replaces the text of the pending outcome |
 | `approve()` | Sets `approved_at`, clears the pending outcome and broadcasts it |
-| `leaveOutcome()` | Clears `pendingOutcomeId`. The row stays |
+| `dismissError()` | Clears why the last outcome failed, from **Back**. The pending outcome stays |
 | `listOutcomes()` | Approved outcomes, newest first, and the pending outcome |
 | `approvedOutcomes()` | Over RPC, for the settings page |
 

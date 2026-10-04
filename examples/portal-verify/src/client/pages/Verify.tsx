@@ -1,9 +1,14 @@
 import { useState } from "react";
 import Markdown from "react-markdown";
 import { Button, Loader, Surface, Text } from "@cloudflare/kumo";
-import { ArrowClockwiseIcon, ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
+import {
+  ArrowClockwiseIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  PencilSimpleLineIcon,
+} from "@phosphor-icons/react";
 import type { SessionState } from "../../server/session-agent";
-import { isWriting } from "../../shared/rules";
+import { isWriting, whyNotRevise } from "../../shared/rules";
 import type { Topic } from "../../shared/topics";
 
 /** "What do you want to verify?": a chip for each topic, then **Next**. */
@@ -145,21 +150,66 @@ export function Instructions({
   );
 }
 
-/** The pending outcome, as Markdown, with **Back**. */
-export function OutcomeView({ state, leave }: { state: SessionState; leave: () => void }) {
+/**
+ * The pending outcome, as Markdown, with **Back** and **Revise**. A
+ * revision streams in over the old text.
+ */
+export function OutcomeView({
+  state,
+  now,
+  back,
+  revise,
+}: {
+  state: SessionState;
+  now: number;
+  back: () => void;
+  revise: () => Promise<unknown>;
+}) {
+  const [notice, setNotice] = useState<string | null>(null);
   const outcome = state.pendingOutcome;
   if (!outcome) return null;
+  const revising = state.verifyStatus === "revising";
+  // Only the waits disable the button. With no new speech it stays on, and
+  // a press says so, as in the original.
+  const wait = whyNotRevise({
+    verifyStatus: state.verifyStatus,
+    lastReviseAt: state.lastReviseAt,
+    newSegments: 1,
+    now,
+  });
+  const onRevise = () => {
+    setNotice(null);
+    revise().catch((e: Error) => setNotice(e.message));
+  };
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
       <Text size="xs" variant="secondary">
         {outcome.topicIcon} {outcome.topicLabel}
+        {outcome.revisedAt && ` · revised ${new Date(outcome.revisedAt).toLocaleTimeString()}`}
       </Text>
-      <div className="markdown text-sm text-kumo-default">
-        <Markdown>{outcome.content}</Markdown>
+      <div className={`markdown text-sm text-kumo-default ${revising ? "opacity-60" : ""}`}>
+        <Markdown>{revising && state.verifyDraft ? state.verifyDraft : outcome.content}</Markdown>
       </div>
+      {(notice || state.verifyError) && (
+        <Text size="sm" variant="secondary">
+          {notice || state.verifyError}
+        </Text>
+      )}
       <div className="flex gap-2">
-        <Button variant="ghost" icon={<ArrowLeftIcon size={16} />} onClick={leave}>
+        <Button variant="ghost" icon={<ArrowLeftIcon size={16} />} onClick={back}>
           Back
+        </Button>
+        <Button
+          variant="secondary"
+          icon={revising ? <Loader size="sm" /> : <PencilSimpleLineIcon size={16} />}
+          disabled={wait !== null}
+          onClick={onRevise}
+        >
+          {revising
+            ? "Revising…"
+            : wait?.startsWith("Wait")
+              ? `Revise (${wait.match(/\d+/)?.[0]}s)`
+              : "Revise"}
         </Button>
       </div>
     </Surface>

@@ -3,12 +3,19 @@ import { withVoiceInput, type Transcriber } from "agents/voice";
 import { GeminiBatchSTT, GeminiLiveSTT } from "@cloudflare/voice-gemini";
 import { SLOW_AFTER_MS } from "../shared/constants";
 import { isProjectId } from "../shared/ids";
-import { isWriting, recordedSecondsAt, whyNotVerify, type VerifyStatus } from "../shared/rules";
+import {
+  isWriting,
+  NO_NEW_FEEDBACK,
+  recordedSecondsAt,
+  type VerifyStatus,
+  whyNotRevise,
+  whyNotVerify,
+} from "../shared/rules";
 import type { Topic } from "../shared/topics";
 import { BATCH_MODEL, LIVE_MODEL, LOCATION, OUTCOME_MODEL } from "./models";
 import { streamText } from "./verify/gemini";
-import { generatePrompt, type Prompt } from "./verify/prompt";
-import { buildTranscript } from "./verify/transcript";
+import { generatePrompt, type Prompt, revisePrompt } from "./verify/prompt";
+import { buildTranscript, feedbackSince } from "./verify/transcript";
 
 export interface SessionState {
   /** Set by the first page to connect, from its URL. */
@@ -31,6 +38,8 @@ export interface SessionState {
   pendingOutcome: Outcome | null;
   /** When the last new outcome was complete, for the cooldown. */
   lastVerifyAt: number | null;
+  /** When the last revision finished, or a Revise found no feedback. */
+  lastReviseAt: number | null;
 }
 
 export interface Segment {
@@ -92,6 +101,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     verifyError: null,
     pendingOutcome: null,
     lastVerifyAt: null,
+    lastReviseAt: null,
   };
 
   /** The connection that's recording. A call keeps the object awake. */
@@ -192,8 +202,12 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     void this.keepAliveWhile(() => this.#generate(topic, prompt));
   }
 
-  /** Streams the outcome into state, then saves it. Never throws. */
-  async #generate(topic: Topic, prompt: Prompt) {
+  /**
+   * Streams Gemini's text into `verifyDraft`, and returns it, trimmed. A new
+   * outcome with nothing back by `SLOW_AFTER_MS` turns `slow`, so the page
+   * says it's still working.
+   */
+  async #stream(prompt: Prompt, status: "generating" | "revising"): Promise<string> {
     const slow = setTimeout(() => {
       if (this.state.verifyStatus === "generating" && !this.state.verifyDraft) {
         this.setState({ ...this.state, verifyStatus: "slow" });
@@ -204,9 +218,19 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       for await (const piece of streamText(this.#vertex(OUTCOME_MODEL), prompt)) {
         clearTimeout(slow);
         text += piece;
-        this.setState({ ...this.state, verifyStatus: "generating", verifyDraft: text });
+        this.setState({ ...this.state, verifyStatus: status, verifyDraft: text });
       }
       if (!text.trim()) throw new Error("Gemini sent an empty outcome");
+      return text.trim();
+    } finally {
+      clearTimeout(slow);
+    }
+  }
+
+  /** Streams the outcome into state, then saves it. Never throws. */
+  async #generate(topic: Topic, prompt: Prompt) {
+    try {
+      const text = await this.#stream(prompt, "generating");
       // Saved, and so dated, once the text is complete, as in the original.
       const now = Date.now();
       const [outcome] = this.ctx.storage.sql
@@ -216,7 +240,7 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
           topic.key,
           topic.label,
           topic.icon,
-          text.trim(),
+          text,
           now,
         )
         .toArray();
@@ -227,27 +251,86 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
         verifyDraft: "",
         pendingOutcome: outcome,
         lastVerifyAt: now,
+        lastReviseAt: null,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[${this.name}] Outcome failed: ${message}`);
       this.#verifyFailed(message);
-    } finally {
-      clearTimeout(slow);
     }
   }
 
   /**
-   * Leaves the pending outcome, from **Back**: its row stays, unapproved,
-   * as when a new outcome replaces it. Also clears a failed outcome's error.
+   * Revises the pending outcome from what the group said since it was made
+   * or last revised. The original sends everything since it was made, each
+   * time, so a revision gets feedback an earlier one already used. As
+   * `verify()`, it returns once the revision has started.
    */
   @callable()
-  leaveOutcome() {
+  revise() {
+    const outcome = this.state.pendingOutcome;
+    if (!outcome) throw new Error("There's no outcome to revise");
+    const segments = this.listSegments();
+    const since = outcome.revisedAt ?? outcome.createdAt;
+    const feedback = feedbackSince(segments, since);
+    const reason = whyNotRevise({
+      verifyStatus: this.state.verifyStatus,
+      lastReviseAt: this.state.lastReviseAt,
+      newSegments: feedback ? 1 : 0,
+      now: Date.now(),
+    });
+    // As in the original, a Revise with nothing new also starts the wait.
+    if (reason === NO_NEW_FEEDBACK) this.setState({ ...this.state, lastReviseAt: Date.now() });
+    if (reason) throw new Error(reason);
+    this.setState({ ...this.state, verifyStatus: "revising", verifyDraft: "", verifyError: null });
+    const prompt = revisePrompt(buildTranscript(segments), outcome.content, feedback);
+    console.log(`[${this.name}] Revising outcome ${outcome.id} with: ${JSON.stringify(feedback)}`);
+    void this.keepAliveWhile(() => this.#revise(outcome.id, prompt));
+  }
+
+  /**
+   * Streams the revision into state, then saves it over the outcome. On a
+   * failure the outcome stays as it was, with the reason. Never throws.
+   */
+  async #revise(id: number, prompt: Prompt) {
+    try {
+      const text = await this.#stream(prompt, "revising");
+      const now = Date.now();
+      const [outcome] = this.ctx.storage.sql
+        .exec<Outcome>(
+          `UPDATE outcomes SET content = ?, revised_at = ? WHERE id = ?
+          RETURNING ${OUTCOME_COLUMNS}`,
+          text,
+          now,
+          id,
+        )
+        .toArray();
+      if (!outcome) throw new Error("The outcome is gone");
+      console.log(`[${this.name}] Revised outcome ${id}`);
+      this.setState({
+        ...this.state,
+        verifyStatus: "idle",
+        verifyDraft: "",
+        pendingOutcome: outcome,
+        lastReviseAt: now,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[${this.name}] Revision failed: ${message}`);
+      this.setState({ ...this.state, verifyStatus: "idle", verifyDraft: "", verifyError: message });
+    }
+  }
+
+  /**
+   * Clears why the last outcome or revision failed, from **Back**. The
+   * pending outcome, if any, stays: Back only goes back to the transcript.
+   */
+  @callable()
+  dismissError() {
     if (isWriting(this.state.verifyStatus)) throw new Error("An outcome is being written");
     this.setState({
       ...this.state,
-      pendingOutcome: null,
-      verifyStatus: "idle",
+      verifyStatus: this.state.verifyStatus === "failed" ? "idle" : this.state.verifyStatus,
       verifyError: null,
     });
   }

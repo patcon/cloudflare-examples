@@ -15,6 +15,11 @@ export interface VerifyLocal {
    * until **Next**. A page that opens on a finished outcome goes to it.
    */
   awaitingNext: boolean;
+  /**
+   * **Back** was pressed on the pending outcome. It stays pending, one tap
+   * away, and opens again on a reload, as the original's outcome URL does.
+   */
+  backed: boolean;
 }
 
 export function verifyView(
@@ -25,6 +30,7 @@ export function verifyView(
   if (verifyStatus === "revising") return "outcome";
   if (isWriting(verifyStatus) || verifyStatus === "failed") return "instructions";
   if (local.picking) return "topics";
-  if (pendingOutcome) return local.awaitingNext ? "instructions" : "outcome";
+  if (pendingOutcome && local.awaitingNext) return "instructions";
+  if (pendingOutcome && !local.backed) return "outcome";
   return "none";
 }

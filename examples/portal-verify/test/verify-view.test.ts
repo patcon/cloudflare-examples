@@ -3,7 +3,7 @@ import { verifyView } from "../src/shared/verify-view";
 
 const idle = { verifyStatus: "idle", pendingOutcome: null } as const;
 const pending = { verifyStatus: "idle", pendingOutcome: { id: 1 } } as const;
-const local = { picking: false, awaitingNext: false };
+const local = { picking: false, awaitingNext: false, backed: false };
 
 describe("verifyView", () => {
   it("shows the transcript when nothing is going on", () => {
@@ -27,6 +27,10 @@ describe("verifyView", () => {
         "instructions",
       );
     }
+  });
+
+  it("goes back to the transcript from the outcome, which stays pending", () => {
+    expect(verifyView(pending, { ...local, backed: true })).toBe("none");
   });
 
   it("stays on the outcome while it's revised", () => {

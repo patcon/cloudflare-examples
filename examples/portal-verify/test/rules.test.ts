@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { VERIFY_COOLDOWN_MS } from "../src/shared/constants";
-import { recordedSecondsAt, whyNotVerify, type VerifyFacts } from "../src/shared/rules";
+import { REVISE_COOLDOWN_MS, VERIFY_COOLDOWN_MS } from "../src/shared/constants";
+import {
+  NO_NEW_FEEDBACK,
+  recordedSecondsAt,
+  type ReviseFacts,
+  type VerifyFacts,
+  whyNotRevise,
+  whyNotVerify,
+} from "../src/shared/rules";
 
 const ready: VerifyFacts = {
   verifyStatus: "idle",
@@ -50,5 +57,32 @@ describe("recordedSecondsAt", () => {
   it("adds a recording still going to the total", () => {
     expect(recordedSecondsAt({ recordedSeconds: 30, recordingSince: null }, 5000)).toBe(30);
     expect(recordedSecondsAt({ recordedSeconds: 30, recordingSince: 1000 }, 5000)).toBe(34);
+  });
+});
+
+describe("whyNotRevise", () => {
+  const ready: ReviseFacts = {
+    verifyStatus: "idle",
+    lastReviseAt: null,
+    newSegments: 2,
+    now: 1_000_000,
+  };
+
+  it("allows a revision with new speech", () => {
+    expect(whyNotRevise(ready)).toBeNull();
+  });
+
+  it("refuses while an outcome is written or revised", () => {
+    expect(whyNotRevise({ ...ready, verifyStatus: "revising" })).toMatch(/being written/);
+  });
+
+  it("refuses within 30 seconds of the last revision, and allows after", () => {
+    const lastReviseAt = ready.now - REVISE_COOLDOWN_MS + 12_000;
+    expect(whyNotRevise({ ...ready, lastReviseAt })).toBe("Wait 12 seconds to revise again");
+    expect(whyNotRevise({ ...ready, lastReviseAt: ready.now - REVISE_COOLDOWN_MS })).toBeNull();
+  });
+
+  it("refuses with no new speech, with the original's message", () => {
+    expect(whyNotRevise({ ...ready, newSegments: 0 })).toBe(NO_NEW_FEEDBACK);
   });
 });

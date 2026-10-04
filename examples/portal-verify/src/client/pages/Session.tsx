@@ -64,13 +64,19 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   const topics = DEFAULT_TOPICS;
   const [picking, setPicking] = useState(false);
   const [awaitingNext, setAwaitingNext] = useState(false);
+  const [backed, setBacked] = useState(false);
+  // A new outcome opens, even after Back on the one it replaces.
+  const pendingId = state?.pendingOutcome?.id;
+  useEffect(() => {
+    if (pendingId !== undefined) setBacked(false);
+  }, [pendingId]);
   // Any page that sees an outcome being written, such as one reloaded
   // mid-way or a second tab, shows the instructions until Next.
   const generating = state?.verifyStatus === "generating" || state?.verifyStatus === "slow";
   useEffect(() => {
     if (generating) setAwaitingNext(true);
   }, [generating]);
-  const view = state ? verifyView(state, { picking, awaitingNext }) : "none";
+  const view = state ? verifyView(state, { picking, awaitingNext, backed }) : "none";
 
   const verify = (topicKey: string) => {
     setError(null);
@@ -83,11 +89,18 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   };
   // As in the original, one topic needs no picking.
   const startVerify = () => (topics.length === 1 ? verify(topics[0].key) : setPicking(true));
-  const leave = () => {
+  // Back to the transcript. The pending outcome stays, one tap away.
+  const back = () => {
     setError(null);
     setAwaitingNext(false);
-    agent.call("leaveOutcome").catch((e: Error) => setError(e.message));
+    setBacked(true);
   };
+  // Back from a failed outcome also clears why it failed.
+  const backFromFailure = () => {
+    back();
+    agent.call("dismissError").catch((e: Error) => setError(e.message));
+  };
+  const revise = () => agent.call("revise");
   const topicLabel =
     topics.find((t) => t.key === state?.verifyTopicKey)?.label ??
     state?.pendingOutcome?.topicLabel ??
@@ -160,6 +173,11 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         </Text>
         {view === "none" && (
           <div className="flex flex-col gap-1 items-center w-full max-w-xs">
+            {state?.pendingOutcome && (
+              <Button variant="primary" onClick={() => setBacked(false)}>
+                {state.pendingOutcome.topicIcon} Return to outcome
+              </Button>
+            )}
             <Button
               variant="secondary"
               icon={<CheckCircleIcon size={16} />}
@@ -199,10 +217,12 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
           topicLabel={topicLabel}
           next={() => setAwaitingNext(false)}
           retry={verify}
-          leave={leave}
+          leave={backFromFailure}
         />
       )}
-      {view === "outcome" && state && <OutcomeView state={state} leave={leave} />}
+      {view === "outcome" && state && (
+        <OutcomeView state={state} now={now} back={back} revise={revise} />
+      )}
 
       {view === "none" && (
         <Surface className="p-4 rounded-xl ring ring-kumo-line">

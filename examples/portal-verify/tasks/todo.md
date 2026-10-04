@@ -152,13 +152,13 @@ Change the bare page of Task 7 into the flow of the original. Keep it on the ses
 
 1. **Topic chips** with emoji, below "What do you want to verify?". If there is only one topic, start it immediately.
 2. **The five instructions** during generation. **Next** becomes active when the outcome is complete.
-3. **The outcome** as Markdown, with **Back**. Back calls a new `leaveOutcome()`.
+3. **The outcome** as Markdown, with **Back**. Back goes to the transcript and keeps the outcome pending, as `PLAN.md` says. **Return to outcome** opens it again. On a failed outcome, Back calls a new `dismissError()`.
 4. After a reload, go directly to the outcome in generation, or to the pending outcome.
 5. Select a Markdown renderer, for example `react-markdown`, and add it.
 
 - [x] The views are in this sequence: chips, instructions, outcome. The recording continues in all of them
 - [x] A reload during generation, and a reload on the pending outcome, both show the correct view
-- [ ] **Back** clears `pendingOutcomeId` and keeps the row
+- [x] **Back** keeps the outcome pending. **Return to outcome** and a reload open it again
 - [x] `vite build` passes with the new dependency
 - [x] Manual: the flow in a phone-width window, and the reloads above
 
@@ -173,11 +173,11 @@ Scope: M. Depends on: Task 8.
 3. Write `whyNotRevise(facts)` in `rules.ts`. It refuses during generation or revision, less than 30 seconds after the last revision, and if there is no new speech.
 4. On the page, **Revise** shows the 30-second countdown. If there is no new speech, it shows "No new feedback detected yet…".
 
-- [ ] A second revision gets only the speech after the first revision
-- [ ] With no new speech, the server refuses with the message of the original, and the page shows it
-- [ ] The new text replaces the old text on the page and in `outcomes`
-- [ ] `pnpm test rules`, and a test that selects the feedback segments by time
-- [ ] Manual: with the mic, say a correction after the outcome shows. Push **Revise** and find the correction in the text. Push **Revise** again immediately and see the wait
+- [x] A second revision gets only the speech after the first revision
+- [x] With no new speech, the server refuses with the message of the original, and the page shows it
+- [x] The new text replaces the old text on the page and in `outcomes`
+- [x] `pnpm test rules`, and a test that selects the feedback segments by time
+- [x] Manual: with the mic, say a correction after the outcome shows. Push **Revise** and find the correction in the text. Push **Revise** again immediately and see the wait (checked with replayed `say` speech, not the mic)
 
 Files: `src/server/session-agent.ts`, `src/shared/rules.ts`, `src/shared/constants.ts`, `src/client/pages/Verify.tsx`, `test/rules.test.ts`
 
@@ -199,12 +199,12 @@ Files: `src/server/session-agent.ts`, `src/client/pages/Verify.tsx`, `src/shared
 
 Scope: S. Depends on: Task 8.
 
-1. Write `approve()`. It sets `approved_at` on the pending outcome, clears `pendingOutcomeId` and broadcasts the outcome.
+1. Write `approve()`. It sets `approved_at` on the pending outcome, clears `pendingOutcome` and broadcasts the outcome.
 2. Write `listOutcomes()`. It returns the approved outcomes, newest first.
 3. Below the transcript, show each approved outcome with its emoji, label and time. A push expands it in place.
 
 - [ ] Approve goes back to the transcript. The outcome is at the top of the list in all tabs
-- [ ] The list never shows an outcome that **Back** left, or that a new outcome replaced
+- [ ] The list never shows an outcome that a new outcome replaced
 - [ ] A reload keeps the list
 - [ ] Manual: approve two outcomes on different topics, then reload
 

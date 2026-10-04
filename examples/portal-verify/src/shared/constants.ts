@@ -23,6 +23,13 @@ export const MIN_RECORDED_SECONDS = 60;
 export const VERIFY_COOLDOWN_MS = 2 * 60 * 1000;
 
 /**
+ * The wait after a revision, or after a Revise with no new feedback.
+ * `frontend/src/components/participant/verify/VerifyArtefact.tsx`:
+ * `useCooldown(30 * 1000)`. Kept in the browser there; here on the server.
+ */
+export const REVISE_COOLDOWN_MS = 30 * 1000;
+
+/**
  * With nothing back from Gemini by now, the page says it's still working.
  * `platform/packages/conversations/src/v1/reply.ts`: `HIGH_LOAD_AFTER_MS`.
  */
