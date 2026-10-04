@@ -19,12 +19,14 @@ export class ReplyBlockedError extends Error {
 }
 
 /**
- * Streams a reply to the prompt, one piece of text at a time, from
- * `streamGenerateContent`. Pieces come a few times a second.
+ * Streams Gemini's answer to the prompt, one piece of text at a time, from
+ * `streamGenerateContent`. Pieces come a few times a second. A system
+ * prompt goes in `systemInstruction`, as the AI SDK sends `system` in the
+ * original.
  */
-export async function* streamReply(
+export async function* streamText(
   vertex: VertexOptions & { model: string },
-  prompt: string,
+  prompt: { system?: string; user: string },
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
   const location = vertex.location ?? "global";
@@ -35,7 +37,10 @@ export async function* streamReply(
       Authorization: `Bearer ${await resolveAccessToken(vertex.accessToken, "Gemini")}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] }),
+    body: JSON.stringify({
+      ...(prompt.system && { systemInstruction: { parts: [{ text: prompt.system }] } }),
+      contents: [{ role: "user", parts: [{ text: prompt.user }] }],
+    }),
     signal,
   });
   if (!resp.ok || !resp.body) {

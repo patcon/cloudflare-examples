@@ -90,9 +90,9 @@ Scope: XS. Depends on: Task 3.
 1. Add an optional system prompt to `streamReply`. Send it as `systemInstruction: {parts: [{text}]}`, next to `contents`.
 2. Rename the function `streamText`, because it now writes outcomes.
 
-- [ ] With a system prompt, the request body has `systemInstruction`. Without one, it does not
-- [ ] Errors and blocked replies do not change
-- [ ] New `pnpm test gemini`: it stubs `fetch`, examines the request body, and replays `test/fixtures/stream.txt`
+- [x] With a system prompt, the request body has `systemInstruction`. Without one, it does not
+- [x] Errors and blocked replies do not change
+- [x] New `pnpm test gemini`: it stubs `fetch`, examines the request body, and replays `test/fixtures/stream.txt`
 
 Files: `src/server/verify/gemini.ts`, `test/gemini.test.ts`
 
