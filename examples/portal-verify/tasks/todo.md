@@ -59,7 +59,7 @@ Files: `src/server/project-agent.ts`, `src/client/pages/Settings.tsx`, `src/serv
 
 ## Checkpoint: Foundation
 
-- [ ] Tests, typecheck and lint pass
+- [x] Tests, typecheck and lint pass
 - [ ] A session records, transcribes, stops and records again. It shows on the settings page
 - [ ] Review with the user
 
