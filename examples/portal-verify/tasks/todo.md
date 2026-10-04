@@ -76,10 +76,10 @@ Scope: S. Depends on: Task 3.
    - `Audio attachments: None.`
 4. Write `revisePrompt(transcript, outcome, feedback)`. It returns `{system, user}`. The user message is the fixed instruction of the original.
 
-- [ ] The system prompts have the topic prompt, or the transcript, outcome and feedback. They have no `{{` or `{%`
-- [ ] There is no HTML escape: a transcript with `<` and `&` stays the same
-- [ ] The PII block does not render
-- [ ] `pnpm test prompt` has one snapshot of each prompt
+- [x] The system prompts have the topic prompt, or the transcript, outcome and feedback. They have no `{{` or `{%`
+- [x] There is no HTML escape: a transcript with `<` and `&` stays the same
+- [x] The PII block does not render
+- [x] `pnpm test prompt` has one snapshot of each prompt
 
 Files: `src/server/prompts/generate_artifact.en.jinja`, `src/server/prompts/revise_artifact.en.jinja`, `src/server/verify/prompt.ts`, `test/prompt.test.ts`
 
