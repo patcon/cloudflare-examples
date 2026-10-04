@@ -42,3 +42,8 @@ export const REPLAY_WINDOW_SECONDS = 300;
 
 /** A 5-minute 16kHz WAV window is about 9.6MB. This allows some more. */
 export const MAX_REPLAY_WINDOW_BYTES = 12 * 1024 * 1024;
+
+// Made up for this example. The original has no equivalent.
+
+/** The longest outcome an edit may save. The original has no limit. */
+export const MAX_OUTCOME_CHARS = 20_000;

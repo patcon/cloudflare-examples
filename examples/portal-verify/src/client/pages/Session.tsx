@@ -101,6 +101,7 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
     agent.call("dismissError").catch((e: Error) => setError(e.message));
   };
   const revise = () => agent.call("revise");
+  const save = (content: string) => agent.call("editOutcome", [content]);
   const topicLabel =
     topics.find((t) => t.key === state?.verifyTopicKey)?.label ??
     state?.pendingOutcome?.topicLabel ??
@@ -221,7 +222,7 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         />
       )}
       {view === "outcome" && state && (
-        <OutcomeView state={state} now={now} back={back} revise={revise} />
+        <OutcomeView state={state} now={now} back={back} revise={revise} save={save} />
       )}
 
       {view === "none" && (

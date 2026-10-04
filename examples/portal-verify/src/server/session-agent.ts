@@ -1,7 +1,7 @@
 import { Agent, callable, getAgentByName, type Connection } from "agents";
 import { withVoiceInput, type Transcriber } from "agents/voice";
 import { GeminiBatchSTT, GeminiLiveSTT } from "@cloudflare/voice-gemini";
-import { SLOW_AFTER_MS } from "../shared/constants";
+import { MAX_OUTCOME_CHARS, SLOW_AFTER_MS } from "../shared/constants";
 import { isProjectId } from "../shared/ids";
 import {
   isWriting,
@@ -319,6 +319,31 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       console.error(`[${this.name}] Revision failed: ${message}`);
       this.setState({ ...this.state, verifyStatus: "idle", verifyDraft: "", verifyError: message });
     }
+  }
+
+  /**
+   * Saves the group's own edit of the pending outcome, at once, so every
+   * tab shows it, a reload keeps it, and Revise starts from it. The
+   * original keeps an edit in the browser until Approve. It leaves the
+   * feedback point alone: speech before the edit still counts for Revise.
+   */
+  @callable()
+  editOutcome(content: string) {
+    const outcome = this.state.pendingOutcome;
+    if (!outcome) throw new Error("There's no outcome to edit");
+    if (isWriting(this.state.verifyStatus)) throw new Error("An outcome is being written");
+    if (typeof content !== "string" || !content.trim()) throw new Error("The outcome is empty");
+    if (content.length > MAX_OUTCOME_CHARS) {
+      throw new Error(`The outcome is over ${MAX_OUTCOME_CHARS} characters`);
+    }
+    const [edited] = this.ctx.storage.sql
+      .exec<Outcome>(
+        `UPDATE outcomes SET content = ? WHERE id = ? RETURNING ${OUTCOME_COLUMNS}`,
+        content.trim(),
+        outcome.id,
+      )
+      .toArray();
+    this.setState({ ...this.state, pendingOutcome: edited, verifyError: null });
   }
 
   /**

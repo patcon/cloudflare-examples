@@ -188,10 +188,10 @@ Scope: S. Depends on: Task 8.
 1. Write `editOutcome(content)`. It replaces the text of the pending outcome. It refuses empty text, text longer than a set limit, and an edit during generation or revision.
 2. On the page, a pencil opens a text area with **Save** and **Cancel**.
 
-- [ ] A saved edit shows in all open tabs, and a reload keeps it
+- [x] A saved edit shows in all open tabs, and a reload keeps it
 - [ ] **Revise** after an edit starts from the edited text
-- [ ] The length limit is in `constants.ts`, marked as specific to this example
-- [ ] Manual: edit, reload, revise
+- [x] The length limit is in `constants.ts`, marked as specific to this example
+- [ ] Manual: edit, reload, revise (edit and reload checked; revise after an edit needs new speech, left for the mic pass)
 
 Files: `src/server/session-agent.ts`, `src/client/pages/Verify.tsx`, `src/shared/constants.ts`
 

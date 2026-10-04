@@ -1,13 +1,15 @@
 import { useState } from "react";
 import Markdown from "react-markdown";
-import { Button, Loader, Surface, Text } from "@cloudflare/kumo";
+import { Button, InputArea, Loader, Surface, Text } from "@cloudflare/kumo";
 import {
   ArrowClockwiseIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
-  PencilSimpleLineIcon,
+  ArrowsClockwiseIcon,
+  PencilSimpleIcon,
 } from "@phosphor-icons/react";
 import type { SessionState } from "../../server/session-agent";
+import { MAX_OUTCOME_CHARS } from "../../shared/constants";
 import { isWriting, whyNotRevise } from "../../shared/rules";
 import type { Topic } from "../../shared/topics";
 
@@ -151,21 +153,27 @@ export function Instructions({
 }
 
 /**
- * The pending outcome, as Markdown, with **Back** and **Revise**. A
- * revision streams in over the old text.
+ * The pending outcome, as Markdown, with **Back**, **Revise** and the
+ * pencil, which edits it as plain text. A revision streams in over the old
+ * text.
  */
 export function OutcomeView({
   state,
   now,
   back,
   revise,
+  save,
 }: {
   state: SessionState;
   now: number;
   back: () => void;
   revise: () => Promise<unknown>;
+  save: (content: string) => Promise<unknown>;
 }) {
   const [notice, setNotice] = useState<string | null>(null);
+  /** The text being edited, or null when not editing. */
+  const [editing, setEditing] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const outcome = state.pendingOutcome;
   if (!outcome) return null;
   const revising = state.verifyStatus === "revising";
@@ -181,12 +189,63 @@ export function OutcomeView({
     setNotice(null);
     revise().catch((e: Error) => setNotice(e.message));
   };
+  const onSave = () => {
+    if (editing === null) return;
+    setNotice(null);
+    setSaving(true);
+    save(editing)
+      .then(() => setEditing(null))
+      .catch((e: Error) => setNotice(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  if (editing !== null) {
+    return (
+      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
+        <InputArea
+          label={`${outcome.topicIcon} ${outcome.topicLabel}`}
+          value={editing}
+          maxLength={MAX_OUTCOME_CHARS}
+          rows={16}
+          className="font-mono text-xs"
+          onChange={(e) => setEditing(e.target.value)}
+        />
+        {notice && (
+          <Text size="sm" variant="error">
+            {notice}
+          </Text>
+        )}
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={() => setEditing(null)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={onSave} disabled={saving || !editing.trim()}>
+            Save
+          </Button>
+        </div>
+      </Surface>
+    );
+  }
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
-      <Text size="xs" variant="secondary">
-        {outcome.topicIcon} {outcome.topicLabel}
-        {outcome.revisedAt && ` · revised ${new Date(outcome.revisedAt).toLocaleTimeString()}`}
-      </Text>
+      <div className="flex items-center justify-between gap-2">
+        <Text size="xs" variant="secondary">
+          {outcome.topicIcon} {outcome.topicLabel}
+          {outcome.revisedAt && ` · revised ${new Date(outcome.revisedAt).toLocaleTimeString()}`}
+        </Text>
+        <Button
+          size="sm"
+          variant="ghost"
+          shape="square"
+          aria-label="Edit"
+          icon={<PencilSimpleIcon size={16} />}
+          disabled={revising}
+          onClick={() => {
+            setNotice(null);
+            setEditing(outcome.content);
+          }}
+        />
+      </div>
       <div className={`markdown text-sm text-kumo-default ${revising ? "opacity-60" : ""}`}>
         <Markdown>{revising && state.verifyDraft ? state.verifyDraft : outcome.content}</Markdown>
       </div>
@@ -201,7 +260,7 @@ export function OutcomeView({
         </Button>
         <Button
           variant="secondary"
-          icon={revising ? <Loader size="sm" /> : <PencilSimpleLineIcon size={16} />}
+          icon={revising ? <Loader size="sm" /> : <ArrowsClockwiseIcon size={16} />}
           disabled={wait !== null}
           onClick={onRevise}
         >
