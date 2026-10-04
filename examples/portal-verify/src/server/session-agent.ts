@@ -237,6 +237,21 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     }
   }
 
+  /**
+   * Leaves the pending outcome, from **Back**: its row stays, unapproved,
+   * as when a new outcome replaces it. Also clears a failed outcome's error.
+   */
+  @callable()
+  leaveOutcome() {
+    if (isWriting(this.state.verifyStatus)) throw new Error("An outcome is being written");
+    this.setState({
+      ...this.state,
+      pendingOutcome: null,
+      verifyStatus: "idle",
+      verifyError: null,
+    });
+  }
+
   /** Outcomes, with the rest of a query after `FROM outcomes`. */
   #outcomes(rest: string, ...bindings: SqlStorageValue[]): Outcome[] {
     return this.ctx.storage.sql

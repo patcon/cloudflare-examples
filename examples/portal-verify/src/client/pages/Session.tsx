@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
-import {
-  ArrowClockwiseIcon,
-  CaretRightIcon,
-  CheckCircleIcon,
-  MicrophoneIcon,
-  StopIcon,
-} from "@phosphor-icons/react";
+import { Button, Meter, Surface, Text } from "@cloudflare/kumo";
+import { CaretRightIcon, CheckCircleIcon, MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
 import { useNow } from "../hooks/use-now";
 import { useVoiceRecorder } from "../hooks/use-voice-recorder";
 import type {
@@ -17,10 +11,12 @@ import type {
   SessionState,
 } from "../../server/session-agent";
 import { MIN_RECORDED_SECONDS } from "../../shared/constants";
-import { isWriting, recordedSecondsAt, whyNotVerify } from "../../shared/rules";
+import { recordedSecondsAt, whyNotVerify } from "../../shared/rules";
 import { DEFAULT_TOPICS } from "../../shared/topics";
 import { Shell } from "../ui";
 import { Replay } from "./Replay";
+import { verifyView } from "../../shared/verify-view";
+import { Instructions, OutcomeView, TopicPicker } from "./Verify";
 
 /** For the recording phone: records, and shows the live transcript. */
 export function Session({ projectId, sessionId }: { projectId: string; sessionId: string }) {
@@ -64,14 +60,38 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         now,
       })
     : "Connecting…";
-  // The topic list, shown after a press on Verify.
+  // The topics on offer.
+  const topics = DEFAULT_TOPICS;
   const [picking, setPicking] = useState(false);
+  const [awaitingNext, setAwaitingNext] = useState(false);
+  // Any page that sees an outcome being written, such as one reloaded
+  // mid-way or a second tab, shows the instructions until Next.
+  const generating = state?.verifyStatus === "generating" || state?.verifyStatus === "slow";
+  useEffect(() => {
+    if (generating) setAwaitingNext(true);
+  }, [generating]);
+  const view = state ? verifyView(state, { picking, awaitingNext }) : "none";
 
   const verify = (topicKey: string) => {
     setError(null);
     setPicking(false);
-    agent.call("verify", [topicKey]).catch((e: Error) => setError(e.message));
+    setAwaitingNext(true);
+    agent.call("verify", [topicKey]).catch((e: Error) => {
+      setAwaitingNext(false);
+      setError(e.message);
+    });
   };
+  // As in the original, one topic needs no picking.
+  const startVerify = () => (topics.length === 1 ? verify(topics[0].key) : setPicking(true));
+  const leave = () => {
+    setError(null);
+    setAwaitingNext(false);
+    agent.call("leaveOutcome").catch((e: Error) => setError(e.message));
+  };
+  const topicLabel =
+    topics.find((t) => t.key === state?.verifyTopicKey)?.label ??
+    state?.pendingOutcome?.topicLabel ??
+    "an outcome";
 
   const record = async () => {
     setError(null);
@@ -138,29 +158,31 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         <Text size="xs" variant="secondary">
           Recorded {formatDuration(seconds)}
         </Text>
-        <div className="flex flex-col gap-1 items-center w-full max-w-xs">
-          <Button
-            variant="secondary"
-            icon={<CheckCircleIcon size={16} />}
-            onClick={() => setPicking((p) => !p)}
-            disabled={notYet !== null}
-          >
-            Verify
-          </Button>
-          {seconds < MIN_RECORDED_SECONDS && (
-            <Meter
-              className="w-full"
-              label="Verify"
-              showValue={false}
-              value={(100 * seconds) / MIN_RECORDED_SECONDS}
-            />
-          )}
-          {notYet && (
-            <Text size="xs" variant="secondary">
-              {notYet}
-            </Text>
-          )}
-        </div>
+        {view === "none" && (
+          <div className="flex flex-col gap-1 items-center w-full max-w-xs">
+            <Button
+              variant="secondary"
+              icon={<CheckCircleIcon size={16} />}
+              onClick={startVerify}
+              disabled={notYet !== null}
+            >
+              Verify
+            </Button>
+            {seconds < MIN_RECORDED_SECONDS && (
+              <Meter
+                className="w-full"
+                label="Verify"
+                showValue={false}
+                value={(100 * seconds) / MIN_RECORDED_SECONDS}
+              />
+            )}
+            {notYet && (
+              <Text size="xs" variant="secondary">
+                {notYet}
+              </Text>
+            )}
+          </div>
+        )}
         {(error || voice.error) && (
           <Text size="sm" variant="error">
             {error || voice.error}
@@ -168,33 +190,46 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         )}
       </Surface>
 
-      {picking && notYet === null && <Topics verify={verify} />}
-      {state && <Outcome state={state} retry={verify} />}
+      {view === "topics" && (
+        <TopicPicker topics={topics} start={verify} cancel={() => setPicking(false)} />
+      )}
+      {view === "instructions" && state && (
+        <Instructions
+          state={state}
+          topicLabel={topicLabel}
+          next={() => setAwaitingNext(false)}
+          retry={verify}
+          leave={leave}
+        />
+      )}
+      {view === "outcome" && state && <OutcomeView state={state} leave={leave} />}
 
-      <Surface className="p-4 rounded-xl ring ring-kumo-line">
-        {/* Open on every load; whether it was closed isn't kept. */}
-        <details open className="group">
-          <summary className="flex items-center gap-1 cursor-pointer list-none text-xs text-kumo-subtle [&::-webkit-details-marker]:hidden">
-            <CaretRightIcon size={12} className="transition-transform group-open:rotate-90" />
-            Live transcript
-          </summary>
-          <div className="flex flex-col gap-2 mt-2 min-h-40">
-            {segments.length === 0 && !voice.interimTranscript && (
-              <Text size="sm" variant="secondary">
-                Nothing yet.
-              </Text>
-            )}
-            {segments.map((s) => (
-              <p key={s.id} className="text-sm text-kumo-default">
-                {s.text}
-              </p>
-            ))}
-            {voice.interimTranscript && (
-              <p className="text-sm text-kumo-subtle">{voice.interimTranscript}</p>
-            )}
-          </div>
-        </details>
-      </Surface>
+      {view === "none" && (
+        <Surface className="p-4 rounded-xl ring ring-kumo-line">
+          {/* Open on every load; whether it was closed isn't kept. */}
+          <details open className="group">
+            <summary className="flex items-center gap-1 cursor-pointer list-none text-xs text-kumo-subtle [&::-webkit-details-marker]:hidden">
+              <CaretRightIcon size={12} className="transition-transform group-open:rotate-90" />
+              Live transcript
+            </summary>
+            <div className="flex flex-col gap-2 mt-2 min-h-40">
+              {segments.length === 0 && !voice.interimTranscript && (
+                <Text size="sm" variant="secondary">
+                  Nothing yet.
+                </Text>
+              )}
+              {segments.map((s) => (
+                <p key={s.id} className="text-sm text-kumo-default">
+                  {s.text}
+                </p>
+              ))}
+              {voice.interimTranscript && (
+                <p className="text-sm text-kumo-subtle">{voice.interimTranscript}</p>
+              )}
+            </div>
+          </details>
+        </Surface>
+      )}
 
       {empty && !replay && (
         <a className="self-end text-xs text-kumo-subtle underline" href="?debug=true">
@@ -202,68 +237,6 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
         </a>
       )}
     </Shell>
-  );
-}
-
-/** What participants can verify. */
-function Topics({ verify }: { verify: (topicKey: string) => void }) {
-  return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2 items-start">
-      <Text size="sm" bold>
-        What do you want to verify?
-      </Text>
-      {DEFAULT_TOPICS.map((t) => (
-        <Button key={t.key} variant="ghost" onClick={() => verify(t.key)}>
-          {t.icon} {t.label}
-        </Button>
-      ))}
-    </Surface>
-  );
-}
-
-/** The outcome being written, the pending one, or why the last one failed. */
-function Outcome({ state, retry }: { state: SessionState; retry: (topicKey: string) => void }) {
-  const { verifyStatus, verifyDraft, verifyError, verifyTopicKey, pendingOutcome } = state;
-  if (!isWriting(verifyStatus) && verifyStatus !== "failed" && !pendingOutcome) return null;
-  return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
-      {isWriting(verifyStatus) && !verifyDraft && (
-        <div className="flex gap-2 items-center">
-          <Loader size="sm" />
-          <Text size="sm" variant="secondary">
-            {verifyStatus === "slow" ? "Still working on it…" : "Writing the outcome…"}
-          </Text>
-        </div>
-      )}
-      {isWriting(verifyStatus) && verifyDraft && (
-        <p className="text-sm text-kumo-default whitespace-pre-wrap">{verifyDraft}</p>
-      )}
-      {verifyStatus === "failed" && (
-        <div className="flex flex-col gap-2 items-start">
-          <Text size="sm" variant="error">
-            {verifyError}
-          </Text>
-          {verifyTopicKey && (
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<ArrowClockwiseIcon size={14} />}
-              onClick={() => retry(verifyTopicKey)}
-            >
-              Try again
-            </Button>
-          )}
-        </div>
-      )}
-      {!isWriting(verifyStatus) && pendingOutcome && (
-        <>
-          <Text size="xs" variant="secondary">
-            {pendingOutcome.topicIcon} {pendingOutcome.topicLabel}
-          </Text>
-          <p className="text-sm text-kumo-default whitespace-pre-wrap">{pendingOutcome.content}</p>
-        </>
-      )}
-    </Surface>
   );
 }
 

@@ -156,11 +156,11 @@ Change the bare page of Task 7 into the flow of the original. Keep it on the ses
 4. After a reload, go directly to the outcome in generation, or to the pending outcome.
 5. Select a Markdown renderer, for example `react-markdown`, and add it.
 
-- [ ] The views are in this sequence: chips, instructions, outcome. The recording continues in all of them
-- [ ] A reload during generation, and a reload on the pending outcome, both show the correct view
+- [x] The views are in this sequence: chips, instructions, outcome. The recording continues in all of them
+- [x] A reload during generation, and a reload on the pending outcome, both show the correct view
 - [ ] **Back** clears `pendingOutcomeId` and keeps the row
-- [ ] `vite build` passes with the new dependency
-- [ ] Manual: the flow in a phone-width window, and the reloads above
+- [x] `vite build` passes with the new dependency
+- [x] Manual: the flow in a phone-width window, and the reloads above
 
 Files: `src/client/pages/Session.tsx`, `src/client/pages/Verify.tsx` (new, for the views), `src/server/session-agent.ts`, `package.json`
 
