@@ -261,10 +261,10 @@ Scope: S. Depends on: Tasks 1–13.
 3. Update "Differences from the original" and "Not in the prototype" in `PLAN.md` to agree with the result. Add a "Checked against Vertex" note.
 4. When all boxes are ticked, delete `tasks/todo.md`.
 
-- [ ] All commands in the README run as written
-- [ ] The README tells the two timing risks in `PLAN.md`
-- [ ] Screenshots: topic picker, instructions, an outcome, a revised outcome, the approved list, the settings page
-- [ ] Manual: do the README steps from a new clone of the folder
+- [x] All commands in the README run as written (not `pnpm dev:share`, which opens a public tunnel)
+- [x] The README tells the two timing risks in `PLAN.md`
+- [ ] Screenshots (left for the user): topic picker, instructions, an outcome, a revised outcome, the approved list, the settings page
+- [x] Manual: do the README steps from a new clone of the folder (a copy of the committed files: install, test, typecheck, lint, build)
 
 Files: `README.md`, `PLAN.md`, `docs/*.png`, `tasks/`
 

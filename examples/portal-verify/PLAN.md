@@ -8,7 +8,7 @@ This example ports the **Verify** feature of the dembrane portal to Cloudflare. 
 4. **Revise** writes the outcome again from what the group said.
 5. **Approve** keeps the outcome. The host can see it.
 
-This is a plan. There is no code yet. The example starts as a full copy of [`portal-explore`](../portal-explore), because each example must be standalone. [Steps](#steps) divides the work into tasks.
+This plan was written before the code. The example started as a full copy of [`portal-explore`](../portal-explore), because each example must be standalone. [Steps](#steps) divides the work into tasks. [`README.md`](README.md) tells how the result works.
 
 ## Sources
 
@@ -235,10 +235,12 @@ New dependency: a Markdown renderer for the page, for example `react-markdown`. 
 | Entry | ECHO shows Verify or Explore | A Verify button |
 | Rules | Cooldowns in `localStorage`; the server checks chunks and Verify on | The agent checks all; the page shows them |
 | Generation | One blocking call; the page waits | Streams into the agent state; a reload does not stop it |
-| Pending outcome | A reload loses it, if the URL does not have its ID | Kept in the agent state |
+| Pending outcome | A reload loses it, if the URL does not have its ID | Kept in the agent state. **Back** goes to the transcript and keeps it; **Return to outcome** opens it again |
+| Revise wait | 30 seconds in the browser, after a revision or "no new feedback" | The same, counted on the server, so all tabs share it |
 | Revise feedback | All since the first version, each time | Since the last version |
 | Edits | In the browser until Approve; Revise discards them | Saved in the agent; Revise starts from them |
 | Edit box | WYSIWYG Markdown editor | Plain text area |
+| Approved list | Cards; a tap opens a modal | Cards; a tap opens the outcome in place |
 | Untranscribed audio | Sent to the model as audio files | Not sent: live transcription gets all speech |
 | Model | `multi_modal_pro`, 2048-token thinking budget | `gemini-3.5-flash` |
 | Languages | Topic labels in 8 languages; outcome in the project language | English |
@@ -246,7 +248,17 @@ New dependency: a Markdown renderer for the page, for example `react-markdown`. 
 | Participant name and email in the prompt | Yes | No; sessions do not have them |
 | Topic storage | Two tables, and a comma-separated selection on the project | Project agent state |
 | Topic changes | Add, edit, delete, with translations | Add and remove |
+| Topic selection | Empty means all; any selection can be saved | Empty means all, shown as all ticked; the last topic cannot be unticked |
 | Access | Participant token on outcome routes; `project:update` for topics | None, as in `portal-explore` |
+
+## Checked against Vertex
+
+On 4 October 2026, with `gemini-3.5-flash` and replayed `say` speech: a 71-second meeting about a community garden, then outcomes on four topics, one of them a custom topic.
+
+- The first text came after about 7 seconds, and an outcome was complete after about 10. Outcomes have a title, use "we", and keep open questions open.
+- Two corrections, replayed after an outcome, each went into a revision. The second revision got only the second correction.
+- An outcome on a custom topic followed its prompt, and used the session's earlier outcomes.
+- The template's line on writing "dembrane" in lowercase makes the model mention dembrane, for example "a living document on dembrane". The template is copied unchanged, so this stays.
 
 ## Not in the prototype
 
