@@ -303,24 +303,28 @@ export function ApprovedList({ outcomes }: { outcomes: readonly Outcome[] }) {
         Approved
       </Text>
       {outcomes.map((o) => (
-        <details key={o.id} className="group rounded-lg border border-kumo-line">
-          <summary className="flex items-center gap-2 cursor-pointer list-none p-3 [&::-webkit-details-marker]:hidden">
-            <span className="text-lg">{o.topicIcon}</span>
-            <span className="text-sm font-medium text-kumo-default flex-1">{o.topicLabel}</span>
-            {o.approvedAt && (
-              <Text size="xs" variant="secondary">
-                {new Date(o.approvedAt).toLocaleTimeString([], {
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </Text>
-            )}
-          </summary>
-          <div className="markdown text-sm text-kumo-default px-3 pb-3">
-            <Markdown>{o.content}</Markdown>
-          </div>
-        </details>
+        <ApprovedItem key={o.id} outcome={o} />
       ))}
     </Surface>
+  );
+}
+
+/** One approved outcome: its emoji, label and time, opening to its text. */
+export function ApprovedItem({ outcome: o }: { outcome: Outcome }) {
+  return (
+    <details className="group rounded-lg border border-kumo-line">
+      <summary className="flex items-center gap-2 cursor-pointer list-none p-3 [&::-webkit-details-marker]:hidden">
+        <span className="text-lg">{o.topicIcon}</span>
+        <span className="text-sm font-medium text-kumo-default flex-1">{o.topicLabel}</span>
+        {o.approvedAt && (
+          <Text size="xs" variant="secondary">
+            {new Date(o.approvedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+          </Text>
+        )}
+      </summary>
+      <div className="markdown text-sm text-kumo-default px-3 pb-3">
+        <Markdown>{o.content}</Markdown>
+      </div>
+    </details>
   );
 }

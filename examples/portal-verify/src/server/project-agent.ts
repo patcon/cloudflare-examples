@@ -1,5 +1,6 @@
-import { Agent, callable, type Connection } from "agents";
+import { Agent, callable, getAgentByName, type Connection } from "agents";
 import { isSessionId } from "../shared/ids";
+import type { Outcome } from "./session-agent";
 import { VERIFY_OFF } from "../shared/rules";
 import {
   DEFAULT_TOPIC_SETTINGS,
@@ -17,8 +18,17 @@ export interface SessionRow {
   started_at: number;
 }
 
-/** What the project broadcasts when its session list changes, so pages refetch. */
-export type ProjectMessage = { type: "sessions" };
+/** A session's approved outcomes, or null when it didn't answer. */
+export interface SessionOutcomes {
+  id: string;
+  outcomes: Outcome[] | null;
+}
+
+/**
+ * What the project broadcasts when its sessions, or their approved
+ * outcomes, change, so pages refetch.
+ */
+export type ProjectMessage = { type: "sessions" } | { type: "outcomes" };
 
 /**
  * One project, named by its ID. It lists its sessions, and keeps the Verify
@@ -50,6 +60,32 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   @callable()
   listSessions(): SessionRow[] {
     return this.sql<SessionRow>`SELECT * FROM sessions ORDER BY started_at DESC`;
+  }
+
+  /**
+   * For the settings page: each session's approved outcomes, asked of
+   * every session in parallel. A session that doesn't answer is skipped
+   * and logged, and the rest still show.
+   */
+  @callable()
+  async approvedOutcomes(): Promise<SessionOutcomes[]> {
+    const sessions = this.listSessions();
+    const results = await Promise.allSettled(
+      sessions.map(async ({ id }) =>
+        (await getAgentByName(this.env.SessionAgent, id)).listOutcomes(),
+      ),
+    );
+    return results.map((result, i) => {
+      const { id } = sessions[i];
+      if (result.status === "fulfilled") return { id, outcomes: result.value };
+      console.error(`[${this.name}] Session ${id} didn't answer: ${result.reason}`);
+      return { id, outcomes: null };
+    });
+  }
+
+  /** Called by a session when it approves an outcome, so pages refetch. */
+  outcomeApproved() {
+    this.#notify({ type: "outcomes" });
   }
 
   /**

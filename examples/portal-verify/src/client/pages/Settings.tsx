@@ -6,6 +6,7 @@ import type {
   ProjectAgent,
   ProjectMessage,
   ProjectState,
+  SessionOutcomes,
   SessionRow,
 } from "../../server/project-agent";
 import {
@@ -15,6 +16,7 @@ import {
 } from "../../shared/constants";
 import { allTopics } from "../../shared/topics";
 import { Shell } from "../ui";
+import { ApprovedItem } from "./Verify";
 
 /**
  * For the host: whether Verify is on, the topics participants see, the
@@ -25,13 +27,16 @@ export function Settings({ projectId }: { projectId: string }) {
   const [state, setState] = useState<ProjectState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionRow[] | null>(null);
+  const [outcomes, setOutcomes] = useState<SessionOutcomes[]>([]);
 
   const agent = useAgent<ProjectAgent, ProjectState>({
     agent: "ProjectAgent",
     name: projectId,
     onStateUpdate: setState,
     onMessage: (event) => {
-      if (parse(event.data)?.type === "sessions") void loadSessions();
+      const type = parse(event.data)?.type;
+      if (type === "sessions") void loadSessions();
+      if (type === "sessions" || type === "outcomes") void loadOutcomes();
     },
   });
 
@@ -44,9 +49,19 @@ export function Settings({ projectId }: { projectId: string }) {
         .catch((e: Error) => setError(e.message)),
     [agent],
   );
+  // Asks every session, so it loads on opening, when a session joins, and
+  // when one approves an outcome.
+  const loadOutcomes = useCallback(
+    () =>
+      agent
+        .call("approvedOutcomes")
+        .then(setOutcomes)
+        .catch((e: Error) => setError(e.message)),
+    [agent],
+  );
   useEffect(() => {
-    agent.ready.then(loadSessions);
-  }, [agent, loadSessions]);
+    agent.ready.then(() => Promise.all([loadSessions(), loadOutcomes()]));
+  }, [agent, loadSessions, loadOutcomes]);
 
   /** Runs a settings call, and shows why it failed. */
   const run = (call: Promise<unknown>) => {
@@ -68,7 +83,7 @@ export function Settings({ projectId }: { projectId: string }) {
         />
       )}
 
-      <Sessions projectId={projectId} sessions={sessions} />
+      <Sessions projectId={projectId} sessions={sessions} outcomes={outcomes} />
 
       {error && (
         <Text size="sm" variant="error">
@@ -226,8 +241,16 @@ function NewTopic({
   );
 }
 
-/** The project's sessions, newest first. */
-function Sessions({ projectId, sessions }: { projectId: string; sessions: SessionRow[] | null }) {
+/** The project's sessions, newest first, each with its approved outcomes. */
+function Sessions({
+  projectId,
+  sessions,
+  outcomes,
+}: {
+  projectId: string;
+  sessions: SessionRow[] | null;
+  outcomes: SessionOutcomes[];
+}) {
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
       <Text size="sm" bold>
@@ -244,16 +267,41 @@ function Sessions({ projectId, sessions }: { projectId: string; sessions: Sessio
         </Text>
       )}
       {sessions?.map((s) => (
-        <div key={s.id} className="border-t border-kumo-line pt-3">
+        <div key={s.id} className="flex flex-col gap-2 border-t border-kumo-line pt-3">
           <a
             className="text-sm underline"
             href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}
           >
             {new Date(s.started_at).toLocaleString()}
           </a>
+          <SessionApproved outcomes={outcomes.find((o) => o.id === s.id)?.outcomes} />
         </div>
       ))}
     </Surface>
+  );
+}
+
+/** A session's approved outcomes, collapsed under it. */
+function SessionApproved({ outcomes }: { outcomes: SessionOutcomes["outcomes"] | undefined }) {
+  if (outcomes === undefined || outcomes?.length === 0) return null;
+  if (outcomes === null) {
+    return (
+      <Text size="xs" variant="secondary">
+        Its outcomes couldn't be loaded.
+      </Text>
+    );
+  }
+  return (
+    <details>
+      <summary className="text-xs text-kumo-subtle cursor-pointer">
+        {outcomes.length} approved {outcomes.length === 1 ? "outcome" : "outcomes"}
+      </summary>
+      <div className="flex flex-col gap-2 mt-2">
+        {outcomes.map((o) => (
+          <ApprovedItem key={o.id} outcome={o} />
+        ))}
+      </div>
+    </details>
   );
 }
 

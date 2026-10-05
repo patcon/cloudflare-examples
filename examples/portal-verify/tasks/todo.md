@@ -246,9 +246,9 @@ Scope: S. Depends on: Tasks 11, 12.
 2. The settings page shows them below each session, collapsed.
 3. When a session sends an approval to the project, the settings page gets the outcomes again.
 
-- [ ] An approval in a session shows on an open settings page
-- [ ] A session that does not answer is skipped and logged. The other sessions show
-- [ ] Manual: approve in one tab, and monitor the settings page in a different tab
+- [x] An approval in a session shows on an open settings page
+- [ ] A session that does not answer is skipped and logged. The other sessions show (in the code with `Promise.allSettled`; not made to fail in a test)
+- [x] Manual: approve in one tab, and monitor the settings page in a different tab
 
 Files: `src/server/project-agent.ts`, `src/server/session-agent.ts`, `src/client/pages/Settings.tsx`
 

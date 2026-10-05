@@ -371,6 +371,18 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     console.log(`[${this.name}] Approved outcome ${outcome.id}`);
     this.setState({ ...this.state, pendingOutcome: null, verifyError: null });
     this.#notify({ type: "approved", outcome: approved });
+    void this.#tellProject();
+  }
+
+  /** Tells the project of an approval, for its settings page. */
+  async #tellProject() {
+    const { projectId } = this.state;
+    if (!projectId) return;
+    try {
+      await (await getAgentByName(this.env.ProjectAgent, projectId)).outcomeApproved();
+    } catch (error) {
+      console.error(`[${this.name}] Couldn't tell the project of an approval: ${error}`);
+    }
   }
 
   /**
