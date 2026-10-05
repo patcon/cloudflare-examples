@@ -61,7 +61,7 @@ Files: `src/server/project-agent.ts`, `src/client/pages/Settings.tsx`, `src/serv
 
 - [x] Tests, typecheck and lint pass
 - [ ] A session records, transcribes, stops and records again. It shows on the settings page
-- [ ] Review with the user
+- [x] Review with the user
 
 ## Task 4: The Verify prompts
 
@@ -142,7 +142,7 @@ Files: `src/server/session-agent.ts`, `src/server/project-agent.ts`, `src/client
 
 - [x] Tests, typecheck and lint pass
 - [x] An outcome from a short replay is clear, has a title, and uses "we"
-- [ ] Review with the user
+- [x] Review with the user
 
 ## Task 8: Instructions, topic picker and the pending outcome
 
@@ -214,7 +214,7 @@ Files: `src/server/session-agent.ts`, `src/client/pages/Session.tsx`, `src/clien
 
 - [x] Tests, typecheck and lint pass
 - [ ] One pass in a browser with the mic: verify, revise from speech, edit, approve, reload
-- [ ] Review with the user
+- [x] Review with the user
 
 ## Task 12: The host's topic settings
 
