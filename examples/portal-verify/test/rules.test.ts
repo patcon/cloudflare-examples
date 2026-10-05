@@ -5,11 +5,13 @@ import {
   recordedSecondsAt,
   type ReviseFacts,
   type VerifyFacts,
+  VERIFY_OFF,
   whyNotRevise,
   whyNotVerify,
 } from "../src/shared/rules";
 
 const ready: VerifyFacts = {
+  verifyEnabled: true,
   verifyStatus: "idle",
   recordedSeconds: 60,
   segments: 3,
@@ -20,6 +22,10 @@ const ready: VerifyFacts = {
 describe("whyNotVerify", () => {
   it("allows a new outcome once the rules are met", () => {
     expect(whyNotVerify(ready)).toBeNull();
+  });
+
+  it("refuses when Verify is off for the project", () => {
+    expect(whyNotVerify({ ...ready, verifyEnabled: false })).toBe(VERIFY_OFF);
   });
 
   it("refuses while an outcome is written or revised, but not after one failed", () => {

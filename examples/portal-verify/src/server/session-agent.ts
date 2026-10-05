@@ -168,6 +168,10 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     const [{ segments }] = this.sql<{ segments: number }>`
       SELECT COUNT(*) AS segments FROM live_segments`;
     const reason = whyNotVerify({
+      // The project's switch is checked by its `topic()` below, with the
+      // same reason. Checking it here would need a call first, and two
+      // presses could both pass while waiting on it.
+      verifyEnabled: true,
       verifyStatus: this.state.verifyStatus,
       recordedSeconds: recordedSecondsAt(this.state, Date.now()),
       segments,

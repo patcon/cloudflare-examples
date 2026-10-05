@@ -24,7 +24,9 @@ export function TopicPicker({
   start: (topicKey: string) => void;
   cancel: () => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  // A chip the host takes away while it's picked is no longer picked.
+  const selected = topics.some((t) => t.key === picked) ? picked : null;
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-4">
       <Text size="lg" bold>
@@ -36,7 +38,7 @@ export function TopicPicker({
             key={t.key}
             type="button"
             aria-pressed={selected === t.key}
-            onClick={() => setSelected(t.key)}
+            onClick={() => setPicked(t.key)}
             className={`flex items-center gap-2 rounded-full border-2 px-3 py-2 text-sm cursor-pointer ${
               selected === t.key
                 ? "border-kumo-brand bg-kumo-info-tint"

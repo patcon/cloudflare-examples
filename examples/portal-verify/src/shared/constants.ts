@@ -35,6 +35,14 @@ export const REVISE_COOLDOWN_MS = 30 * 1000;
  */
 export const SLOW_AFTER_MS = 20 * 1000;
 
+/**
+ * The longest label, prompt and emoji of a custom topic.
+ * `platform/packages/verify/src/routes.ts`: the `str({ max })` checks.
+ */
+export const MAX_TOPIC_LABEL_CHARS = 100;
+export const MAX_TOPIC_PROMPT_CHARS = 10_000;
+export const MAX_TOPIC_ICON_CHARS = 10;
+
 // From polis-statement-extraction, which this example is based on.
 
 /** How much of a replayed file, for `?debug=true`, each batch transcription covers. */

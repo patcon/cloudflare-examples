@@ -230,11 +230,11 @@ Scope: M. Depends on: Task 7.
 5. The session chips come from the project state.
 6. On the settings page, add a Verify switch, a checkbox for each topic, a form to add a topic, and **Remove** on each custom topic.
 
-- [ ] If you clear a topic checkbox, its chip goes off an open session page, with no reload
-- [ ] An added topic is offered, and makes outcomes with its own prompt
-- [ ] With Verify off, the session button shows why, and the server refuses
-- [ ] `pnpm test settings` covers the checks, the slug, and which topics are offered
-- [ ] Manual: change settings in two tabs at the same time
+- [x] If you clear a topic checkbox, its chip goes off an open session page, with no reload
+- [x] An added topic is offered, and makes outcomes with its own prompt
+- [x] With Verify off, the session button shows why, and the server refuses
+- [x] `pnpm test settings` covers the checks, the slug, and which topics are offered
+- [x] Manual: change settings in two tabs at the same time
 
 Files: `src/server/project-agent.ts`, `src/server/verify/settings.ts`, `src/client/pages/Settings.tsx`, `src/client/pages/Verify.tsx`, `test/settings.test.ts`
 

@@ -7,8 +7,12 @@ export function isWriting(status: VerifyStatus): boolean {
   return status === "generating" || status === "revising" || status === "slow";
 }
 
+export const VERIFY_OFF = "Verify is off for this project";
+
 /** What the rules need to know about a session. */
 export interface VerifyFacts {
+  /** The project's switch. */
+  verifyEnabled: boolean;
   verifyStatus: VerifyStatus;
   /** Seconds recorded so far, counting a recording still going. */
   recordedSeconds: number;
@@ -25,6 +29,7 @@ export interface VerifyFacts {
  * disabled button.
  */
 export function whyNotVerify(facts: VerifyFacts): string | null {
+  if (!facts.verifyEnabled) return VERIFY_OFF;
   if (isWriting(facts.verifyStatus)) return "An outcome is being written";
   if (facts.recordedSeconds < MIN_RECORDED_SECONDS) {
     return `Verify turns on after ${MIN_RECORDED_SECONDS} seconds of recording`;

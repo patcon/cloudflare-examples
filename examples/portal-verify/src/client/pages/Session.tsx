@@ -4,6 +4,7 @@ import { Button, Meter, Surface, Text } from "@cloudflare/kumo";
 import { CaretRightIcon, CheckCircleIcon, MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
 import { useNow } from "../hooks/use-now";
 import { useVoiceRecorder } from "../hooks/use-voice-recorder";
+import type { ProjectAgent, ProjectState } from "../../server/project-agent";
 import type {
   Outcome,
   Segment,
@@ -13,7 +14,7 @@ import type {
 } from "../../server/session-agent";
 import { MIN_RECORDED_SECONDS } from "../../shared/constants";
 import { recordedSecondsAt, whyNotVerify } from "../../shared/rules";
-import { DEFAULT_TOPICS } from "../../shared/topics";
+import { offeredTopics } from "../../shared/topics";
 import { Shell } from "../ui";
 import { Replay } from "./Replay";
 import { verifyView } from "../../shared/verify-view";
@@ -43,6 +44,14 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
     },
   });
 
+  // The project's Verify settings: whether it's on, and its topics.
+  const [project, setProject] = useState<ProjectState | null>(null);
+  useAgent<ProjectAgent, ProjectState>({
+    agent: "ProjectAgent",
+    name: projectId,
+    onStateUpdate: setProject,
+  });
+
   // Joins the session to this page's project, then loads what's there.
   useEffect(() => {
     agent.ready
@@ -60,17 +69,19 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   const recording = voice.status !== "idle";
   const now = useNow();
   const seconds = state ? recordedSecondsAt(state, now) : 0;
-  const notYet = state
-    ? whyNotVerify({
-        verifyStatus: state.verifyStatus,
-        recordedSeconds: seconds,
-        segments: segments.length,
-        lastVerifyAt: state.lastVerifyAt,
-        now,
-      })
-    : "Connecting…";
-  // The topics on offer.
-  const topics = DEFAULT_TOPICS;
+  const notYet =
+    state && project
+      ? whyNotVerify({
+          verifyEnabled: project.verifyEnabled,
+          verifyStatus: state.verifyStatus,
+          recordedSeconds: seconds,
+          segments: segments.length,
+          lastVerifyAt: state.lastVerifyAt,
+          now,
+        })
+      : "Connecting…";
+  // The topics on offer, which change as the host changes them.
+  const topics = project ? offeredTopics(project) : [];
   const [picking, setPicking] = useState(false);
   const [awaitingNext, setAwaitingNext] = useState(false);
   const [backed, setBacked] = useState(false);
@@ -85,7 +96,15 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   useEffect(() => {
     if (generating) setAwaitingNext(true);
   }, [generating]);
-  const view = state ? verifyView(state, { picking, awaitingNext, backed }) : "none";
+  const view = state
+    ? verifyView(state, {
+        // The chips close when Verify can't start, such as when the host
+        // turns it off, or another tab starts an outcome.
+        picking: picking && notYet === null,
+        awaitingNext,
+        backed,
+      })
+    : "none";
 
   const verify = (topicKey: string) => {
     setError(null);
