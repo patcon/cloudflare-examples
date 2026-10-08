@@ -1,18 +1,16 @@
 import { describe, expect, it } from "vitest";
-import {
-  EXPLORE_COOLDOWN_MS as COOLDOWN_MS,
-  EXPLORE_OFF,
-  type ExploreFacts,
-  whyNotExplore,
-} from "./rules";
+import { EXPLORE_OFF, EXPLORE_WAITS, type ExploreFacts, whyNotExplore } from "./rules";
+
+const COOLDOWN_MS = EXPLORE_WAITS.sinceLast.elapsedSeconds * 1000;
+const now = { at: 1_000_000, recordedSeconds: 60 };
 
 const ready: ExploreFacts = {
   enabled: true,
   status: "idle",
-  recordedSeconds: 60,
+  firstRecordedAt: 0,
   segments: 3,
-  lastReplyAt: null,
-  now: 1_000_000,
+  lastReply: null,
+  now,
 };
 
 describe("whyNotExplore", () => {
@@ -21,7 +19,12 @@ describe("whyNotExplore", () => {
   });
 
   it("refuses under 60 seconds recorded", () => {
-    expect(whyNotExplore({ ...ready, recordedSeconds: 59.5 })).toMatch(/after 60 seconds/);
+    expect(whyNotExplore({ ...ready, now: { ...now, recordedSeconds: 50 } })).toBe(
+      "Explore turns on after 10 more seconds of recording",
+    );
+    expect(
+      whyNotExplore({ ...ready, firstRecordedAt: null, now: { ...now, recordedSeconds: 0 } }),
+    ).toMatch(/after 60 more seconds/);
   });
 
   it("refuses with nothing transcribed", () => {
@@ -29,9 +32,11 @@ describe("whyNotExplore", () => {
   });
 
   it("refuses within 2 minutes of the last reply, and allows after", () => {
-    const lastReplyAt = ready.now - COOLDOWN_MS + 30_000;
-    expect(whyNotExplore({ ...ready, lastReplyAt })).toBe("Wait 30 seconds for the next reply");
-    expect(whyNotExplore({ ...ready, lastReplyAt: ready.now - COOLDOWN_MS })).toBeNull();
+    const lastReply = { at: now.at - COOLDOWN_MS + 30_000, recordedSeconds: 60 };
+    expect(whyNotExplore({ ...ready, lastReply })).toBe("Wait 30 seconds for the next reply");
+    expect(
+      whyNotExplore({ ...ready, lastReply: { ...lastReply, at: now.at - COOLDOWN_MS } }),
+    ).toBeNull();
   });
 
   it("refuses while a reply is generating, but not after one failed", () => {

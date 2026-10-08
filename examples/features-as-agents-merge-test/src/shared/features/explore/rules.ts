@@ -1,15 +1,19 @@
 import { MIN_RECORDED_SECONDS } from "../../constants";
 import { isWriting, type DraftStatus } from "../../draft";
-import { cooldownLeft } from "../../rules";
+import { NO_WAIT, whyWaitLast, whyWaitStart, type Moment, type Waits } from "../../rules";
 
 /**
- * The wait between replies.
+ * How long a reply waits. From the start, `MIN_RECORDED_SECONDS` of
+ * recording. Between replies,
  * `frontend/src/components/participant/refine/hooks/useRefineSelectionCooldown.ts`:
- * `COOLDOWN_DURATION`. The original counts it from the button press, kept
- * in the browser; here it's counted on the server, from when the reply
- * finished.
+ * `COOLDOWN_DURATION`. The original counts that from the button press,
+ * kept in the browser; here it's counted on the server, from when the
+ * reply finished.
  */
-export const EXPLORE_COOLDOWN_MS = 2 * 60 * 1000;
+export const EXPLORE_WAITS: Waits = {
+  sinceStart: { ...NO_WAIT, recordedSeconds: MIN_RECORDED_SECONDS },
+  sinceLast: { ...NO_WAIT, elapsedSeconds: 2 * 60 },
+};
 
 export const EXPLORE_OFF = "Explore is off for this project";
 
@@ -18,13 +22,13 @@ export interface ExploreFacts {
   /** The project's switch. */
   enabled: boolean;
   status: DraftStatus;
-  /** Seconds recorded so far, counting a recording still going. */
-  recordedSeconds: number;
+  /** When the session first started recording, if it has. */
+  firstRecordedAt: number | null;
   /** Segments in the transcript. */
   segments: number;
   /** When the last reply finished, if any. */
-  lastReplyAt: number | null;
-  now: number;
+  lastReply: Moment | null;
+  now: Moment;
 }
 
 /**
@@ -34,11 +38,10 @@ export interface ExploreFacts {
 export function whyNotExplore(facts: ExploreFacts): string | null {
   if (!facts.enabled) return EXPLORE_OFF;
   if (isWriting(facts.status)) return "A reply is on its way";
-  if (facts.recordedSeconds < MIN_RECORDED_SECONDS) {
-    return `Explore turns on after ${MIN_RECORDED_SECONDS} seconds of recording`;
-  }
-  if (facts.segments === 0) return "Nothing has been transcribed yet";
-  const wait = cooldownLeft(facts.lastReplyAt, EXPLORE_COOLDOWN_MS, facts.now);
-  if (wait > 0) return `Wait ${Math.ceil(wait / 1000)} seconds for the next reply`;
-  return null;
+  const { sinceStart, sinceLast } = EXPLORE_WAITS;
+  return (
+    whyWaitStart("Explore", sinceStart, facts.firstRecordedAt, facts.now) ??
+    (facts.segments === 0 ? "Nothing has been transcribed yet" : null) ??
+    whyWaitLast("for the next reply", sinceLast, facts.lastReply, facts.now)
+  );
 }

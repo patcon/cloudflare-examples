@@ -8,8 +8,7 @@ import type {
   VerifyMessage,
   VerifyState,
 } from "../../../server/features/verify/agent";
-import { MIN_RECORDED_SECONDS } from "../../../shared/constants";
-import { whyNotVerify } from "../../../shared/features/verify/rules";
+import { VERIFY_WAITS, whyNotVerify } from "../../../shared/features/verify/rules";
 import { offeredTopics } from "../../../shared/features/verify/topics";
 import { verifyView } from "../../../shared/features/verify/view";
 import { parse } from "../parse";
@@ -49,10 +48,10 @@ export function VerifyPanel({ sessionId, facts, settings, now }: PanelProps<"ver
     ? whyNotVerify({
         enabled: settings.enabled,
         status: state.status,
-        recordedSeconds: facts.recordedSeconds,
+        firstRecordedAt: facts.firstRecordedAt,
         segments: facts.segments,
-        lastVerifyAt: state.lastVerifyAt,
-        now,
+        lastVerify: state.lastVerify,
+        now: { at: now, recordedSeconds: facts.recordedSeconds },
       })
     : "Connecting…";
   // The topics on offer, which change as the host changes them.
@@ -126,12 +125,12 @@ export function VerifyPanel({ sessionId, facts, settings, now }: PanelProps<"ver
           >
             Verify
           </Button>
-          {facts.recordedSeconds < MIN_RECORDED_SECONDS && (
+          {facts.recordedSeconds < VERIFY_WAITS.sinceStart.recordedSeconds && (
             <Meter
               className="w-full max-w-xs"
               label="Verify"
               showValue={false}
-              value={(100 * facts.recordedSeconds) / MIN_RECORDED_SECONDS}
+              value={(100 * facts.recordedSeconds) / VERIFY_WAITS.sinceStart.recordedSeconds}
             />
           )}
           {notYet && (
@@ -161,6 +160,7 @@ export function VerifyPanel({ sessionId, facts, settings, now }: PanelProps<"ver
       {view === "outcome" && state && (
         <OutcomeView
           state={state}
+          facts={facts}
           now={now}
           back={back}
           revise={() => agent.call("revise")}

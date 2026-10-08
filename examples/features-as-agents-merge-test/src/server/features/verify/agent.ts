@@ -7,6 +7,7 @@ import {
   whyNotVerify,
 } from "../../../shared/features/verify/rules";
 import type { Topic } from "../../../shared/features/verify/topics";
+import type { Moment } from "../../../shared/rules";
 import { failDraft, finishDraft, recoverDraft, startDraft, streamDraft } from "../../lib/draft";
 import { FeatureAgent } from "../../lib/feature-agent";
 import { streamText, type Prompt } from "../../lib/gemini";
@@ -21,10 +22,10 @@ export interface VerifyState extends DraftState {
   topicKey: string | null;
   /** The outcome made and not yet approved, if any. */
   pendingOutcome: Outcome | null;
-  /** When the last new outcome was complete, for the cooldown. */
-  lastVerifyAt: number | null;
+  /** When the last new outcome was complete, for the wait between outcomes. */
+  lastVerify: Moment | null;
   /** When the last revision finished, or a Revise found no feedback. */
-  lastReviseAt: number | null;
+  lastRevise: Moment | null;
 }
 
 /**
@@ -68,8 +69,8 @@ export class VerifyAgent extends FeatureAgent<VerifyState> {
     mode: "generate",
     topicKey: null,
     pendingOutcome: null,
-    lastVerifyAt: null,
-    lastReviseAt: null,
+    lastVerify: null,
+    lastRevise: null,
   };
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -104,18 +105,20 @@ export class VerifyAgent extends FeatureAgent<VerifyState> {
 
     let topic: Topic;
     let prompt: Prompt;
+    let pressed: Moment;
     try {
       const session = await this.session();
       const facts = await session.facts();
+      pressed = { at: Date.now(), recordedSeconds: facts.recordedSeconds };
       const reason = whyNotVerify({
         // The project's switch is checked by its `topic()` below, with the
         // same reason.
         enabled: true,
         status: before.status,
-        recordedSeconds: facts.recordedSeconds,
+        firstRecordedAt: facts.firstRecordedAt,
         segments: facts.segments,
-        lastVerifyAt: this.state.lastVerifyAt,
-        now: Date.now(),
+        lastVerify: this.state.lastVerify,
+        now: pressed,
       });
       if (reason) throw new Error(reason);
       const { project } = await this.project();
@@ -134,15 +137,15 @@ export class VerifyAgent extends FeatureAgent<VerifyState> {
     }
     // Not awaited, so the call returns now. This keeps the object awake
     // until the outcome is done, even with no page connected.
-    void this.keepAliveWhile(() => this.#generate(topic, prompt));
+    void this.keepAliveWhile(() => this.#generate(topic, prompt, pressed));
   }
 
   /** Streams the outcome into state, then saves it. Never throws. */
-  async #generate(topic: Topic, prompt: Prompt) {
+  async #generate(topic: Topic, prompt: Prompt, pressed: Moment) {
     try {
       const text = await streamDraft(this, streamText(vertex(this.env, OUTCOME_MODEL), prompt));
       // Saved, and so dated, once the text is complete, as in the original.
-      const now = Date.now();
+      const finished = await this.moment(pressed);
       const [outcome] = this.ctx.storage.sql
         .exec<Outcome>(
           `INSERT INTO outcomes (topic_key, topic_label, topic_icon, content, created_at)
@@ -151,11 +154,11 @@ export class VerifyAgent extends FeatureAgent<VerifyState> {
           topic.label,
           topic.icon,
           text,
-          now,
+          finished.at,
         )
         .toArray();
       console.log(`[${this.name}] Outcome ${outcome.id} on ${topic.key}`);
-      finishDraft(this, { pendingOutcome: outcome, lastVerifyAt: now, lastReviseAt: null });
+      finishDraft(this, { pendingOutcome: outcome, lastVerify: finished, lastRevise: null });
     } catch (error) {
       console.error(`[${this.name}] Outcome failed: ${error}`);
       failDraft(this, error);
@@ -172,23 +175,30 @@ export class VerifyAgent extends FeatureAgent<VerifyState> {
   async revise() {
     const outcome = this.state.pendingOutcome;
     if (!outcome) throw new Error("There's no outcome to revise");
-    // The waits first, before anything awaits. Whether there's feedback
-    // needs the transcript, below.
-    const wait = whyNotRevise({
-      status: this.state.status,
-      lastReviseAt: this.state.lastReviseAt,
-      newSegments: 1,
-      now: Date.now(),
-    });
-    if (wait) throw new Error(wait);
+    // Checked before anything awaits, and the draft started, so a second
+    // press is refused at once. The waits need the session's recorded
+    // time, so they're checked below, and undone if they refuse.
+    if (isWriting(this.state.status)) throw new Error("An outcome is being written");
     const before = pick(this.state);
     startDraft(this);
     this.setState({ ...this.state, mode: "revise" });
 
     let feedback: string;
     let prompt: Prompt;
+    let pressed: Moment;
     try {
-      const { segments } = await (await this.session()).segmentsSince(0);
+      const session = await this.session();
+      const [facts, { segments }] = await Promise.all([session.facts(), session.segmentsSince(0)]);
+      pressed = { at: Date.now(), recordedSeconds: facts.recordedSeconds };
+      // Whether there's feedback is checked below, with its own handling.
+      const wait = whyNotRevise({
+        status: before.status,
+        firstRecordedAt: facts.firstRecordedAt,
+        lastRevise: this.state.lastRevise,
+        newSegments: 1,
+        now: pressed,
+      });
+      if (wait) throw new Error(wait);
       feedback = feedbackSince(segments, outcome.revisedAt ?? outcome.createdAt);
       prompt = revisePrompt(buildTranscript(segments), outcome.content, feedback);
     } catch (error) {
@@ -197,33 +207,33 @@ export class VerifyAgent extends FeatureAgent<VerifyState> {
     }
     if (!feedback) {
       // As in the original, a Revise with nothing new also starts the wait.
-      this.setState({ ...this.state, ...before, lastReviseAt: Date.now() });
+      this.setState({ ...this.state, ...before, lastRevise: pressed });
       throw new Error(NO_NEW_FEEDBACK);
     }
     console.log(`[${this.name}] Revising outcome ${outcome.id} with: ${JSON.stringify(feedback)}`);
-    void this.keepAliveWhile(() => this.#revise(outcome.id, prompt));
+    void this.keepAliveWhile(() => this.#revise(outcome.id, prompt, pressed));
   }
 
   /**
    * Streams the revision into state, then saves it over the outcome. On a
    * failure the outcome stays as it was, with the reason. Never throws.
    */
-  async #revise(id: number, prompt: Prompt) {
+  async #revise(id: number, prompt: Prompt, pressed: Moment) {
     try {
       const text = await streamDraft(this, streamText(vertex(this.env, OUTCOME_MODEL), prompt));
-      const now = Date.now();
+      const finished = await this.moment(pressed);
       const [outcome] = this.ctx.storage.sql
         .exec<Outcome>(
           `UPDATE outcomes SET content = ?, revised_at = ? WHERE id = ?
           RETURNING ${OUTCOME_COLUMNS}`,
           text,
-          now,
+          finished.at,
           id,
         )
         .toArray();
       if (!outcome) throw new Error("The outcome is gone");
       console.log(`[${this.name}] Revised outcome ${id}`);
-      finishDraft(this, { pendingOutcome: outcome, lastReviseAt: now });
+      finishDraft(this, { pendingOutcome: outcome, lastRevise: finished });
     } catch (error) {
       console.error(`[${this.name}] Revision failed: ${error}`);
       // Not `failed`, which would leave the outcome for the instructions:

@@ -65,6 +65,7 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   // The same facts the feature agents ask the session for, live.
   const facts: SessionFacts = {
     projectId: state?.projectId ?? null,
+    firstRecordedAt: state?.firstRecordedAt ?? null,
     recordedSeconds: seconds,
     segments: segments.length,
     recording: state?.recordingSince != null,

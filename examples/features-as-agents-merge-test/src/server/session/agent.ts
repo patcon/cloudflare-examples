@@ -10,6 +10,11 @@ import { BATCH_MODEL, LIVE_MODEL, vertex } from "../models";
 export interface SessionState {
   /** Set by the first page to connect, from its URL. */
   projectId: string | null;
+  /**
+   * When recording first started, or null before it has. A replay sets it
+   * too. Features count their waits from it.
+   */
+  firstRecordedAt: number | null;
   /** When the current recording started, or null when not recording. */
   recordingSince: number | null;
   /**
@@ -53,6 +58,7 @@ const InputAgent = withVoiceInput(Agent);
 export class SessionAgent extends InputAgent<Env, SessionState> {
   initialState: SessionState = {
     projectId: null,
+    firstRecordedAt: null,
     recordingSince: null,
     recordedSeconds: 0,
   };
@@ -103,6 +109,8 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
       SELECT COUNT(*) AS segments FROM live_segments`;
     return {
       projectId: this.state.projectId,
+      // A session saved before this was kept has none.
+      firstRecordedAt: this.state.firstRecordedAt ?? null,
       recordedSeconds: recordedSecondsAt(this.state, Date.now()),
       segments,
       recording: this.state.recordingSince !== null,
@@ -139,7 +147,11 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
     );
     for (const { text } of segments) this.#saveSegment(text);
     const seconds = Math.max(0, wav.byteLength - WAV_HEADER_BYTES) / WAV_BYTES_PER_SECOND;
-    this.setState({ ...this.state, recordedSeconds: this.state.recordedSeconds + seconds });
+    this.setState({
+      ...this.state,
+      firstRecordedAt: this.state.firstRecordedAt ?? Date.now(),
+      recordedSeconds: this.state.recordedSeconds + seconds,
+    });
     return { segments: segments.length };
   }
 
@@ -167,7 +179,12 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   micReady() {
     if (this.#caller === null) throw new Error("This session isn't recording");
     if (this.state.recordingSince !== null) return;
-    this.setState({ ...this.state, recordingSince: Date.now() });
+    const now = Date.now();
+    this.setState({
+      ...this.state,
+      firstRecordedAt: this.state.firstRecordedAt ?? now,
+      recordingSince: now,
+    });
     void this.#emit({ type: "recording", on: true });
   }
 

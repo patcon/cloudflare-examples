@@ -13,6 +13,7 @@ import type { Outcome, VerifyState } from "../../../server/features/verify/agent
 import { isWriting } from "../../../shared/draft";
 import { MAX_OUTCOME_CHARS, whyNotRevise } from "../../../shared/features/verify/rules";
 import type { Topic } from "../../../shared/features/verify/topics";
+import type { SessionFacts } from "../../../shared/rules";
 
 /** "What do you want to verify?": a chip for each topic, then **Next**. */
 export function TopicPicker({
@@ -162,6 +163,7 @@ export function Instructions({
  */
 export function OutcomeView({
   state,
+  facts,
   now,
   back,
   revise,
@@ -169,6 +171,8 @@ export function OutcomeView({
   approve,
 }: {
   state: VerifyState;
+  /** The session's facts, live on this page, for Revise's waits. */
+  facts: SessionFacts;
   now: number;
   back: () => void;
   revise: () => Promise<unknown>;
@@ -186,10 +190,13 @@ export function OutcomeView({
   // a press says so, as in the original.
   const wait = whyNotRevise({
     status: state.status,
-    lastReviseAt: state.lastReviseAt,
+    firstRecordedAt: facts.firstRecordedAt,
+    lastRevise: state.lastRevise,
     newSegments: 1,
-    now,
+    now: { at: now, recordedSeconds: facts.recordedSeconds },
   });
+  // The seconds left of a wait, on either clock, for the button.
+  const waitLeft = wait?.match(/\d+/)?.[0];
   const onRevise = () => {
     setNotice(null);
     revise().catch((e: Error) => setNotice(e.message));
@@ -254,9 +261,9 @@ export function OutcomeView({
       <div className={`markdown text-sm text-kumo-default ${revising ? "opacity-60" : ""}`}>
         <Markdown>{revising && state.draft ? state.draft : outcome.content}</Markdown>
       </div>
-      {(notice || state.error) && (
+      {(notice || state.error || waitLeft) && (
         <Text size="sm" variant="secondary">
-          {notice || state.error}
+          {notice || state.error || wait}
         </Text>
       )}
       <div className="flex gap-2">
@@ -269,11 +276,7 @@ export function OutcomeView({
           disabled={wait !== null}
           onClick={onRevise}
         >
-          {revising
-            ? "Revising…"
-            : wait?.startsWith("Wait")
-              ? `Revise (${wait.match(/\d+/)?.[0]}s)`
-              : "Revise"}
+          {revising ? "Revising…" : waitLeft ? `Revise (${waitLeft}s)` : "Revise"}
         </Button>
         <Button
           variant="primary"

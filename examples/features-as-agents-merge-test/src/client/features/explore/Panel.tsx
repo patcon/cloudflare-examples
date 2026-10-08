@@ -8,8 +8,7 @@ import type {
   ExploreState,
   Reply,
 } from "../../../server/features/explore/agent";
-import { MIN_RECORDED_SECONDS } from "../../../shared/constants";
-import { whyNotExplore } from "../../../shared/features/explore/rules";
+import { EXPLORE_WAITS, whyNotExplore } from "../../../shared/features/explore/rules";
 import type { ExploreMode } from "../../../shared/features/explore/settings";
 import { parse } from "../parse";
 import type { PanelProps } from "../types";
@@ -52,10 +51,10 @@ export function ExplorePanel({ sessionId, facts, settings, now }: PanelProps<"ex
     ? whyNotExplore({
         enabled: settings.enabled,
         status: state.status,
-        recordedSeconds: facts.recordedSeconds,
+        firstRecordedAt: facts.firstRecordedAt,
         segments: facts.segments,
-        lastReplyAt: state.lastReplyAt,
-        now,
+        lastReply: state.lastReply,
+        now: { at: now, recordedSeconds: facts.recordedSeconds },
       })
     : "Connecting…";
 
@@ -75,12 +74,12 @@ export function ExplorePanel({ sessionId, facts, settings, now }: PanelProps<"ex
         >
           Explore
         </Button>
-        {facts.recordedSeconds < MIN_RECORDED_SECONDS && (
+        {facts.recordedSeconds < EXPLORE_WAITS.sinceStart.recordedSeconds && (
           <Meter
             className="w-full max-w-xs"
             label="Explore"
             showValue={false}
-            value={(100 * facts.recordedSeconds) / MIN_RECORDED_SECONDS}
+            value={(100 * facts.recordedSeconds) / EXPLORE_WAITS.sinceStart.recordedSeconds}
           />
         )}
         {notYet && (
