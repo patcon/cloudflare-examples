@@ -1,12 +1,12 @@
-import { isWriting, type VerifyStatus } from "./rules";
+import { isWriting, type DraftStatus } from "../../draft";
 
 /**
- * Verify's views, in place of the transcript, as the original's routes
- * inside the recording page. The recording goes on under all of them.
+ * Verify's views, in its panel, as the original's routes inside the
+ * recording page. The recording goes on under all of them.
  */
 export type VerifyView = "none" | "topics" | "instructions" | "outcome";
 
-/** What this page shows, beside what the session's state says. */
+/** What this page shows, beside what the agent's state says. */
 export interface VerifyLocal {
   /** The topic chips are open. */
   picking: boolean;
@@ -23,12 +23,12 @@ export interface VerifyLocal {
 }
 
 export function verifyView(
-  state: { verifyStatus: VerifyStatus; pendingOutcome: object | null },
+  state: { status: DraftStatus; mode: "generate" | "revise"; pendingOutcome: object | null },
   local: VerifyLocal,
 ): VerifyView {
-  const { verifyStatus, pendingOutcome } = state;
-  if (verifyStatus === "revising") return "outcome";
-  if (isWriting(verifyStatus) || verifyStatus === "failed") return "instructions";
+  const { status, mode, pendingOutcome } = state;
+  if (isWriting(status) && mode === "revise") return "outcome";
+  if (isWriting(status) || status === "failed") return "instructions";
   if (local.picking) return "topics";
   if (pendingOutcome && local.awaitingNext) return "instructions";
   if (pendingOutcome && !local.backed) return "outcome";

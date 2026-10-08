@@ -9,10 +9,10 @@ import {
   CheckIcon,
   PencilSimpleIcon,
 } from "@phosphor-icons/react";
-import type { Outcome, SessionState } from "../../server/session-agent";
-import { MAX_OUTCOME_CHARS } from "../../shared/constants";
-import { isWriting, whyNotRevise } from "../../shared/rules";
-import type { Topic } from "../../shared/topics";
+import type { Outcome, VerifyState } from "../../../server/features/verify/agent";
+import { isWriting } from "../../../shared/draft";
+import { MAX_OUTCOME_CHARS, whyNotRevise } from "../../../shared/features/verify/rules";
+import type { Topic } from "../../../shared/features/verify/topics";
 
 /** "What do you want to verify?": a chip for each topic, then **Next**. */
 export function TopicPicker({
@@ -89,14 +89,14 @@ export function Instructions({
   retry,
   leave,
 }: {
-  state: SessionState;
+  state: VerifyState;
   topicLabel: string;
   next: () => void;
   retry: (topicKey: string) => void;
   leave: () => void;
 }) {
-  const { verifyStatus, verifyError, verifyTopicKey } = state;
-  const writing = isWriting(verifyStatus);
+  const { status, error, topicKey } = state;
+  const writing = isWriting(status);
   return (
     <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-5">
       <ol className="flex flex-col gap-4">
@@ -113,25 +113,25 @@ export function Instructions({
           </li>
         ))}
       </ol>
-      {verifyStatus === "slow" && (
+      {status === "slow" && (
         <Text size="sm" variant="secondary">
           Still working on it…
         </Text>
       )}
-      {verifyStatus === "failed" ? (
+      {status === "failed" ? (
         <div className="flex flex-col gap-2 items-start">
           <Text size="sm" variant="error">
-            {verifyError}
+            {error}
           </Text>
           <div className="flex gap-2">
             <Button variant="ghost" icon={<ArrowLeftIcon size={16} />} onClick={leave}>
               Back
             </Button>
-            {verifyTopicKey && (
+            {topicKey && (
               <Button
                 variant="secondary"
                 icon={<ArrowClockwiseIcon size={16} />}
-                onClick={() => retry(verifyTopicKey)}
+                onClick={() => retry(topicKey)}
               >
                 Try again
               </Button>
@@ -168,7 +168,7 @@ export function OutcomeView({
   save,
   approve,
 }: {
-  state: SessionState;
+  state: VerifyState;
   now: number;
   back: () => void;
   revise: () => Promise<unknown>;
@@ -181,11 +181,11 @@ export function OutcomeView({
   const [saving, setSaving] = useState(false);
   const outcome = state.pendingOutcome;
   if (!outcome) return null;
-  const revising = state.verifyStatus === "revising";
+  const revising = isWriting(state.status) && state.mode === "revise";
   // Only the waits disable the button. With no new speech it stays on, and
   // a press says so, as in the original.
   const wait = whyNotRevise({
-    verifyStatus: state.verifyStatus,
+    status: state.status,
     lastReviseAt: state.lastReviseAt,
     newSegments: 1,
     now,
@@ -252,11 +252,11 @@ export function OutcomeView({
         />
       </div>
       <div className={`markdown text-sm text-kumo-default ${revising ? "opacity-60" : ""}`}>
-        <Markdown>{revising && state.verifyDraft ? state.verifyDraft : outcome.content}</Markdown>
+        <Markdown>{revising && state.draft ? state.draft : outcome.content}</Markdown>
       </div>
-      {(notice || state.verifyError) && (
+      {(notice || state.error) && (
         <Text size="sm" variant="secondary">
-          {notice || state.verifyError}
+          {notice || state.error}
         </Text>
       )}
       <div className="flex gap-2">

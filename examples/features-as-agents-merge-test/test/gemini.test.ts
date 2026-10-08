@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReplyBlockedError, streamText, VertexError } from "../src/server/verify/gemini";
+import { BlockedError, streamText, VertexError } from "../src/server/lib/gemini";
 
 /** A real response from gemini-3.5-flash, captured with curl. */
 const fixture = readFileSync(`${import.meta.dirname}/fixtures/stream.txt`, "utf8");
@@ -57,6 +57,6 @@ describe("streamText", () => {
 
   it("throws when the prompt is blocked", async () => {
     respond(`data: ${JSON.stringify({ promptFeedback: { blockReason: "SAFETY" } })}\n\n`);
-    await expect(collect({ user: "Hello" })).rejects.toBeInstanceOf(ReplyBlockedError);
+    await expect(collect({ user: "Hello" })).rejects.toBeInstanceOf(BlockedError);
   });
 });

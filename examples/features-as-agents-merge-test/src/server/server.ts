@@ -4,8 +4,9 @@ import { agentsMiddleware } from "hono-agents";
 import { MAX_REPLAY_WINDOW_BYTES } from "../shared/constants";
 import { isProjectId, isSessionId } from "../shared/ids";
 
-export { ProjectAgent } from "./project-agent";
-export { SessionAgent } from "./session-agent";
+export { VerifyAgent } from "./features/verify/agent";
+export { ProjectAgent } from "./project/agent";
+export { SessionAgent } from "./session/agent";
 
 type AppEnv = { Bindings: Env };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generatePrompt, revisePrompt } from "../src/server/verify/prompt";
+import { generatePrompt, revisePrompt } from "../src/server/features/verify/prompt";
 
 const TOPIC = "List what we agreed on, as short bullet points.";
 const earlier = [{ createdAt: Date.UTC(2026, 9, 4, 12), topicKey: "agreements", content: "# Old" }];

@@ -1,22 +1,15 @@
-import { Liquid } from "liquidjs";
-import generateTemplate from "../prompts/generate_artifact.en.jinja?raw";
-import reviseTemplate from "../prompts/revise_artifact.en.jinja?raw";
+import type { Prompt } from "../../lib/gemini";
+import { template } from "../../lib/liquid";
+import generateTemplate from "./prompts/generate_outcome.en.jinja?raw";
+import reviseTemplate from "./prompts/revise_outcome.en.jinja?raw";
 
 /**
  * The Verify prompts, ported from the dembrane portal's
  * `platform/packages/verify/src/service.ts`. Its `generate_artifact` and
- * `revise_artifact` templates are copied as they are, in English only.
- *
- * They're rendered with LiquidJS, whose `{{ }}` and `{% if %}` match the
- * Jinja these templates use. Nunjucks, which the original uses, compiles
- * templates with `new Function`, which Workers don't allow.
+ * `revise_artifact` templates are copied as they are, in English only, as
+ * `generate_outcome` and `revise_outcome`: this example calls an artifact
+ * an outcome throughout.
  */
-
-/** A system prompt for Gemini, and the one user message that goes with it. */
-export interface Prompt {
-  system: string;
-  user: string;
-}
 
 /** An earlier outcome of the session, as the generate prompt lists it. */
 export interface EarlierOutcome {
@@ -24,17 +17,6 @@ export interface EarlierOutcome {
   createdAt: number;
   topicKey: string;
   content: string;
-}
-
-// No HTML escaping, as Jinja doesn't escape .jinja files: transcripts
-// go in as written.
-const liquid = new Liquid();
-
-/** Parses a template once, and renders it as Jinja would. */
-function template(source: string) {
-  const parsed = liquid.parse(source);
-  // Jinja drops one trailing newline from each template.
-  return (vars: Record<string, unknown> = {}) => liquid.renderSync(parsed, vars).replace(/\n$/, "");
 }
 
 const renderGenerate = template(generateTemplate);
@@ -57,7 +39,7 @@ export function generatePrompt(
   projectName: string,
   earlier: readonly EarlierOutcome[],
   transcript: string,
-): Prompt {
+): Required<Prompt> {
   const previous = earlier.length
     ? [
         "Previous artifacts:",
@@ -80,7 +62,11 @@ export function generatePrompt(
 }
 
 /** The prompt to revise an outcome from the group's feedback. */
-export function revisePrompt(transcript: string, outcome: string, feedback: string): Prompt {
+export function revisePrompt(
+  transcript: string,
+  outcome: string,
+  feedback: string,
+): Required<Prompt> {
   return {
     system: renderRevise({
       ...COMMON,

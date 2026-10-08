@@ -89,8 +89,8 @@ export const DEFAULT_TOPICS: readonly Topic[] = [
 ];
 
 /** A project's Verify settings, synced to every page connected to it. */
-export interface TopicSettings {
-  verifyEnabled: boolean;
+export interface VerifySettings {
+  enabled: boolean;
   /**
    * The keys participants see, as the original's
    * `selected_verification_key_list`. Empty means every topic.
@@ -100,19 +100,19 @@ export interface TopicSettings {
   customTopics: Topic[];
 }
 
-export const DEFAULT_TOPIC_SETTINGS: TopicSettings = {
-  verifyEnabled: true,
+export const DEFAULT_VERIFY_SETTINGS: VerifySettings = {
+  enabled: true,
   selectedTopics: [],
   customTopics: [],
 };
 
 /** Every topic of the project: the defaults, then its own, oldest first. */
-export function allTopics(settings: TopicSettings): Topic[] {
+export function allTopics(settings: VerifySettings): Topic[] {
   return [...DEFAULT_TOPICS, ...settings.customTopics];
 }
 
 /** The topics participants see, in the order of `allTopics`. */
-export function offeredTopics(settings: TopicSettings): Topic[] {
+export function offeredTopics(settings: VerifySettings): Topic[] {
   const all = allTopics(settings);
   const { selectedTopics } = settings;
   return selectedTopics.length ? all.filter((t) => selectedTopics.includes(t.key)) : all;

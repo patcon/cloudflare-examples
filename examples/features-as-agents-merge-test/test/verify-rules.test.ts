@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { REVISE_COOLDOWN_MS, VERIFY_COOLDOWN_MS } from "../src/shared/constants";
 import {
   NO_NEW_FEEDBACK,
-  recordedSecondsAt,
+  REVISE_COOLDOWN_MS,
   type ReviseFacts,
+  VERIFY_COOLDOWN_MS,
   type VerifyFacts,
   VERIFY_OFF,
   whyNotRevise,
   whyNotVerify,
-} from "../src/shared/rules";
+} from "../src/shared/features/verify/rules";
+import { recordedSecondsAt } from "../src/shared/rules";
 
 const ready: VerifyFacts = {
-  verifyEnabled: true,
-  verifyStatus: "idle",
+  enabled: true,
+  status: "idle",
   recordedSeconds: 60,
   segments: 3,
   lastVerifyAt: null,
@@ -25,14 +26,14 @@ describe("whyNotVerify", () => {
   });
 
   it("refuses when Verify is off for the project", () => {
-    expect(whyNotVerify({ ...ready, verifyEnabled: false })).toBe(VERIFY_OFF);
+    expect(whyNotVerify({ ...ready, enabled: false })).toBe(VERIFY_OFF);
   });
 
   it("refuses while an outcome is written or revised, but not after one failed", () => {
-    for (const verifyStatus of ["generating", "revising", "slow"] as const) {
-      expect(whyNotVerify({ ...ready, verifyStatus })).toBe("An outcome is being written");
+    for (const status of ["waiting", "streaming", "slow"] as const) {
+      expect(whyNotVerify({ ...ready, status })).toBe("An outcome is being written");
     }
-    expect(whyNotVerify({ ...ready, verifyStatus: "failed" })).toBeNull();
+    expect(whyNotVerify({ ...ready, status: "failed" })).toBeNull();
   });
 
   it("refuses under 60 seconds recorded", () => {
@@ -50,7 +51,7 @@ describe("whyNotVerify", () => {
   });
 
   it("gives the first reason that applies, in order", () => {
-    const blocked = { verifyStatus: "generating", recordedSeconds: 0, segments: 0 } as const;
+    const blocked = { status: "waiting", recordedSeconds: 0, segments: 0 } as const;
     expect(whyNotVerify({ ...ready, ...blocked, lastVerifyAt: ready.now })).toMatch(
       /being written/,
     );
@@ -68,7 +69,7 @@ describe("recordedSecondsAt", () => {
 
 describe("whyNotRevise", () => {
   const ready: ReviseFacts = {
-    verifyStatus: "idle",
+    status: "idle",
     lastReviseAt: null,
     newSegments: 2,
     now: 1_000_000,
@@ -79,7 +80,7 @@ describe("whyNotRevise", () => {
   });
 
   it("refuses while an outcome is written or revised", () => {
-    expect(whyNotRevise({ ...ready, verifyStatus: "revising" })).toMatch(/being written/);
+    expect(whyNotRevise({ ...ready, status: "streaming" })).toMatch(/being written/);
   });
 
   it("refuses within 30 seconds of the last revision, and allows after", () => {

@@ -1,9 +1,12 @@
-import {
-  MAX_TOPIC_ICON_CHARS,
-  MAX_TOPIC_LABEL_CHARS,
-  MAX_TOPIC_PROMPT_CHARS,
-} from "../../shared/constants";
-import { allTopics, type Topic, type TopicSettings } from "../../shared/topics";
+import { allTopics, type Topic, type VerifySettings } from "./topics";
+
+/**
+ * The longest label, prompt and emoji of a custom topic.
+ * `platform/packages/verify/src/routes.ts`: the `str({ max })` checks.
+ */
+export const MAX_TOPIC_LABEL_CHARS = 100;
+export const MAX_TOPIC_PROMPT_CHARS = 10_000;
+export const MAX_TOPIC_ICON_CHARS = 10;
 
 /**
  * Checks a change from the settings page, which comes over the network, so
@@ -12,15 +15,13 @@ import { allTopics, type Topic, type TopicSettings } from "../../shared/topics";
  */
 export function checkSettingsChange(
   change: unknown,
-  settings: TopicSettings,
-): Partial<TopicSettings> {
+  settings: VerifySettings,
+): Partial<VerifySettings> {
   const c = object(change);
-  const out: Partial<TopicSettings> = {};
-  if ("verifyEnabled" in c) {
-    if (typeof c.verifyEnabled !== "boolean") {
-      throw new Error("verifyEnabled must be true or false");
-    }
-    out.verifyEnabled = c.verifyEnabled;
+  const out: Partial<VerifySettings> = {};
+  if ("enabled" in c) {
+    if (typeof c.enabled !== "boolean") throw new Error("enabled must be true or false");
+    out.enabled = c.enabled;
   }
   if ("selectedTopics" in c) {
     const keys = c.selectedTopics;

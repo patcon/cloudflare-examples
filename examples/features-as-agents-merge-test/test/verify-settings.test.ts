@@ -2,19 +2,23 @@ import { describe, expect, it } from "vitest";
 import {
   checkNewTopic,
   checkSettingsChange,
+  MAX_TOPIC_PROMPT_CHARS,
   slugify,
   topicKey,
-} from "../src/server/verify/settings";
-import { MAX_TOPIC_PROMPT_CHARS } from "../src/shared/constants";
-import { DEFAULT_TOPIC_SETTINGS, offeredTopics, type TopicSettings } from "../src/shared/topics";
+} from "../src/shared/features/verify/settings";
+import {
+  DEFAULT_VERIFY_SETTINGS,
+  offeredTopics,
+  type VerifySettings,
+} from "../src/shared/features/verify/topics";
 
 const custom = { key: "budget-1a2b3c4d", label: "Budget", icon: "💰", prompt: "List the costs." };
-const settings: TopicSettings = { ...DEFAULT_TOPIC_SETTINGS, customTopics: [custom] };
+const settings: VerifySettings = { ...DEFAULT_VERIFY_SETTINGS, customTopics: [custom] };
 
 describe("checkSettingsChange", () => {
   it("keeps the fields it knows, and drops the rest", () => {
-    expect(checkSettingsChange({ verifyEnabled: false, admin: true }, settings)).toEqual({
-      verifyEnabled: false,
+    expect(checkSettingsChange({ enabled: false, admin: true }, settings)).toEqual({
+      enabled: false,
     });
   });
 
@@ -26,7 +30,7 @@ describe("checkSettingsChange", () => {
   });
 
   it("refuses wrong types", () => {
-    expect(() => checkSettingsChange({ verifyEnabled: "yes" }, settings)).toThrow(/true or false/);
+    expect(() => checkSettingsChange({ enabled: "yes" }, settings)).toThrow(/true or false/);
     expect(() => checkSettingsChange({ selectedTopics: "gems" }, settings)).toThrow(/list/);
     expect(() => checkSettingsChange(null, settings)).toThrow(/object/);
   });

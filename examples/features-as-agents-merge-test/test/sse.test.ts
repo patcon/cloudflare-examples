@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { isBlocked, readChunk, splitEvents } from "../src/server/verify/sse";
+import { isBlocked, readChunk, splitEvents } from "../src/server/lib/sse";
 
 /** A real response from gemini-3.5-flash, captured with curl. */
 const fixture = readFileSync(`${import.meta.dirname}/fixtures/stream.txt`, "utf8");

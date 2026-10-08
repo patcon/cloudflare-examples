@@ -10,13 +10,14 @@
   "durable_objects": {
     "bindings": [
       { "class_name": "ProjectAgent", "name": "ProjectAgent" },
-      { "class_name": "SessionAgent", "name": "SessionAgent" }
+      { "class_name": "SessionAgent", "name": "SessionAgent" },
+      { "class_name": "VerifyAgent", "name": "VerifyAgent" }
     ]
   },
   "main": "src/server/server.ts",
   "migrations": [
     {
-      "new_sqlite_classes": ["ProjectAgent", "SessionAgent"],
+      "new_sqlite_classes": ["ProjectAgent", "SessionAgent", "VerifyAgent"],
       "tag": "v1"
     }
   ]

@@ -1,17 +1,21 @@
 import { Agent, callable, getAgentByName, type Connection } from "agents";
-import { isSessionId } from "../shared/ids";
-import type { Outcome } from "./session-agent";
-import { VERIFY_OFF } from "../shared/rules";
 import {
-  DEFAULT_TOPIC_SETTINGS,
-  offeredTopics,
-  type Topic,
-  type TopicSettings,
-} from "../shared/topics";
-import { checkNewTopic, checkSettingsChange, topicKey } from "./verify/settings";
+  backfill,
+  checkChange,
+  defaultSettings,
+  isFeatureKey,
+  type FeatureKey,
+  type ProjectSettings,
+} from "../../shared/features";
+import { VERIFY_OFF } from "../../shared/features/verify/rules";
+import { checkNewTopic, topicKey } from "../../shared/features/verify/settings";
+import { offeredTopics, type Topic } from "../../shared/features/verify/topics";
+import { isSessionId } from "../../shared/ids";
+import type { Outcome } from "../features/verify/agent";
+import { gather } from "../lib/gather";
 
-/** The project's Verify settings, synced to every page connected to it. */
-export type ProjectState = TopicSettings;
+/** Every feature's settings, synced to every page connected to the project. */
+export type ProjectState = ProjectSettings;
 
 export interface SessionRow {
   id: string;
@@ -25,17 +29,18 @@ export interface SessionOutcomes {
 }
 
 /**
- * What the project broadcasts when its sessions, or their approved
- * outcomes, change, so pages refetch.
+ * What the project broadcasts when its sessions change, or a feature's data
+ * in one of them, so pages refetch.
  */
-export type ProjectMessage = { type: "sessions" } | { type: "outcomes" };
+export type ProjectMessage = { type: "sessions" } | { type: "changed"; feature: FeatureKey };
 
 /**
- * One project, named by its ID. It lists its sessions, and keeps the Verify
- * settings: whether it's on, and which topics participants see.
+ * One project, named by its ID. It lists its sessions, and keeps every
+ * feature's settings. It keeps no feature data: its project-wide views ask
+ * each session's feature agent.
  */
 export class ProjectAgent extends Agent<Env, ProjectState> {
-  initialState: ProjectState = DEFAULT_TOPIC_SETTINGS;
+  initialState: ProjectState = defaultSettings();
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ctx.storage.sql.exec(
@@ -44,10 +49,8 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   }
 
   onStart() {
-    // A project saved before a setting existed lacks it: initialState only
-    // applies to a project with no state at all.
-    const missing = Object.keys(DEFAULT_TOPIC_SETTINGS).some((k) => !(k in this.state));
-    if (missing) this.setState({ ...DEFAULT_TOPIC_SETTINGS, ...this.state });
+    const filled = backfill(this.state);
+    if (filled) this.setState(filled);
   }
 
   /** Called by a session the first time its page connects. */
@@ -62,30 +65,36 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
     return this.sql<SessionRow>`SELECT * FROM sessions ORDER BY started_at DESC`;
   }
 
+  /** Called by a feature agent when its data changes, so the project's pages refetch. */
+  changed(feature: FeatureKey) {
+    this.#notify({ type: "changed", feature });
+  }
+
+  /** One feature's settings, for its agent, over RPC. */
+  settings<K extends FeatureKey>(feature: K): ProjectSettings[K] {
+    return this.state[feature];
+  }
+
+  /** Changes some of one feature's settings, from the settings page. */
+  @callable()
+  updateSettings(feature: FeatureKey, change: unknown) {
+    if (!isFeatureKey(feature)) throw new Error(`Not a feature: ${feature}`);
+    this.setState({ ...this.state, [feature]: checkChange(feature, change, this.state) });
+  }
+
+  // Verify
+
   /**
-   * For the settings page: each session's approved outcomes, asked of
-   * every session in parallel. A session that doesn't answer is skipped
-   * and logged, and the rest still show.
+   * For the settings page: each session's approved outcomes. A session that
+   * doesn't answer shows as null, and the rest still show.
    */
   @callable()
   async approvedOutcomes(): Promise<SessionOutcomes[]> {
-    const sessions = this.listSessions();
-    const results = await Promise.allSettled(
-      sessions.map(async ({ id }) =>
-        (await getAgentByName(this.env.SessionAgent, id)).listOutcomes(),
-      ),
+    const ids = this.listSessions().map((s) => s.id);
+    const answers = await gather(ids, async (id) =>
+      (await getAgentByName(this.env.VerifyAgent, id)).listOutcomes(),
     );
-    return results.map((result, i) => {
-      const { id } = sessions[i];
-      if (result.status === "fulfilled") return { id, outcomes: result.value };
-      console.error(`[${this.name}] Session ${id} didn't answer: ${result.reason}`);
-      return { id, outcomes: null };
-    });
-  }
-
-  /** Called by a session when it approves an outcome, so pages refetch. */
-  outcomeApproved() {
-    this.#notify({ type: "outcomes" });
+    return answers.map(({ id, value }) => ({ id, outcomes: value }));
   }
 
   /**
@@ -93,16 +102,10 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
    * Refuses when Verify is off, or the topic isn't offered.
    */
   topic(key: string): Topic {
-    if (!this.state.verifyEnabled) throw new Error(VERIFY_OFF);
-    const topic = offeredTopics(this.state).find((t) => t.key === key);
+    if (!this.state.verify.enabled) throw new Error(VERIFY_OFF);
+    const topic = offeredTopics(this.state.verify).find((t) => t.key === key);
     if (!topic) throw new Error("That topic isn't offered in this project");
     return topic;
-  }
-
-  /** Turns Verify on or off, or changes which topics are offered. */
-  @callable()
-  updateSettings(change: Partial<TopicSettings>) {
-    this.setState({ ...this.state, ...checkSettingsChange(change, this.state) });
   }
 
   /**
@@ -113,9 +116,8 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   addTopic(input: { label: string; icon: string; prompt: string }): Topic {
     const topic = { key: "", ...checkNewTopic(input) };
     topic.key = topicKey(topic.label);
-    const { selectedTopics, customTopics } = this.state;
-    this.setState({
-      ...this.state,
+    const { selectedTopics, customTopics } = this.state.verify;
+    this.#setVerify({
       customTopics: [...customTopics, topic],
       selectedTopics: selectedTopics.length ? [...selectedTopics, topic.key] : selectedTopics,
     });
@@ -128,13 +130,16 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
    */
   @callable()
   removeTopic(key: string) {
-    const { selectedTopics, customTopics } = this.state;
+    const { selectedTopics, customTopics } = this.state.verify;
     if (!customTopics.some((t) => t.key === key)) throw new Error(`Not a custom topic: ${key}`);
-    this.setState({
-      ...this.state,
+    this.#setVerify({
       customTopics: customTopics.filter((t) => t.key !== key),
       selectedTopics: selectedTopics.filter((k) => k !== key),
     });
+  }
+
+  #setVerify(change: Partial<ProjectSettings["verify"]>) {
+    this.setState({ ...this.state, verify: { ...this.state.verify, ...change } });
   }
 
   validateStateChange(_next: ProjectState, source: Connection | "server") {

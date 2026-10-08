@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { verifyView } from "../src/shared/verify-view";
+import { verifyView } from "../src/shared/features/verify/view";
 
-const idle = { verifyStatus: "idle", pendingOutcome: null } as const;
-const pending = { verifyStatus: "idle", pendingOutcome: { id: 1 } } as const;
+const idle = { status: "idle", mode: "generate", pendingOutcome: null } as const;
+const pending = { status: "idle", mode: "generate", pendingOutcome: { id: 1 } } as const;
 const local = { picking: false, awaitingNext: false, backed: false };
 
 describe("verifyView", () => {
@@ -12,7 +12,7 @@ describe("verifyView", () => {
 
   it("goes chips, instructions, outcome", () => {
     expect(verifyView(idle, { ...local, picking: true })).toBe("topics");
-    expect(verifyView({ ...idle, verifyStatus: "generating" }, local)).toBe("instructions");
+    expect(verifyView({ ...idle, status: "waiting" }, local)).toBe("instructions");
     expect(verifyView(pending, { ...local, awaitingNext: true })).toBe("instructions");
     expect(verifyView(pending, local)).toBe("outcome");
   });
@@ -22,10 +22,8 @@ describe("verifyView", () => {
   });
 
   it("shows the instructions while writing or after a failure, even if picking", () => {
-    for (const verifyStatus of ["generating", "slow", "failed"] as const) {
-      expect(verifyView({ ...idle, verifyStatus }, { ...local, picking: true })).toBe(
-        "instructions",
-      );
+    for (const status of ["waiting", "slow", "failed"] as const) {
+      expect(verifyView({ ...idle, status }, { ...local, picking: true })).toBe("instructions");
     }
   });
 
@@ -34,6 +32,6 @@ describe("verifyView", () => {
   });
 
   it("stays on the outcome while it's revised", () => {
-    expect(verifyView({ ...pending, verifyStatus: "revising" }, local)).toBe("outcome");
+    expect(verifyView({ ...pending, status: "streaming", mode: "revise" }, local)).toBe("outcome");
   });
 });
