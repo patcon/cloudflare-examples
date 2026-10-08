@@ -198,7 +198,7 @@ export class StatementsAgent extends FeatureAgent<StatementsState> {
       // Every session's statements, so none is proposed twice in the project.
       const all = (await project.candidates()).flatMap((s) => s.candidates ?? []);
       const proposed = await extractStatements(vertex(this.env, EXTRACT_MODEL), {
-        topic: settings.topic,
+        topic: (await project.general()).context,
         existing: texts(all, ["pending", "approved"]),
         context: context.map((s) => s.text).join("\n"),
         transcript: segments.map((s) => s.text).join("\n"),

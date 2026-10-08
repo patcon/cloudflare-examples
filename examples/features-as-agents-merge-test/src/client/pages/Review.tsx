@@ -120,9 +120,9 @@ export function Review({ projectId }: { projectId: string }) {
         ))}
         <a
           className="text-xs underline"
-          href={`/${encodeURIComponent(projectId)}/settings#statements`}
+          href={`/${encodeURIComponent(projectId)}/settings#general`}
         >
-          The topic is on the settings page
+          Extraction sees the project's context, on the settings page
         </a>
       </Surface>
 

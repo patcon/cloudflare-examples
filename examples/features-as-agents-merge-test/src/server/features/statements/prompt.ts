@@ -4,6 +4,7 @@ import type { Pass } from "./types";
 export const PROMPT_VERSION = 1;
 
 export interface PromptInput {
+  /** What the conversations are about: the project's context. */
   topic: string;
   /** Statements the project already has, approved or waiting for review. */
   existing: string[];
