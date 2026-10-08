@@ -6,5 +6,5 @@
     "types": ["node", "@cloudflare/workers-types", "./env.d.ts"]
   },
   // The page in src/client/ has tsconfig.client.json.
-  "include": ["src/server", "src/shared", "test", "env.d.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src/server", "src/shared", "env.d.ts", "vite.config.ts", "vitest.config.ts"]
 }

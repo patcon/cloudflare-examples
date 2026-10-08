@@ -1,13 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  failDraft,
-  finishDraft,
-  recoverDraft,
-  startDraft,
-  streamDraft,
-} from "../src/server/lib/draft";
-import { SLOW_AFTER_MS } from "../src/shared/constants";
-import { IDLE_DRAFT, type DraftState } from "../src/shared/draft";
+import { failDraft, finishDraft, recoverDraft, startDraft, streamDraft } from "./draft";
+import { SLOW_AFTER_MS } from "../../shared/constants";
+import { IDLE_DRAFT, type DraftState } from "../../shared/draft";
 
 /** A stand-in for an agent: just its synced state, with every state it went through. */
 function host(extra: Record<string, unknown> = {}) {

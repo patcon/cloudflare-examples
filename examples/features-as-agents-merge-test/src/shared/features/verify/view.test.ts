@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verifyView } from "../src/shared/features/verify/view";
+import { verifyView } from "./view";
 
 const idle = { status: "idle", mode: "generate", pendingOutcome: null } as const;
 const pending = { status: "idle", mode: "generate", pendingOutcome: { id: 1 } } as const;

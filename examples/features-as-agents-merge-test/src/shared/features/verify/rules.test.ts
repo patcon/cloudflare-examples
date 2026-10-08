@@ -8,8 +8,7 @@ import {
   VERIFY_OFF,
   whyNotRevise,
   whyNotVerify,
-} from "../src/shared/features/verify/rules";
-import { recordedSecondsAt } from "../src/shared/rules";
+} from "./rules";
 
 const ready: VerifyFacts = {
   enabled: true,
@@ -57,13 +56,6 @@ describe("whyNotVerify", () => {
     );
     expect(whyNotVerify({ ...ready, recordedSeconds: 0, segments: 0 })).toMatch(/after 60/);
     expect(whyNotVerify({ ...ready, segments: 0, lastVerifyAt: ready.now })).toMatch(/Nothing/);
-  });
-});
-
-describe("recordedSecondsAt", () => {
-  it("adds a recording still going to the total", () => {
-    expect(recordedSecondsAt({ recordedSeconds: 30, recordingSince: null }, 5000)).toBe(30);
-    expect(recordedSecondsAt({ recordedSeconds: 30, recordingSince: 1000 }, 5000)).toBe(34);
   });
 });
 

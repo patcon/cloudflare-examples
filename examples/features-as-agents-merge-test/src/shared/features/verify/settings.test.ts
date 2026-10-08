@@ -5,12 +5,8 @@ import {
   MAX_TOPIC_PROMPT_CHARS,
   slugify,
   topicKey,
-} from "../src/shared/features/verify/settings";
-import {
-  DEFAULT_VERIFY_SETTINGS,
-  offeredTopics,
-  type VerifySettings,
-} from "../src/shared/features/verify/topics";
+} from "./settings";
+import { DEFAULT_VERIFY_SETTINGS, offeredTopics, type VerifySettings } from "./topics";
 
 const custom = { key: "budget-1a2b3c4d", label: "Budget", icon: "💰", prompt: "List the costs." };
 const settings: VerifySettings = { ...DEFAULT_VERIFY_SETTINGS, customTopics: [custom] };

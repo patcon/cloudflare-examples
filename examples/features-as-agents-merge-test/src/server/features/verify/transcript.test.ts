@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTranscript, feedbackSince } from "../src/server/features/verify/transcript";
+import { buildTranscript, feedbackSince } from "./transcript";
 
 describe("buildTranscript", () => {
   it("orders segments by time, trimmed, one per line", () => {

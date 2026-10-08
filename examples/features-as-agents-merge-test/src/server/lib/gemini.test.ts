@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BlockedError, streamText, VertexError } from "../src/server/lib/gemini";
+import { BlockedError, streamText, VertexError } from "./gemini";
 
 /** A real response from gemini-3.5-flash, captured with curl. */
 const fixture = readFileSync(`${import.meta.dirname}/fixtures/stream.txt`, "utf8");

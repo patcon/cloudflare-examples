@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cutWindows, SAMPLE_RATE, toWav } from "../src/client/audio/wav";
+import { cutWindows, SAMPLE_RATE, toWav } from "./wav";
 
 describe("cutWindows", () => {
   it("cuts into whole windows, then the rest", () => {

@@ -4,7 +4,7 @@ import {
   EXPLORE_OFF,
   type ExploreFacts,
   whyNotExplore,
-} from "../src/shared/features/explore/rules";
+} from "./rules";
 
 const ready: ExploreFacts = {
   enabled: true,

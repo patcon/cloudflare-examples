@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backfill, checkChange, defaultSettings } from "../src/shared/features";
+import { backfill, checkChange, defaultSettings } from ".";
 
 describe("project settings", () => {
   it("fills in a feature, or a setting, missing from a saved project", () => {
