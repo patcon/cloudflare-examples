@@ -79,7 +79,9 @@ export function Settings({ projectId }: { projectId: string }) {
         tabs={[
           ...FEATURE_KEYS.map((key) => ({
             value: key,
-            label: `${FEATURES[key].label}${state && !state[key].enabled ? " (off)" : ""}`,
+            // A dot of the same width either way, so a tab keeps its size
+            // when its feature is switched; grey until the state loads.
+            label: `${!state ? "⚪" : state[key].enabled ? "🟢" : "🔴"} ${FEATURES[key].label}`,
           })),
           { value: "sessions", label: `Sessions${sessions ? ` (${sessions.length})` : ""}` },
         ]}
