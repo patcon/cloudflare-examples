@@ -183,7 +183,7 @@ function NewTopic({
       </div>
       <InputArea
         label="Prompt"
-        description="What Gemini should write from the conversation."
+        description="What to write from the conversation."
         value={topic.prompt}
         maxLength={MAX_TOPIC_PROMPT_CHARS}
         rows={4}

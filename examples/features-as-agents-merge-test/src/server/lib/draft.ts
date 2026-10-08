@@ -35,7 +35,7 @@ export async function streamDraft<S extends DraftState>(
       text += piece;
       host.setState({ ...host.state, status: "streaming", draft: text });
     }
-    if (!text.trim()) throw new Error("Gemini sent nothing back");
+    if (!text.trim()) throw new Error("The model sent nothing back");
     return text.trim();
   } finally {
     clearTimeout(slow);

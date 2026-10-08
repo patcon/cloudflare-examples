@@ -14,7 +14,7 @@ export class VertexError extends Error {
 /** Gemini held its answer back on content grounds, before sending any text. */
 export class BlockedError extends Error {
   constructor(readonly reason: string) {
-    super(`Gemini didn't answer, on content grounds (${reason})`);
+    super(`The model didn't answer, on content grounds (${reason})`);
   }
 }
 
@@ -58,7 +58,7 @@ async function post(
   });
   if (!resp.ok) {
     // Vertex puts the reason, such as an expired token, in the body.
-    throw new VertexError(`Gemini failed (${resp.status}): ${await resp.text()}`, resp.status);
+    throw new VertexError(`The model failed (${resp.status}): ${await resp.text()}`, resp.status);
   }
   return resp;
 }
@@ -81,7 +81,7 @@ export async function* streamText(
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
   const resp = await post(vertex, "v1", "streamGenerateContent?alt=sse", contents(prompt), signal);
-  if (!resp.body) throw new VertexError("Gemini sent no body", resp.status);
+  if (!resp.body) throw new VertexError("The model sent no body", resp.status);
 
   let buffer = "";
   let sent = false;
