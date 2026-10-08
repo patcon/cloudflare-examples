@@ -1,3 +1,8 @@
+import {
+  checkSettingsChange as checkExplore,
+  DEFAULT_EXPLORE_SETTINGS,
+  type ExploreSettings,
+} from "./explore/settings";
 import { checkSettingsChange as checkVerify } from "./verify/settings";
 import { DEFAULT_VERIFY_SETTINGS, type VerifySettings } from "./verify/topics";
 
@@ -10,6 +15,12 @@ import { DEFAULT_VERIFY_SETTINGS, type VerifySettings } from "./verify/topics";
  * import it without pulling in feature code.
  */
 export const FEATURES = {
+  explore: {
+    label: "Explore",
+    binding: "ExploreAgent",
+    defaults: DEFAULT_EXPLORE_SETTINGS,
+    checkSettingsChange: checkExplore,
+  },
   verify: {
     label: "Verify",
     /** The Durable Object binding of the feature's agent, one per session. */
@@ -23,6 +34,7 @@ export type FeatureKey = keyof typeof FEATURES;
 
 /** A project's settings, one slice per feature. */
 export interface ProjectSettings {
+  explore: ExploreSettings;
   verify: VerifySettings;
 }
 
@@ -64,7 +76,7 @@ export function checkChange<K extends FeatureKey>(
   change: unknown,
   settings: ProjectSettings,
 ): ProjectSettings[K] {
-  const check = FEATURES[key].checkSettingsChange as (
+  const check = FEATURES[key].checkSettingsChange as unknown as (
     change: unknown,
     current: ProjectSettings[K],
   ) => Partial<ProjectSettings[K]>;

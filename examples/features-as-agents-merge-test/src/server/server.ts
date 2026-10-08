@@ -4,6 +4,7 @@ import { agentsMiddleware } from "hono-agents";
 import { MAX_REPLAY_WINDOW_BYTES } from "../shared/constants";
 import { isProjectId, isSessionId } from "../shared/ids";
 
+export { ExploreAgent } from "./features/explore/agent";
 export { VerifyAgent } from "./features/verify/agent";
 export { ProjectAgent } from "./project/agent";
 export { SessionAgent } from "./session/agent";

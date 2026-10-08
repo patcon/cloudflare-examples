@@ -1,6 +1,8 @@
 import type { ComponentType } from "react";
 import type { FeatureKey } from "../../shared/features";
 import type { PanelProps, SectionProps } from "./types";
+import { ExplorePanel } from "./explore/Panel";
+import { ExploreSection } from "./explore/Section";
 import { VerifyPanel } from "./verify/Panel";
 import { VerifySection } from "./verify/Section";
 
@@ -17,6 +19,11 @@ export const FEATURE_UI: {
     about: string;
   };
 } = {
+  explore: {
+    Panel: ExplorePanel,
+    Section: ExploreSection,
+    about: "A short reply to the conversation so far, when someone asks.",
+  },
   verify: {
     Panel: VerifyPanel,
     Section: VerifySection,

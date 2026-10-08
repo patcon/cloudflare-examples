@@ -11,6 +11,12 @@ import { VERIFY_OFF } from "../../shared/features/verify/rules";
 import { checkNewTopic, topicKey } from "../../shared/features/verify/settings";
 import { offeredTopics, type Topic } from "../../shared/features/verify/topics";
 import { isSessionId } from "../../shared/ids";
+import {
+  contextText,
+  planContext,
+  type ContextEntry,
+  type ContextStatus,
+} from "../features/explore/transcript";
 import type { Outcome } from "../features/verify/agent";
 import { gather } from "../lib/gather";
 
@@ -26,6 +32,13 @@ export interface SessionRow {
 export interface SessionOutcomes {
   id: string;
   outcomes: Outcome[] | null;
+}
+
+/** One session on the settings page, and how it goes into another session's reply. */
+export interface ContextPreview extends Omit<ContextEntry, "status"> {
+  /** `unavailable` when the session didn't answer. */
+  status: ContextStatus | "unavailable";
+  startedAt: number;
 }
 
 /**
@@ -80,6 +93,48 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   updateSettings(feature: FeatureKey, change: unknown) {
     if (!isFeatureKey(feature)) throw new Error(`Not a feature: ${feature}`);
     this.setState({ ...this.state, [feature]: checkChange(feature, change, this.state) });
+  }
+
+  // Explore
+
+  /**
+   * For a session's `explore()`, over RPC: the project's other sessions,
+   * as the prompt's other transcripts.
+   */
+  async otherTranscripts(excludeId: string): Promise<string> {
+    return contextText(await this.#planContext(excludeId));
+  }
+
+  /**
+   * For the settings page: every session, and how it goes into another
+   * session's reply. A session's own Explore leaves itself out, so this is
+   * what a new session would see.
+   */
+  @callable()
+  async contextPreview(): Promise<ContextPreview[]> {
+    const sessions = this.listSessions();
+    const plan = new Map((await this.#planContext(null)).map((e) => [e.id, e]));
+    return sessions.map((s) => ({
+      ...(plan.get(s.id) ?? { id: s.id, status: "unavailable", tokens: 0, text: "" }),
+      startedAt: s.started_at,
+    }));
+  }
+
+  /**
+   * Asks each session's Explore, but the one excluded, for its transcript
+   * with its replies, then plans them newest first. A session that doesn't
+   * answer is left out.
+   */
+  async #planContext(excludeId: string | null): Promise<ContextEntry[]> {
+    const ids = this.listSessions()
+      .map((s) => s.id)
+      .filter((id) => id !== excludeId);
+    const answers = await gather(ids, async (id) =>
+      (await getAgentByName(this.env.ExploreAgent, id)).transcriptForContext(),
+    );
+    return planContext(
+      answers.flatMap(({ id, value }) => (value === null ? [] : [{ id, transcript: value }])),
+    );
   }
 
   // Verify

@@ -4,6 +4,7 @@ import { GeminiBatchSTT, GeminiLiveSTT } from "@cloudflare/voice-gemini";
 import { FEATURE_KEYS, FEATURES } from "../../shared/features";
 import { isProjectId } from "../../shared/ids";
 import { recordedSecondsAt, type SessionFacts } from "../../shared/rules";
+import type { FeatureAgent } from "../lib/feature-agent";
 import { BATCH_MODEL, LIVE_MODEL, vertex } from "../models";
 
 export interface SessionState {
@@ -199,7 +200,11 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   async #emit(event: SessionEvent) {
     const results = await Promise.allSettled(
       FEATURE_KEYS.map(async (key) => {
-        const agent = await getAgentByName(this.env[FEATURES[key].binding], this.name);
+        // Every feature agent is a `FeatureAgent`, so has `onSessionEvent`.
+        const binding = this.env[FEATURES[key].binding] as unknown as DurableObjectNamespace<
+          FeatureAgent<unknown>
+        >;
+        const agent = await getAgentByName(binding, this.name);
         await agent.onSessionEvent(event);
       }),
     );

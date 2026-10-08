@@ -11,13 +11,14 @@
     "bindings": [
       { "class_name": "ProjectAgent", "name": "ProjectAgent" },
       { "class_name": "SessionAgent", "name": "SessionAgent" },
-      { "class_name": "VerifyAgent", "name": "VerifyAgent" }
+      { "class_name": "VerifyAgent", "name": "VerifyAgent" },
+      { "class_name": "ExploreAgent", "name": "ExploreAgent" }
     ]
   },
   "main": "src/server/server.ts",
   "migrations": [
     {
-      "new_sqlite_classes": ["ProjectAgent", "SessionAgent", "VerifyAgent"],
+      "new_sqlite_classes": ["ProjectAgent", "SessionAgent", "VerifyAgent", "ExploreAgent"],
       "tag": "v1"
     }
   ]
