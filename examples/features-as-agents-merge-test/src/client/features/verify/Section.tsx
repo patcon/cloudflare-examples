@@ -104,12 +104,7 @@ function Topics({
   return (
     <>
       <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
-        <Checkbox.Group
-          legend="Topics participants see"
-          value={shown}
-          onValueChange={select}
-          disabled={!state.enabled}
-        >
+        <Checkbox.Group legend="Topics participants see" value={shown} onValueChange={select}>
           {all.map((t) => (
             <Checkbox.Item key={t.key} value={t.key} label={`${t.icon} ${t.label}`.trim()} />
           ))}
