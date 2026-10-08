@@ -3,6 +3,11 @@ import {
   DEFAULT_EXPLORE_SETTINGS,
   type ExploreSettings,
 } from "./explore/settings";
+import {
+  checkSettingsChange as checkStatements,
+  DEFAULT_STATEMENTS_SETTINGS,
+  type StatementsSettings,
+} from "./statements/settings";
 import { checkSettingsChange as checkVerify } from "./verify/settings";
 import { DEFAULT_VERIFY_SETTINGS, type VerifySettings } from "./verify/topics";
 
@@ -28,6 +33,12 @@ export const FEATURES = {
     defaults: DEFAULT_VERIFY_SETTINGS,
     checkSettingsChange: checkVerify,
   },
+  statements: {
+    label: "Statements",
+    binding: "StatementsAgent",
+    defaults: DEFAULT_STATEMENTS_SETTINGS,
+    checkSettingsChange: checkStatements,
+  },
 } as const;
 
 export type FeatureKey = keyof typeof FEATURES;
@@ -36,6 +47,7 @@ export type FeatureKey = keyof typeof FEATURES;
 export interface ProjectSettings {
   explore: ExploreSettings;
   verify: VerifySettings;
+  statements: StatementsSettings;
 }
 
 export const FEATURE_KEYS = Object.keys(FEATURES) as FeatureKey[];

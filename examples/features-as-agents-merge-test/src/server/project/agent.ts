@@ -17,6 +17,7 @@ import {
   type ContextEntry,
   type ContextStatus,
 } from "../features/explore/transcript";
+import type { Candidate, StatementsState } from "../features/statements/agent";
 import type { Outcome } from "../features/verify/agent";
 import { gather } from "../lib/gather";
 
@@ -32,6 +33,14 @@ export interface SessionRow {
 export interface SessionOutcomes {
   id: string;
   outcomes: Outcome[] | null;
+}
+
+/** A session's candidates, and its last extraction run, or null when it didn't answer. */
+export interface SessionCandidates {
+  id: string;
+  startedAt: number;
+  candidates: Candidate[] | null;
+  run: Pick<StatementsState, "lastRunAt" | "lastRunError"> | null;
 }
 
 /** One session on the settings page, and how it goes into another session's reply. */
@@ -195,6 +204,53 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
 
   #setVerify(change: Partial<ProjectSettings["verify"]>) {
     this.setState({ ...this.state, verify: { ...this.state.verify, ...change } });
+  }
+
+  // Statements
+
+  /**
+   * For the review page, and each session's extraction, to leave out what
+   * the project already has: every session's candidates, newest session
+   * first.
+   */
+  @callable()
+  async candidates(): Promise<SessionCandidates[]> {
+    const sessions = this.listSessions();
+    const answers = await gather(
+      sessions.map((s) => s.id),
+      async (id) => (await getAgentByName(this.env.StatementsAgent, id)).review(),
+    );
+    return answers.map(({ id, value }, i) => ({
+      id,
+      startedAt: sessions[i].started_at,
+      candidates: value?.candidates ?? null,
+      run: value?.run ?? null,
+    }));
+  }
+
+  /** From the review page: decides on one session's candidate. */
+  @callable()
+  async decide(
+    sessionId: string,
+    id: number,
+    status: "approved" | "rejected" | "pending",
+    editedText?: string,
+  ) {
+    await (await this.#statements(sessionId)).decide(id, status, editedText);
+  }
+
+  /** From the review page: runs one session's extraction now. */
+  @callable()
+  async extractNow(sessionId: string) {
+    await (await this.#statements(sessionId)).extractNow();
+  }
+
+  /** A session's StatementsAgent, once the session is known to be in this project. */
+  async #statements(sessionId: string) {
+    if (!isSessionId(sessionId)) throw new Error(`Not a session ID: ${sessionId}`);
+    const [known] = this.sql`SELECT 1 FROM sessions WHERE id = ${sessionId}`;
+    if (!known) throw new Error(`No session ${sessionId} in this project`);
+    return getAgentByName(this.env.StatementsAgent, sessionId);
   }
 
   validateStateChange(_next: ProjectState, source: Connection | "server") {
