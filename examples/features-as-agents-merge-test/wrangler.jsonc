@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "features-as-agents-merge-test",
+  "compatibility_date": "2026-06-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/agents/*", "/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      { "class_name": "ProjectAgent", "name": "ProjectAgent" },
+      { "class_name": "SessionAgent", "name": "SessionAgent" }
+    ]
+  },
+  "main": "src/server/server.ts",
+  "migrations": [
+    {
+      "new_sqlite_classes": ["ProjectAgent", "SessionAgent"],
+      "tag": "v1"
+    }
+  ]
+}

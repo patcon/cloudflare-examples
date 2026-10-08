@@ -1,0 +1,4 @@
+# For the Gemini model: a Google Cloud project with Vertex AI enabled, and an
+# OAuth token for it. `pnpm google-token` fills in the token. It lasts about an hour.
+GOOGLE_CLOUD_PROJECT=patcon-local-cli
+GOOGLE_ACCESS_TOKEN=
