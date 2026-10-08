@@ -3,7 +3,6 @@ import { Badge, Button, InputArea, Radio, Surface, Text } from "@cloudflare/kumo
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import type { ContextPreview } from "../../../server/project/agent";
 import {
-  MAX_CONTEXT_CHARS,
   MAX_CUSTOM_PROMPT_CHARS,
   OTHERS_TOKEN_LIMIT,
   TOKENS_PER_SESSION,
@@ -70,14 +69,10 @@ export function ExploreSection({
   return (
     <>
       <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-4">
-        <InputArea
-          label="What this project is about"
-          description="Every reply sees this, such as the question the groups are discussing."
-          value={shown.context}
-          maxLength={MAX_CONTEXT_CHARS}
-          rows={3}
-          onChange={(e) => setDraft((d) => ({ ...d, context: e.target.value }))}
-        />
+        <Text size="xs" variant="secondary">
+          Every reply sees the project's context, and its portal's title and content, from the
+          General tab.
+        </Text>
         <Radio.Group
           legend="How replies are written"
           value={shown.mode}

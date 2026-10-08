@@ -2,6 +2,7 @@ import { callable } from "agents";
 import { IDLE_DRAFT, isWriting, type DraftState } from "../../../shared/draft";
 import { whyNotExplore } from "../../../shared/features/explore/rules";
 import type { ExploreMode, ExploreSettings } from "../../../shared/features/explore/settings";
+import type { GeneralSettings } from "../../../shared/general";
 import { failDraft, finishDraft, recoverDraft, startDraft, streamDraft } from "../../lib/draft";
 import { FeatureAgent } from "../../lib/feature-agent";
 import { streamText } from "../../lib/gemini";
@@ -65,11 +66,13 @@ export class ExploreAgent extends FeatureAgent<ExploreState> {
     startDraft(this);
 
     let settings: ExploreSettings;
+    let general: GeneralSettings;
     try {
       const facts = await (await this.session()).facts();
       const { project } = await this.project();
       // RPC loses `settings`' generic, so the type is put back by hand.
       settings = (await project.settings("explore")) as ExploreSettings;
+      general = await project.general();
       const reason = whyNotExplore({
         enabled: settings.enabled,
         status,
@@ -85,14 +88,15 @@ export class ExploreAgent extends FeatureAgent<ExploreState> {
     }
     // Not awaited, so the call returns now. This keeps the object awake
     // until the reply is done, even with no page connected.
-    void this.keepAliveWhile(() => this.#generateReply(settings));
+    void this.keepAliveWhile(() => this.#generateReply(settings, general));
   }
 
   /** Streams the reply into state, then saves it. Never throws. */
-  async #generateReply(settings: ExploreSettings) {
+  async #generateReply(settings: ExploreSettings, general: GeneralSettings) {
     try {
       const prompt = buildPrompt(
         settings,
+        general,
         formatConversation(sessionLabel(this.name), await this.transcriptForContext()),
         await this.#otherSessions(),
       );

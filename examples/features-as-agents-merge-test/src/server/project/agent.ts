@@ -7,6 +7,11 @@ import {
   type FeatureKey,
   type ProjectSettings,
 } from "../../shared/features";
+import {
+  checkGeneralChange,
+  DEFAULT_GENERAL_SETTINGS,
+  type GeneralSettings,
+} from "../../shared/general";
 import { VERIFY_OFF } from "../../shared/features/verify/rules";
 import { checkNewTopic, topicKey } from "../../shared/features/verify/settings";
 import { offeredTopics, type Topic } from "../../shared/features/verify/topics";
@@ -21,8 +26,11 @@ import type { Candidate, StatementsState } from "../features/statements/agent";
 import type { Outcome } from "../features/verify/agent";
 import { gather } from "../lib/gather";
 
-/** Every feature's settings, synced to every page connected to the project. */
-export type ProjectState = ProjectSettings;
+/**
+ * The project's own details, and every feature's settings, synced to every
+ * page connected to the project.
+ */
+export type ProjectState = ProjectSettings & { general: GeneralSettings };
 
 export interface SessionRow {
   id: string;
@@ -62,7 +70,7 @@ export type ProjectMessage = { type: "sessions" } | { type: "changed"; feature: 
  * each session's feature agent.
  */
 export class ProjectAgent extends Agent<Env, ProjectState> {
-  initialState: ProjectState = defaultSettings();
+  initialState: ProjectState = { ...defaultSettings(), general: DEFAULT_GENERAL_SETTINGS };
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ctx.storage.sql.exec(
@@ -72,7 +80,22 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
 
   onStart() {
     const filled = backfill(this.state);
-    if (filled) this.setState(filled);
+    const general = this.#fillGeneral();
+    if (filled || general) {
+      this.setState({ ...this.state, ...filled, general: general ?? this.state.general });
+    }
+  }
+
+  /**
+   * Fills in the general settings: a new project's name is its ID, and a
+   * project saved before they existed brings its context from Explore,
+   * where it was. Returns null when nothing was missing.
+   */
+  #fillGeneral(): GeneralSettings | null {
+    const saved = this.state.general as Partial<GeneralSettings> | undefined;
+    if (saved?.name) return null;
+    const { context } = this.state.explore as { context?: string };
+    return { ...DEFAULT_GENERAL_SETTINGS, context: context ?? "", ...saved, name: this.name };
   }
 
   /** Called by a session the first time its page connects. */
@@ -90,6 +113,20 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   /** Called by a feature agent when its data changes, so the project's pages refetch. */
   changed(feature: FeatureKey) {
     this.#notify({ type: "changed", feature });
+  }
+
+  /** The project's own details, for a feature's agent, over RPC. */
+  general(): GeneralSettings {
+    return this.state.general;
+  }
+
+  /** Changes some of the project's own details, from the settings page. */
+  @callable()
+  updateGeneral(change: unknown) {
+    this.setState({
+      ...this.state,
+      general: { ...this.state.general, ...checkGeneralChange(change) },
+    });
   }
 
   /** One feature's settings, for its agent, over RPC. */
@@ -256,7 +293,8 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   validateStateChange(_next: ProjectState, source: Connection | "server") {
     // Pages change settings through the callables above, which check them,
     // not by setting state themselves.
-    if (source !== "server") throw new Error("Change settings with updateSettings");
+    if (source !== "server")
+      throw new Error("Change settings with updateSettings or updateGeneral");
   }
 
   #notify(message: ProjectMessage) {

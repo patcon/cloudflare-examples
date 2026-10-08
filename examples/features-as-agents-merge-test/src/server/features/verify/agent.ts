@@ -118,12 +118,13 @@ export class VerifyAgent extends FeatureAgent<VerifyState> {
         now: Date.now(),
       });
       if (reason) throw new Error(reason);
-      const { projectId, project } = await this.project();
+      const { project } = await this.project();
       topic = await project.topic(topicKey);
+      const { name } = await project.general();
       const { segments } = await session.segmentsSince(0);
       prompt = generatePrompt(
         topic.prompt,
-        projectId,
+        name,
         this.#outcomes("ORDER BY id"),
         buildTranscript(segments),
       );

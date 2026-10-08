@@ -1,25 +1,22 @@
 /** How Explore's replies are written, as the original's modes. */
 export type ExploreMode = "summarize" | "brainstorm" | "custom";
 
-/** A project's Explore settings: whether it's on, and how replies are written. */
+/**
+ * A project's Explore settings: whether it's on, and how replies are
+ * written. What the project is about is in its general settings.
+ */
 export interface ExploreSettings {
   enabled: boolean;
   mode: ExploreMode;
   /** Used in `custom` mode. Empty falls back to the summarize template. */
   customPrompt: string;
-  /** What the project is about. */
-  context: string;
 }
 
 export const DEFAULT_EXPLORE_SETTINGS: ExploreSettings = {
   enabled: true,
   mode: "summarize",
   customPrompt: "",
-  context: "",
 };
-
-/** The longest project context the settings page takes. Made up: the original has no limit. */
-export const MAX_CONTEXT_CHARS = 2000;
 
 /** The longest custom prompt the settings page takes. Made up: the original has no limit. */
 export const MAX_CUSTOM_PROMPT_CHARS = 4000;
@@ -70,7 +67,6 @@ export function checkSettingsChange(
   if ("customPrompt" in c) {
     out.customPrompt = text(c.customPrompt, "customPrompt", MAX_CUSTOM_PROMPT_CHARS);
   }
-  if ("context" in c) out.context = text(c.context, "context", MAX_CONTEXT_CHARS);
   return out;
 }
 

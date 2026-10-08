@@ -7,21 +7,21 @@ import { parse } from "../features/parse";
 import type { SectionProps } from "../features/types";
 import { useProject } from "../hooks/use-project";
 import { Shell } from "../ui";
+import { GeneralSection } from "./GeneralSection";
 
-/** A feature's tab, or the project's sessions. */
-type Tab = FeatureKey | "sessions";
+/** The project's own details, a feature's tab, or the project's sessions. */
+type Tab = "general" | FeatureKey | "sessions";
 
 /** The tab in the URL's hash, such as `#verify`, so a reload or a link opens it. */
 function tabFromHash(): Tab {
   const key = location.hash.slice(1);
-  return key === "sessions" || (FEATURE_KEYS as string[]).includes(key)
-    ? (key as Tab)
-    : FEATURE_KEYS[0];
+  return key === "sessions" || (FEATURE_KEYS as string[]).includes(key) ? (key as Tab) : "general";
 }
 
 /**
- * For the host: a tab for each feature, with its switch and its own
- * section, and one for the project's sessions. Each change saves at once,
+ * For the host: a tab for the project's own details, one for each
+ * feature, with its switch and its own section, and one for the project's
+ * sessions. Each change saves at once,
  * and shows in every open tab and session.
  */
 export function Settings({ projectId }: { projectId: string }) {
@@ -74,9 +74,10 @@ export function Settings({ projectId }: { projectId: string }) {
   }, [project, loadSessions]);
 
   return (
-    <Shell title={`${projectId} settings`}>
+    <Shell title={`${state?.general.name || projectId} settings`}>
       <Tabs
         tabs={[
+          { value: "general", label: "General" },
           ...FEATURE_KEYS.map((key) => ({
             value: key,
             // A dot of the same width either way, so a tab keeps its size
@@ -93,6 +94,10 @@ export function Settings({ projectId }: { projectId: string }) {
         <Text size="sm" variant="error">
           {error}
         </Text>
+      )}
+
+      {state && tab === "general" && (
+        <GeneralSection project={project} settings={state.general} run={run} />
       )}
 
       {/* Only the open tab renders, so a section that asks every session

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkSettingsChange, MAX_CONTEXT_CHARS } from "./settings";
+import { checkSettingsChange, MAX_CUSTOM_PROMPT_CHARS } from "./settings";
 
 describe("checkSettingsChange", () => {
   it("keeps the fields it knows, and drops the rest", () => {
@@ -15,10 +15,10 @@ describe("checkSettingsChange", () => {
 
   it("refuses wrong types and text over the limit", () => {
     expect(() => checkSettingsChange({ enabled: "yes" })).toThrow(/true or false/);
-    expect(() => checkSettingsChange({ context: 5 })).toThrow(/must be text/);
-    expect(() => checkSettingsChange({ context: "x".repeat(MAX_CONTEXT_CHARS + 1) })).toThrow(
-      /over/,
-    );
+    expect(() => checkSettingsChange({ customPrompt: 5 })).toThrow(/must be text/);
+    expect(() =>
+      checkSettingsChange({ customPrompt: "x".repeat(MAX_CUSTOM_PROMPT_CHARS + 1) }),
+    ).toThrow(/over/);
     expect(() => checkSettingsChange(null)).toThrow(/object/);
   });
 });
