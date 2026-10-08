@@ -72,7 +72,7 @@ Everything runs on Gemini on Vertex AI, so you need a Google Cloud project with 
 |---|---|---|
 | `/:projectId/start` | The recording phone | **Start a session** makes a new session with a random ID |
 | `/:projectId/sessions/:sessionId` | The recording phone | Record and stop as often as you like, the live transcript, and a panel for each feature that's on |
-| `/:projectId/settings` | The host | Each feature's switch and settings, Explore's context from other sessions, Verify's topics and approved outcomes, the Statements topic, and the sessions |
+| `/:projectId/settings` | The host | A tab for each feature, with its switch and settings: Explore's context from other sessions, Verify's topics and approved outcomes, the Statements topic. A last tab lists the sessions. The tab is in the link, such as `#verify` |
 | `/:projectId/review` | The host | Every session's candidate statements, to approve, edit, reject, or copy |
 
 ## Replaying an audio file

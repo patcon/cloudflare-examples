@@ -118,7 +118,10 @@ export function Review({ projectId }: { projectId: string }) {
             )}
           </div>
         ))}
-        <a className="text-xs underline" href={`/${encodeURIComponent(projectId)}/settings`}>
+        <a
+          className="text-xs underline"
+          href={`/${encodeURIComponent(projectId)}/settings#statements`}
+        >
           The topic is on the settings page
         </a>
       </Surface>

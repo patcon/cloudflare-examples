@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Surface, Switch, Text } from "@cloudflare/kumo";
+import { Surface, Switch, Tabs, Text } from "@cloudflare/kumo";
 import type { ProjectMessage, ProjectState, SessionRow } from "../../server/project/agent";
 import { FEATURE_KEYS, FEATURES, type FeatureKey } from "../../shared/features";
 import { FEATURE_UI } from "../features";
@@ -8,15 +8,37 @@ import type { SectionProps } from "../features/types";
 import { useProject } from "../hooks/use-project";
 import { Shell } from "../ui";
 
+/** A feature's tab, or the project's sessions. */
+type Tab = FeatureKey | "sessions";
+
+/** The tab in the URL's hash, such as `#verify`, so a reload or a link opens it. */
+function tabFromHash(): Tab {
+  const key = location.hash.slice(1);
+  return key === "sessions" || (FEATURE_KEYS as string[]).includes(key)
+    ? (key as Tab)
+    : FEATURE_KEYS[0];
+}
+
 /**
- * For the host: each feature, with its switch and its own section, then the
- * project's sessions. Each change saves at once, and shows in every open
- * tab and session.
+ * For the host: a tab for each feature, with its switch and its own
+ * section, and one for the project's sessions. Each change saves at once,
+ * and shows in every open tab and session.
  */
 export function Settings({ projectId }: { projectId: string }) {
   const [state, setState] = useState<ProjectState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionRow[] | null>(null);
+  const [tab, setTab] = useState<Tab>(tabFromHash);
+  useEffect(() => {
+    const follow = () => setTab(tabFromHash());
+    addEventListener("hashchange", follow);
+    return () => removeEventListener("hashchange", follow);
+  }, []);
+  const pick = (next: Tab) => {
+    setError(null);
+    setTab(next);
+    history.replaceState(null, "", `#${next}`);
+  };
   // Goes up for a feature when its data changes in a session, or a session joins.
   const [versions, setVersions] = useState<Record<string, number>>({});
   const bump = (keys: readonly FeatureKey[]) =>
@@ -53,8 +75,28 @@ export function Settings({ projectId }: { projectId: string }) {
 
   return (
     <Shell title={`${projectId} settings`}>
+      <Tabs
+        tabs={[
+          ...FEATURE_KEYS.map((key) => ({
+            value: key,
+            label: `${FEATURES[key].label}${state && !state[key].enabled ? " (off)" : ""}`,
+          })),
+          { value: "sessions", label: `Sessions${sessions ? ` (${sessions.length})` : ""}` },
+        ]}
+        value={tab}
+        onValueChange={(v) => pick(v as Tab)}
+      />
+
+      {error && (
+        <Text size="sm" variant="error">
+          {error}
+        </Text>
+      )}
+
+      {/* Only the open tab renders, so a section that asks every session
+          only does so while it's shown. */}
       {state &&
-        FEATURE_KEYS.map((key) => (
+        FEATURE_KEYS.filter((key) => key === tab).map((key) => (
           <FeatureSettings
             key={key}
             feature={key}
@@ -67,35 +109,28 @@ export function Settings({ projectId }: { projectId: string }) {
           />
         ))}
 
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2">
-        <Text size="sm" bold>
-          Sessions
-        </Text>
-        {sessions === null && (
-          <Text size="sm" variant="secondary">
-            Loading…
-          </Text>
-        )}
-        {sessions?.length === 0 && (
-          <Text size="sm" variant="secondary">
-            No sessions yet.
-          </Text>
-        )}
-        {sessions?.map((s) => (
-          <a
-            key={s.id}
-            className="text-sm underline"
-            href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}
-          >
-            {new Date(s.started_at).toLocaleString()}
-          </a>
-        ))}
-      </Surface>
-
-      {error && (
-        <Text size="sm" variant="error">
-          {error}
-        </Text>
+      {tab === "sessions" && (
+        <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2">
+          {sessions === null && (
+            <Text size="sm" variant="secondary">
+              Loading…
+            </Text>
+          )}
+          {sessions?.length === 0 && (
+            <Text size="sm" variant="secondary">
+              No sessions yet.
+            </Text>
+          )}
+          {sessions?.map((s) => (
+            <a
+              key={s.id}
+              className="text-sm underline"
+              href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}
+            >
+              {new Date(s.started_at).toLocaleString()}
+            </a>
+          ))}
+        </Surface>
       )}
 
       <a className="text-sm underline" href={`/${encodeURIComponent(projectId)}/start`}>
