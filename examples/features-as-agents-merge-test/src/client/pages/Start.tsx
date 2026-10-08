@@ -18,7 +18,7 @@ export function Start({ projectId }: { projectId: string }) {
           Start a session
         </Button>
         <a className="text-sm underline" href={`/${encodeURIComponent(projectId)}/settings`}>
-          Change how this project replies
+          Turn features on or off, and see past sessions
         </a>
       </Surface>
     </Shell>
