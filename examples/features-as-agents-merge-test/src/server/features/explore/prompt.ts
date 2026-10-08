@@ -1,5 +1,5 @@
 import type { ExploreMode, ExploreSettings } from "../../../shared/features/explore/settings";
-import type { GeneralSettings } from "../../../shared/general";
+import { projectDescription, type ProjectDetails } from "../../../shared/general";
 import { template } from "../../lib/liquid";
 import brainstormTemplate from "./prompts/get_reply_brainstorm.en.jinja?raw";
 import summarizeTemplate from "./prompts/get_reply_summarize.en.jinja?raw";
@@ -12,9 +12,6 @@ import systemTemplate from "./prompts/get_reply_system.en.jinja?raw";
 
 /** What the prompt needs of the project's settings. */
 export type ReplySettings = Pick<ExploreSettings, "mode" | "customPrompt">;
-
-/** What the prompt needs of the project's own details. */
-export type ReplyProject = Pick<GeneralSettings, "context" | "portalTitle" | "portalContent">;
 
 const renderSystem = template(systemTemplate);
 export const SUMMARIZE_PROMPT = template(summarizeTemplate)();
@@ -34,27 +31,12 @@ export function globalPrompt(settings: ReplySettings): string {
 }
 
 /**
- * The project's description, as `reply.ts` builds it: its context, then
- * what the portal shows, under the original's names for those fields. The
- * original leaves out a field that's null, so an empty one is left out.
- */
-export function projectDescription(project: ReplyProject): string {
-  const parts: string[] = [];
-  if (project.context) parts.push(project.context);
-  if (project.portalTitle) parts.push(`Default Conversation Title: ${project.portalTitle}`);
-  if (project.portalContent) {
-    parts.push(`Default Conversation Description: ${project.portalContent}`);
-  }
-  return parts.join("\n\n");
-}
-
-/**
  * The whole prompt. `current` and `others` are formatted with
  * `formatConversation`, and `others` kept within its limit.
  */
 export function buildPrompt(
   settings: ReplySettings,
-  project: ReplyProject,
+  project: ProjectDetails,
   current: string,
   others: string,
 ): string {

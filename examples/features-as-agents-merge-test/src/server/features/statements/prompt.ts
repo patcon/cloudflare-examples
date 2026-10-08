@@ -1,11 +1,11 @@
 import type { Pass } from "./types";
 
 /** Saved with each statement, so you can compare prompts later. */
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 
 export interface PromptInput {
-  /** What the conversations are about: the project's context. */
-  topic: string;
+  /** The project's description, from its general settings, as Explore's prompt has it. */
+  project: string;
   /** Statements the project already has, approved or waiting for review. */
   existing: string[];
   /** What was said just before, for context only. */
@@ -40,7 +40,7 @@ const FINAL = `This is the whole conversation, with speakers told apart, transcr
 /** The system instruction and the user turn for one extraction. */
 export function buildPrompt(input: PromptInput): { system: string; user: string } {
   const sections = [
-    input.topic && `Topic of the conversation:\n${input.topic}`,
+    input.project && `About the project:\n${input.project}`,
     `Statements the conversation already has (don't repeat these, or say the same thing in other words):\n${
       input.existing.length ? input.existing.map((s) => `- ${s}`).join("\n") : "(none yet)"
     }`,

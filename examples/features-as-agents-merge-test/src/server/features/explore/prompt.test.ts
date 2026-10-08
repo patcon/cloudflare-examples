@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  BRAINSTORM_PROMPT,
-  buildPrompt,
-  globalPrompt,
-  modeUsed,
-  projectDescription,
-  SUMMARIZE_PROMPT,
-} from "./prompt";
+import { BRAINSTORM_PROMPT, buildPrompt, globalPrompt, modeUsed, SUMMARIZE_PROMPT } from "./prompt";
 import { DEFAULT_EXPLORE_SETTINGS as DEFAULT_SETTINGS } from "../../../shared/features/explore/settings";
 import { DEFAULT_GENERAL_SETTINGS as NO_DETAILS } from "../../../shared/general";
 import { formatConversation } from "./transcript";
@@ -32,27 +25,6 @@ describe("globalPrompt", () => {
     expect(globalPrompt({ ...DEFAULT_SETTINGS, mode: "custom", customPrompt: "  " })).toBe(
       SUMMARIZE_PROMPT,
     );
-  });
-});
-
-describe("projectDescription", () => {
-  it("puts the context, then the portal's title and content", () => {
-    expect(
-      projectDescription({
-        context: "Housing in Utrecht",
-        portalTitle: "Your street",
-        portalContent: "Tell us about it.",
-      }),
-    ).toBe(
-      "Housing in Utrecht\n\nDefault Conversation Title: Your street\n\nDefault Conversation Description: Tell us about it.",
-    );
-  });
-
-  it("leaves out what's empty", () => {
-    expect(projectDescription({ ...NO_DETAILS, portalTitle: "Your street" })).toBe(
-      "Default Conversation Title: Your street",
-    );
-    expect(projectDescription(NO_DETAILS)).toBe("");
   });
 });
 

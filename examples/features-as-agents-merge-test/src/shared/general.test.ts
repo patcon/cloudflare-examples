@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { checkGeneralChange, MAX_CONTEXT_CHARS } from "./general";
+import {
+  checkGeneralChange,
+  DEFAULT_GENERAL_SETTINGS as NO_DETAILS,
+  MAX_CONTEXT_CHARS,
+  projectDescription,
+} from "./general";
 
 describe("checkGeneralChange", () => {
   it("keeps the fields it knows, and drops the rest", () => {
@@ -24,5 +29,26 @@ describe("checkGeneralChange", () => {
       /over/,
     );
     expect(() => checkGeneralChange(null)).toThrow(/object/);
+  });
+});
+
+describe("projectDescription", () => {
+  it("puts the context, then the portal's title and content", () => {
+    expect(
+      projectDescription({
+        context: "Housing in Utrecht",
+        portalTitle: "Your street",
+        portalContent: "Tell us about it.",
+      }),
+    ).toBe(
+      "Housing in Utrecht\n\nDefault Conversation Title: Your street\n\nDefault Conversation Description: Tell us about it.",
+    );
+  });
+
+  it("leaves out what's empty", () => {
+    expect(projectDescription({ ...NO_DETAILS, portalTitle: "Your street" })).toBe(
+      "Default Conversation Title: Your street",
+    );
+    expect(projectDescription(NO_DETAILS)).toBe("");
   });
 });

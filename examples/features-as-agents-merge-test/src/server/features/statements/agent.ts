@@ -1,6 +1,7 @@
 import { callable } from "agents";
 import { whyNotExtract } from "../../../shared/features/statements/rules";
 import type { StatementsSettings } from "../../../shared/features/statements/settings";
+import { projectDescription } from "../../../shared/general";
 import { FeatureAgent } from "../../lib/feature-agent";
 import { isRetryable } from "../../lib/gemini";
 import { EXTRACT_MODEL, vertex } from "../../models";
@@ -198,7 +199,7 @@ export class StatementsAgent extends FeatureAgent<StatementsState> {
       // Every session's statements, so none is proposed twice in the project.
       const all = (await project.candidates()).flatMap((s) => s.candidates ?? []);
       const proposed = await extractStatements(vertex(this.env, EXTRACT_MODEL), {
-        topic: (await project.general()).context,
+        project: projectDescription(await project.general()),
         existing: texts(all, ["pending", "approved"]),
         context: context.map((s) => s.text).join("\n"),
         transcript: segments.map((s) => s.text).join("\n"),

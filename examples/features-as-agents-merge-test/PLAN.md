@@ -26,7 +26,7 @@ Merge `portal-explore`, `portal-verify` and `polis-statement-extraction` into on
 - A feature that's off doesn't show on the session page. Its agent still refuses with the reason, for a page that hasn't caught up.
 - Explore and Verify check a press before anything awaits, then start the draft, then check the session's facts over RPC, and undo the draft if it's refused. A second press while the first is checking is refused at once.
 - Statements' candidates live per session. Every window's duplicate check gathers the project's candidates, which costs a call per session per window.
-- The Statements topic is the project's context, on the settings page's General tab.
+- The Statements topic is gone: extraction is told about the project as Explore's reply is, from the settings page's General tab.
 - **Extract now** is refused with nothing new since the last run. The cursor (the last segment a run covered) is in the agent's synced state, so the page can tell.
 
 ## Seams

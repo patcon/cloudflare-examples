@@ -1,6 +1,6 @@
 /**
- * A project's statement extraction settings. What the conversations are
- * about is the project's context, in its general settings.
+ * A project's statement extraction settings. What the extraction prompt
+ * is told about the project is in its general settings.
  */
 export interface StatementsSettings {
   enabled: boolean;

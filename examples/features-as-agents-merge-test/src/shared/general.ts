@@ -9,6 +9,8 @@
  * | context         | yes     | no     |
  * | portalTitle     | yes     | no     |
  * | portalContent   | yes     | no     |
+ *
+ * Statements takes what Explore does.
  */
 export interface GeneralSettings {
   /** Required. A new project starts with its ID. */
@@ -27,6 +29,25 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
   portalTitle: "",
   portalContent: "",
 };
+
+/** What Explore and Statements tell the model about the project. */
+export type ProjectDetails = Pick<GeneralSettings, "context" | "portalTitle" | "portalContent">;
+
+/**
+ * The project's description, as the original's reply prompt builds it in
+ * `platform/packages/conversations/src/v1/reply.ts`: its context, then
+ * what the portal shows, under the original's names for those fields. The
+ * original leaves out a field that's null, so an empty one is left out.
+ */
+export function projectDescription(project: ProjectDetails): string {
+  const parts: string[] = [];
+  if (project.context) parts.push(project.context);
+  if (project.portalTitle) parts.push(`Default Conversation Title: ${project.portalTitle}`);
+  if (project.portalContent) {
+    parts.push(`Default Conversation Description: ${project.portalContent}`);
+  }
+  return parts.join("\n\n");
+}
 
 // Made up: the original has no limits.
 export const MAX_NAME_CHARS = 100;
