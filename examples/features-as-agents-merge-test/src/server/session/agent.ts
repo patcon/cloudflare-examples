@@ -83,18 +83,18 @@ export class SessionAgent extends InputAgent<Env, SessionState> {
   }
 
   /**
-   * Joins this session to a project, and registers it there. A session
-   * belongs to one project for good.
+   * Joins this session to a project, and registers it there with its name.
+   * A session belongs to one project for good, and keeps its first name.
    */
   @callable()
-  async attach(projectId: string) {
+  async attach(projectId: string, name = "") {
     if (!isProjectId(projectId)) throw new Error(`Not a project ID: ${projectId}`);
     if (this.state.projectId === projectId) return;
     if (this.state.projectId) {
       throw new Error(`This session belongs to ${this.state.projectId}`);
     }
     const project = await getAgentByName(this.env.ProjectAgent, projectId);
-    await project.registerSession(this.name);
+    await project.registerSession(this.name, name.trim());
     this.setState({ ...this.state, projectId });
   }
 

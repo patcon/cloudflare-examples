@@ -34,6 +34,8 @@ export type ProjectState = ProjectSettings & { general: GeneralSettings };
 
 export interface SessionRow {
   id: string;
+  /** As typed on the start page. Empty for a session saved before names. */
+  name: string;
   started_at: number;
 }
 
@@ -74,8 +76,13 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ctx.storage.sql.exec(
-      "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, started_at INTEGER NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', started_at INTEGER NOT NULL)",
     );
+    // A project saved before sessions had names has a table without them.
+    const [{ named }] = this.sql<{ named: number }>`
+      SELECT COUNT(*) AS named FROM pragma_table_info('sessions') WHERE name = 'name'`;
+    if (!named)
+      this.ctx.storage.sql.exec("ALTER TABLE sessions ADD COLUMN name TEXT NOT NULL DEFAULT ''");
   }
 
   onStart() {
@@ -99,9 +106,10 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   }
 
   /** Called by a session the first time its page connects. */
-  registerSession(id: string) {
+  registerSession(id: string, name: string) {
     if (!isSessionId(id)) throw new Error(`Not a session ID: ${id}`);
-    this.sql`INSERT OR IGNORE INTO sessions (id, started_at) VALUES (${id}, ${Date.now()})`;
+    this
+      .sql`INSERT OR IGNORE INTO sessions (id, name, started_at) VALUES (${id}, ${name}, ${Date.now()})`;
     this.#notify({ type: "sessions" });
   }
 

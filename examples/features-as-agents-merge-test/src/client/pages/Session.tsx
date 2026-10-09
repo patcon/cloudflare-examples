@@ -49,10 +49,12 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   const [project, setProject] = useState<ProjectState | null>(null);
   useProject(projectId, { onStateUpdate: setProject });
 
-  // Joins the session to this page's project, then loads what's there.
+  // Joins the session to this page's project, with the name the start page
+  // put in the URL, then loads what's there.
   useEffect(() => {
+    const name = new URLSearchParams(location.search).get("name") ?? "";
     agent.ready
-      .then(() => agent.call("attach", [projectId]))
+      .then(() => agent.call("attach", [projectId, name]))
       .then(() => agent.call("listSegments"))
       .then(setSegments)
       .catch((e: Error) => setError(e.message));

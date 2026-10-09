@@ -134,6 +134,7 @@ export function Settings({ projectId }: { projectId: string }) {
               className="text-sm underline"
               href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}
             >
+              {s.name ? `${s.name} · ` : ""}
               {new Date(s.started_at).toLocaleString()}
             </a>
           ))}
