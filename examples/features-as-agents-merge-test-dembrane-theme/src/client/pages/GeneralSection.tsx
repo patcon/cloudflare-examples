@@ -26,6 +26,8 @@ export function GeneralSection({
   /** Unsaved changes, over the saved settings. */
   const [draft, setDraft] = useState<Partial<GeneralSettings>>({});
   const [saving, setSaving] = useState(false);
+  /** The Pause button switch's value while it saves. */
+  const [pauseButton, setPauseButton] = useState<boolean | null>(null);
 
   const shown = { ...settings, ...draft };
   const edit = (field: keyof GeneralSettings) => (e: { target: { value: string } }) =>
@@ -88,8 +90,15 @@ export function GeneralSection({
         <Switch
           label="Pause button"
           description="While recording, Pause beside Stop: Pause pauses in place, and Stop asks to resume or finish. Off, as in echo, Stop pauses and asks."
-          checked={shown.pauseButton ?? false}
-          onChange={(e) => setDraft((d) => ({ ...d, pauseButton: e.currentTarget.checked }))}
+          // Saves on its own, as the features' switches do, not with the text.
+          checked={pauseButton ?? settings.pauseButton ?? false}
+          onChange={(e) => {
+            const on = e.currentTarget.checked;
+            setPauseButton(on);
+            run(project.call("updateGeneral", [{ pauseButton: on }]))
+              .catch(() => {})
+              .finally(() => setPauseButton(null));
+          }}
         />
       </Paper>
 
