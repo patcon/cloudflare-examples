@@ -68,7 +68,7 @@ export function VerifySection({
         )}
         {withOutcomes.map(({ id, outcomes }) => (
           <div key={id} className="flex flex-col gap-1 border-t pt-3">
-            <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/sessions/${id}`}>
+            <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/conversation/${id}`}>
               {new Date(started.get(id) ?? 0).toLocaleString()}
             </Anchor>
             <SessionApproved outcomes={outcomes} />

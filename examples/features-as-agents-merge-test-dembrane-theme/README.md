@@ -19,11 +19,14 @@ The toolchain is echo's, so the copied CSS works as is: Mantine 7, Tailwind 3 th
 - **The session page** is echo's audio screen:
   - echo's welcome, the portal's title and content, and its instructions.
   - The record bar at the bottom: **Record** and **Finish**, then while recording the waveform, the timer, **ECHO** and **Stop**.
+  - echo's screens above the bar, at `/refine`, `/verify` and `/verify/approve` under the conversation, change the URL in place, so the recording carries on.
   - **Stop** opens echo's **Recording paused** modal, with **Resume** and **Finish**.
   - **Finish** goes to echo's thank-you page.
-- **Explore is the ECHO button.** It fills as the recording goes on. Until Explore can run, a press says how long is left. Its replies show under the conversation with dembrane's mark, as echo's do.
+- **Verify and Explore are behind the ECHO button**, as in echo. It fills over the first minute recorded; until then, a press says how long is left. Then it opens echo's refine screen, with a card for each feature that's on:
+  - **Verify** opens echo's verify screens: pick a topic, read the outcome, revise or edit it, approve it. Approved outcomes show under the conversation, as echo's do. Its panel is gone.
+  - **Explore** goes back to the conversation and asks for a reply, which shows under it with dembrane's mark. The ECHO button is off until the reply is done.
 - **The transcript** sits behind **View your responses**, as in echo, rather than in an open panel.
-- **Verify and Statements** keep their panels, restyled.
+- **Statements** keeps its panel, restyled.
 - **Light only, and recording only.** There's no dark mode and no text input: the text-input buttons from echo are left out, and the pause modal's **Switch to text input** link only says so.
 
 ---

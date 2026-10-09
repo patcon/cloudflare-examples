@@ -38,12 +38,30 @@ function App() {
   ) {
     return <Finish projectId={projectId} />;
   }
+  // This app's older session path, as echo's, so its refine and verify
+  // screens open in place.
+  if (isProjectId(projectId) && page === "sessions" && isSessionId(sessionId)) {
+    location.replace(
+      `/${encodeURIComponent(projectId)}/conversation/${[sessionId, ...rest].join("/")}${location.search}`,
+    );
+    return null;
+  }
+  // echo's ECHO screens, nested in the conversation's route, as the record
+  // bar carries on under them.
+  if (
+    isProjectId(projectId) &&
+    page === "conversation" &&
+    isSessionId(sessionId) &&
+    /^(refine|verify(\/approve)?)$/.test(rest.join("/"))
+  ) {
+    return <Session projectId={projectId} sessionId={sessionId} />;
+  }
   if (isProjectId(projectId) && rest.length === 0) {
     if (page === "start" && !sessionId) return <Start projectId={projectId} />;
     if (page === "settings" && !sessionId) return <Settings projectId={projectId} />;
     if (page === "review" && !sessionId) return <Review projectId={projectId} />;
-    // echo's participant path, which its start page opens, or this app's own.
-    if ((page === "conversation" || page === "sessions") && isSessionId(sessionId)) {
+    // echo's participant path, which its start page opens.
+    if (page === "conversation" && isSessionId(sessionId)) {
       return <Session projectId={projectId} sessionId={sessionId} />;
     }
   }

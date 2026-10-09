@@ -15,6 +15,7 @@ export const toParticipantProject = (
   state: ProjectState,
 ): ParticipantProject => ({
   id: projectId,
+  language: "en",
   name: state.general.name || projectId,
   default_conversation_title: state.general.portalTitle || null,
   default_conversation_description: state.general.portalContent || null,
@@ -47,7 +48,15 @@ export const ParticipantProjectProvider = ({
 /** The shape of echo's query, from the project the page provides. */
 export const useParticipantProjectById = (_projectId: string) => {
   const data = useContext(ProjectContext);
-  return { data, isLoading: data === undefined, error: null as Error | null };
+  return {
+    data,
+    isLoading: data === undefined,
+    isError: false,
+    isRefetching: false,
+    error: null as Error | null,
+    // It's live from the project's agent, so there's nothing to fetch again.
+    refetch: async () => {},
+  };
 };
 
 export const useInitiateConversationMutation = () =>

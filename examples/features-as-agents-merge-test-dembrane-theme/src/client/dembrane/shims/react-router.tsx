@@ -1,35 +1,88 @@
 // example: stands in for `react-router`, which echo routes with. This app
 // picks its page from the path (src/client/index.tsx), so these read the
-// URL, and navigating loads the page.
-import { createContext, type ReactNode, useContext, useMemo } from "react";
+// URL. Navigating loads the page, except between a conversation and its
+// refine and verify screens, which echo nests in the conversation's route
+// so the recording carries on: those change the URL in place.
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
+
+const listeners = new Set<() => void>();
+const notify = () => {
+  for (const listener of listeners) listener();
+};
+addEventListener("popstate", notify);
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+
+/** The URL, so a component shows the new one when it changes in place. */
+const useHref = () => useSyncExternalStore(subscribe, () => location.href);
+
+/** A conversation's own path, without its refine or verify screen. */
+const conversationBase = (pathname: string) =>
+  pathname.match(/^(\/[^/]+\/conversation\/[^/]+)(\/(refine|verify(\/approve)?))?\/?$/)?.[1];
+
+type NavigateOptions = { replace?: boolean };
+
+const go = (to: string, options?: NavigateOptions) => {
+  const url = new URL(to, location.href);
+  const base = conversationBase(url.pathname);
+  if (url.origin === location.origin && base && base === conversationBase(location.pathname)) {
+    history[options?.replace ? "replaceState" : "pushState"](null, "", url);
+    notify();
+  } else if (options?.replace) {
+    location.replace(url);
+  } else {
+    location.assign(url);
+  }
+};
 
 /** echo's participant params, from this app's paths. */
 export function useParams<T extends Record<string, string | undefined>>(): T {
-  const [projectId, page, id] = location.pathname
-    .split("/")
-    .filter(Boolean)
-    .map(decodeURIComponent);
-  const conversationId = page === "conversation" || page === "sessions" ? id : undefined;
-  return { language: undefined, projectId, conversationId } as unknown as T;
+  const href = useHref();
+  return useMemo(() => {
+    const [projectId, page, id] = new URL(href).pathname
+      .split("/")
+      .filter(Boolean)
+      .map(decodeURIComponent);
+    const conversationId = page === "conversation" || page === "sessions" ? id : undefined;
+    return { language: undefined, projectId, conversationId } as unknown as T;
+  }, [href]);
 }
 
 export function useLocation() {
-  return { pathname: location.pathname, search: location.search, hash: location.hash };
+  const href = useHref();
+  return useMemo(() => {
+    const url = new URL(href);
+    return { pathname: url.pathname, search: url.search, hash: url.hash };
+  }, [href]);
 }
 
-export function useSearchParams(): [URLSearchParams, (next: URLSearchParams) => void] {
-  const params = useMemo(() => new URLSearchParams(location.search), []);
-  const set = (next: URLSearchParams) => {
-    const query = next.toString();
-    history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}`);
+type SearchInit = URLSearchParams | Record<string, string>;
+
+export function useSearchParams(): [
+  URLSearchParams,
+  (next: SearchInit, options?: NavigateOptions) => void,
+] {
+  const href = useHref();
+  const params = useMemo(() => new URL(href).searchParams, [href]);
+  const set = (next: SearchInit, options?: NavigateOptions) => {
+    const query = new URLSearchParams(next).toString();
+    go(`${location.pathname}${query ? `?${query}` : ""}`, options);
   };
   return [params, set];
 }
 
 export function useNavigate() {
-  return (to: string | number) => {
+  return (to: string | number, options?: NavigateOptions) => {
     if (typeof to === "number") history.go(to);
-    else location.assign(to);
+    else go(to, options);
   };
 }
 

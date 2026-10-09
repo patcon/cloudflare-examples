@@ -63,6 +63,20 @@ FILES=(
   "src/components/common/TipBanner.tsx"
   "src/hooks/useOnlineStatus.ts"
   "src/routes/participant/ParticipantPostConversation.tsx"
+  "src/components/participant/refine/RefineSelection.tsx"
+  "src/components/participant/refine/hooks/useRefineSelectionCooldown.ts"
+  "src/components/participant/verify/hooks/index.ts"
+  "src/components/participant/verify/VerifySelection.tsx"
+  "src/components/participant/verify/VerifyInstructions.tsx"
+  "src/components/participant/verify/VerifyArtefact.tsx"
+  "src/components/participant/verify/VerifyArtefactError.tsx"
+  "src/components/participant/verify/VerifyArtefactLoading.tsx"
+  "src/components/participant/verify/VerifiedArtefactsList.tsx"
+  "src/components/participant/verify/VerifiedArtefactItem.tsx"
+  "src/components/participant/verify/ArtefactModal.tsx"
+  "src/components/form/MarkdownWYSIWYG/MarkdownWYSIWYG.tsx"
+  "src/components/form/MarkdownWYSIWYG/styles.css"
+  "src/hooks/useCooldown.ts"
 )
 
 target() {

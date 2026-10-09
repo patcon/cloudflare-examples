@@ -162,7 +162,7 @@ function ContextSessions({
       {sessions?.map((s) => (
         <div key={s.id} className="flex flex-col gap-1 border-t pt-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}>
+            <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/conversation/${s.id}`}>
               {new Date(s.startedAt).toLocaleString()}
             </Anchor>
             <Badge color="gray">{STATUS[s.status]}</Badge>

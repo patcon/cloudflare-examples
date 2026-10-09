@@ -131,7 +131,7 @@ export function Settings({ projectId }: { projectId: string }) {
             <Anchor
               key={s.id}
               size="sm"
-              href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}
+              href={`/${encodeURIComponent(projectId)}/conversation/${s.id}`}
             >
               {s.name ? `${s.name} · ` : ""}
               {new Date(s.started_at).toLocaleString()}

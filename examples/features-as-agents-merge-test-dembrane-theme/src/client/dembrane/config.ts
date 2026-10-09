@@ -3,10 +3,10 @@
 
 /**
  * Echo builds the portal and the dashboard as separate apps. Here they're
- * one, so the participant pages are picked by path: a start page or a
- * conversation.
+ * one, so the participant pages are picked by path: a start page, or a
+ * conversation and its screens.
  */
-export const USE_PARTICIPANT_ROUTER = /^\/[^/]+\/(start|(conversation|sessions)\/[^/]+(\/finish)?)\/?$/.test(
+export const USE_PARTICIPANT_ROUTER = /^\/[^/]+\/(start|conversation\/[^/]+(\/(finish|refine|verify(\/approve)?))?)\/?$/.test(
   location.pathname,
 );
 

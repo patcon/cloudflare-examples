@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Box, Button, Group, Stack, Text } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useLocation, useNavigate } from "react-router";
+import { Box, Button, Group, Modal, Stack, Text } from "@mantine/core";
+import { useDisclosure, useLocalStorage } from "@mantine/hooks";
 import { CheckIcon, MicrophoneIcon, PauseIcon, StopIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/common/Toaster";
@@ -9,7 +10,11 @@ import { chunksKey } from "@/components/participant/hooks";
 import { ParticipantBody } from "@/components/participant/ParticipantBody";
 import { ParticipantRecordingWaveform } from "@/components/participant/ParticipantRecordingWaveform";
 import { ParticipantSettingsModal } from "@/components/participant/ParticipantSettingsModal";
+import { RefineSelection } from "@/components/participant/refine/RefineSelection";
 import { StopRecordingConfirmationModal } from "@/components/participant/StopRecordingConfirmationModal";
+import { VerifiedArtefactsList } from "@/components/participant/verify/VerifiedArtefactsList";
+import { VerifyArtefact } from "@/components/participant/verify/VerifyArtefact";
+import { VerifySelection } from "@/components/participant/verify/VerifySelection";
 import { sessionName } from "@/lib/api";
 import type { ProjectState } from "../../server/project/agent";
 import type {
@@ -21,7 +26,7 @@ import type {
 import { FEATURE_KEYS, type FeatureKey } from "../../shared/features";
 import { recordedSecondsAt, type SessionFacts } from "../../shared/rules";
 import { FEATURE_UI } from "../features";
-import { ExploreEcho, ExploreReplies } from "../features/explore/Echo";
+import { ExploreReplies } from "../features/explore/Bridge";
 import { parse } from "../features/parse";
 import type { PanelProps } from "../features/types";
 import { useNow } from "../hooks/use-now";
@@ -30,9 +35,14 @@ import { ParticipantPage } from "../participant";
 import { InsecureNotice } from "../ui";
 import { Replay } from "./Replay";
 
+/** As echo's, the time recorded before the ECHO button opens its screens. */
+const REFINE_BUTTON_THRESHOLD_SECONDS = 60;
+
 /**
  * For the recording phone, as echo's audio screen: its welcome and
  * instructions, what each feature shows, and the record bar at the bottom.
+ * The ECHO button opens echo's screens for Verify and Explore (refine,
+ * verify, verify/approve) above the same bar, so the recording carries on.
  * The page connects to the session for the microphone and the transcript;
  * each feature connects to its own agent.
  */
@@ -56,6 +66,12 @@ function SessionView({
   project: ProjectState | null;
 }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const conversationUrl = `/${encodeURIComponent(projectId)}/conversation/${sessionId}`;
+  // echo's screen under the conversation, if one's open.
+  const screen = useLocation()
+    .pathname.slice(conversationUrl.length)
+    .replace(/^\/|\/$/g, "");
   const [segments, setSegments] = useState<Segment[]>([]);
   const [state, setState] = useState<SessionState | null>(null);
 
@@ -135,9 +151,7 @@ function SessionView({
     voice.stop();
     openStop();
   };
-  const finish = () => {
-    location.assign(`/${encodeURIComponent(projectId)}/conversation/${sessionId}/finish`);
-  };
+  const finish = () => navigate(`${conversationUrl}/finish`);
 
   // Another page, or one that's gone, is recording this session.
   const elsewhere = voice.status === "idle" && state?.recordingSince != null;
@@ -157,7 +171,44 @@ function SessionView({
   }, [canReplay]);
 
   const exploreOn = !!project?.explore.enabled;
+  const verifyOn = !!project?.verify.enabled;
   const showTimer = isRecording || stopOpened;
+
+  // echo's ECHO button: until a minute's recorded, it fills, and a press
+  // says how long is left. Explore turns it off while its reply comes.
+  const [refineInfoOpened, { open: openRefineInfo, close: closeRefineInfo }] = useDisclosure(false);
+  const [isRefineDisabled] = useLocalStorage({
+    defaultValue: false,
+    key: `refine_disabled_${sessionId}`,
+  });
+  useEffect(() => {
+    if (refineInfoOpened && seconds >= REFINE_BUTTON_THRESHOLD_SECONDS) closeRefineInfo();
+  }, [refineInfoOpened, seconds, closeRefineInfo]);
+  const refineProgress = Math.min((seconds / REFINE_BUTTON_THRESHOLD_SECONDS) * 100, 100);
+  const remainingTime = Math.max(0, REFINE_BUTTON_THRESHOLD_SECONDS - Math.floor(seconds));
+  const handleRefineClick = () => {
+    if (seconds < REFINE_BUTTON_THRESHOLD_SECONDS) {
+      openRefineInfo();
+      return;
+    }
+    navigate(`${conversationUrl}/refine`);
+  };
+  const refineTitle =
+    verifyOn && exploreOn
+      ? '"ECHO" available soon'
+      : verifyOn
+        ? '"Verify" available soon'
+        : exploreOn
+          ? '"Explore" available soon'
+          : "Feature available soon";
+  const refineText =
+    verifyOn && exploreOn
+      ? "Take some time to create an outcome that makes your contribution concrete or get an immediate reply from dembrane to help you deepen the conversation."
+      : verifyOn
+        ? "Take some time to create an outcome that makes your contribution concrete."
+        : exploreOn
+          ? "Get an immediate reply from dembrane to help you deepen the conversation."
+          : "";
 
   return (
     <Box className="container mx-auto flex h-full max-w-2xl flex-col justify-end">
@@ -171,22 +222,56 @@ function SessionView({
         // This app has no text input.
         handleSwitchToText={() => toast.info("This example only records.")}
       />
+      {/* echo's refine info modal. */}
+      <Modal
+        opened={refineInfoOpened}
+        onClose={closeRefineInfo}
+        centered
+        size="sm"
+        padding="xl"
+        title={refineTitle}
+      >
+        <Stack gap="lg">
+          <Text>{refineText}</Text>
+          <Text c="dimmed" size="sm">
+            We need a bit more context to help you use ECHO effectively. Please continue recording
+            so we can provide better suggestions.
+          </Text>
+          <Text c="dimmed" size="sm">
+            This feature will be available in {remainingTime} seconds.
+          </Text>
+          <Button onClick={closeRefineInfo} fullWidth variant="filled" size="md">
+            I understand
+          </Button>
+        </Stack>
+      </Modal>
 
       <Box className="relative flex-grow p-4 transition-all">
         <InsecureNotice />
-        {replay && <Replay projectId={projectId} sessionId={sessionId} />}
-        <ParticipantBody
-          interleaveMessages={false}
-          projectId={projectId}
-          conversationId={sessionId}
-          isRecording={isRecording}
-        />
-        {elsewhere && (
-          <Text size="sm" c="dimmed">
-            Another page is recording this session.
-          </Text>
+        {screen === "refine" && <RefineSelection />}
+        {screen === "verify" && <VerifySelection />}
+        {screen === "verify/approve" && <VerifyArtefact />}
+        {screen === "" && (
+          <>
+            {replay && <Replay projectId={projectId} sessionId={sessionId} />}
+            {/* echo's ParticipantConversationAudioContent. */}
+            <ParticipantBody
+              interleaveMessages={false}
+              projectId={projectId}
+              conversationId={sessionId}
+              isRecording={isRecording}
+            />
+            {verifyOn && <VerifiedArtefactsList conversationId={sessionId} projectId={projectId} />}
+            {elsewhere && (
+              <Text size="sm" c="dimmed">
+                Another page is recording this session.
+              </Text>
+            )}
+            {exploreOn && <ExploreReplies projectId={projectId} sessionId={sessionId} />}
+          </>
         )}
-        <Stack gap="md">
+        {/* Mounted on echo's screens too, for the connections in them. */}
+        <Stack gap="md" className={screen === "" ? "" : "hidden"}>
           {project &&
             FEATURE_KEYS.filter((key) => project[key].enabled).map((key) => (
               <FeaturePanel
@@ -199,9 +284,8 @@ function SessionView({
                 now={now}
               />
             ))}
-          {exploreOn && <ExploreReplies projectId={projectId} sessionId={sessionId} />}
         </Stack>
-        {empty && !replay && (
+        {screen === "" && empty && !replay && (
           <a className="mt-4 block text-right text-xs text-[var(--app-muted)]" href="?debug=true">
             debug
           </a>
@@ -263,19 +347,25 @@ function SessionView({
             </Group>
           )}
 
-          {/* Mounted while idle too, so replies keep arriving. */}
-          <Group gap="lg" className={isRecording ? "" : "hidden"}>
-            {project && exploreOn && (
-              <ExploreEcho
-                projectId={projectId}
-                sessionId={sessionId}
-                facts={facts}
-                settings={project.explore}
-                now={now}
-                recording={isRecording}
-              />
-            )}
-            {isRecording && (
+          {isRecording && (
+            <Group gap="lg">
+              {screen === "" && (verifyOn || exploreOn) && (
+                <Button
+                  size="lg"
+                  onClick={handleRefineClick}
+                  disabled={isRefineDisabled}
+                  className="relative overflow-hidden"
+                  variant={seconds < REFINE_BUTTON_THRESHOLD_SECONDS ? undefined : "filled"}
+                >
+                  {seconds < REFINE_BUTTON_THRESHOLD_SECONDS && (
+                    <div
+                      className="absolute bottom-0 left-0 top-0 bg-primary-600/20 transition-all duration-1000 ease-linear"
+                      style={{ width: `${refineProgress}%` }}
+                    />
+                  )}
+                  <span className="relative z-10">ECHO</span>
+                </Button>
+              )}
               <Button
                 size="lg"
                 color="red"
@@ -285,8 +375,8 @@ function SessionView({
               >
                 Stop
               </Button>
-            )}
-          </Group>
+            </Group>
+          )}
         </Group>
       </Stack>
     </Box>

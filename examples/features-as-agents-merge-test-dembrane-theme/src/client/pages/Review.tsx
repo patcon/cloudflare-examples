@@ -87,7 +87,7 @@ export function Review({ projectId }: { projectId: string }) {
         {sessions.map((s, i) => (
           <div key={s.id} className="flex flex-col gap-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}>
+              <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/conversation/${s.id}`}>
                 {s.name || `Session ${sessions.length - i}`}
               </Anchor>
               <Text size="xs" c="dimmed">

@@ -1,10 +1,11 @@
 import type { ComponentType } from "react";
 import type { FeatureKey } from "../../shared/features";
 import type { PanelProps, SectionProps } from "./types";
+import { ExploreBridge } from "./explore/Bridge";
 import { ExploreSection } from "./explore/Section";
 import { StatementsPanel } from "./statements/Panel";
 import { StatementsSection } from "./statements/Section";
-import { VerifyPanel } from "./verify/Panel";
+import { VerifyBridge } from "./verify/Bridge";
 import { VerifySection } from "./verify/Section";
 
 /**
@@ -21,14 +22,16 @@ export const FEATURE_UI: {
   };
 } = {
   explore: {
-    // Explore is the ECHO button in the session page's record bar
-    // (explore/Echo.tsx), and its replies join the conversation.
-    Panel: () => null,
+    // Explore is behind the ECHO button, on echo's refine screen; its
+    // replies join the conversation.
+    Panel: ExploreBridge,
     Section: ExploreSection,
     about: "A short reply to the conversation so far, when someone asks.",
   },
   verify: {
-    Panel: VerifyPanel,
+    // Verify is behind the ECHO button, on echo's verify screens; its
+    // approved outcomes join the conversation.
+    Panel: VerifyBridge,
     Section: VerifySection,
     about: "An outcome on a topic the group picks, which they revise out loud and approve.",
   },
