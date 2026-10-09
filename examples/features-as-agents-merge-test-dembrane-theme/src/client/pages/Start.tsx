@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Input, Surface, Text } from "@cloudflare/kumo";
+import { Button, Paper, Text, TextInput, Title } from "@mantine/core";
 import { MicrophoneIcon } from "@phosphor-icons/react";
 import type { ProjectState } from "../../server/project/agent";
 import { useProject } from "../hooks/use-project";
@@ -21,11 +21,7 @@ export function Start({ projectId }: { projectId: string }) {
     <Shell title={general?.name || projectId}>
       {(general?.portalTitle || general?.portalContent) && (
         <div className="flex flex-col gap-2">
-          {general.portalTitle && (
-            <Text variant="heading2" as="h1">
-              {general.portalTitle}
-            </Text>
-          )}
+          {general.portalTitle && <Title order={2}>{general.portalTitle}</Title>}
           {general.portalContent && (
             <div className="whitespace-pre-wrap">
               <Text size="sm">{general.portalContent}</Text>
@@ -33,7 +29,7 @@ export function Start({ projectId }: { projectId: string }) {
           )}
         </div>
       )}
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
+      <Paper p="md" className="flex flex-col gap-3">
         <Text size="sm">Put this phone in the middle of the group, then start a session.</Text>
         <form
           className="flex flex-col gap-3"
@@ -44,11 +40,11 @@ export function Start({ projectId }: { projectId: string }) {
             location.href = `/${encodeURIComponent(projectId)}/sessions/${crypto.randomUUID()}?${query}`;
           }}
         >
-          <Input label="Name" required value={name} onChange={(e) => setName(e.target.value)} />
+          <TextInput label="Name" required value={name} onChange={(e) => setName(e.target.value)} />
           <Button
             type="submit"
-            variant="primary"
-            icon={<MicrophoneIcon size={16} />}
+            variant="filled"
+            leftSection={<MicrophoneIcon size={16} />}
             disabled={!trimmed}
           >
             Start a session
@@ -57,7 +53,7 @@ export function Start({ projectId }: { projectId: string }) {
         <a className="text-sm underline" href={`/${encodeURIComponent(projectId)}/settings`}>
           Project settings
         </a>
-      </Surface>
+      </Paper>
     </Shell>
   );
 }

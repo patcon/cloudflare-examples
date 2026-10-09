@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Badge, Button, Loader, Meter, Surface, Text } from "@cloudflare/kumo";
+import { Badge, Button, Loader, Paper, Progress, Text } from "@mantine/core";
 import { ArrowClockwiseIcon, SparkleIcon } from "@phosphor-icons/react";
 import type {
   ExploreAgent,
@@ -64,71 +64,65 @@ export function ExplorePanel({ sessionId, facts, settings, now }: PanelProps<"ex
   };
 
   return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
+    <Paper p="md" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1 items-center">
         <Button
-          variant="secondary"
-          icon={<SparkleIcon size={16} />}
+          leftSection={<SparkleIcon size={16} />}
           onClick={explore}
           disabled={notYet !== null}
         >
           Explore
         </Button>
         {facts.recordedSeconds < EXPLORE_WAITS.sinceStart.recordedSeconds && (
-          <Meter
+          <Progress
             className="w-full max-w-xs"
-            label="Explore"
-            showValue={false}
+            aria-label="Explore"
+            size="sm"
             value={(100 * facts.recordedSeconds) / EXPLORE_WAITS.sinceStart.recordedSeconds}
           />
         )}
         {notYet && (
-          <Text size="xs" variant="secondary">
+          <Text size="xs" c="dimmed">
             {notYet}
           </Text>
         )}
         {error && (
-          <Text size="sm" variant="error">
+          <Text size="sm" c="red">
             {error}
           </Text>
         )}
       </div>
 
       {replies.map((r) => (
-        <div key={r.id} className="flex flex-col gap-0.5 border-t border-kumo-line pt-3">
+        <div key={r.id} className="flex flex-col gap-0.5 border-t pt-3">
           <div className="flex gap-2 items-center">
-            <Text size="xs" variant="secondary">
+            <Text size="xs" c="dimmed">
               {new Date(r.at).toLocaleTimeString()}
             </Text>
-            <Badge variant="secondary">{MODE_LABELS[r.mode]}</Badge>
+            <Badge color="gray">{MODE_LABELS[r.mode]}</Badge>
           </div>
-          <p className="text-sm text-kumo-default">{r.text}</p>
+          <p className="text-sm">{r.text}</p>
         </div>
       ))}
       {(state?.status === "waiting" || state?.status === "slow") && (
         <div className="flex gap-2 items-center">
-          <Loader size="sm" />
-          <Text size="sm" variant="secondary">
+          <Loader size="xs" />
+          <Text size="sm" c="dimmed">
             {state.status === "slow" ? "Still working on it…" : "Thinking…"}
           </Text>
         </div>
       )}
-      {state?.status === "streaming" && <p className="text-sm text-kumo-default">{state.draft}</p>}
+      {state?.status === "streaming" && <p className="text-sm">{state.draft}</p>}
       {state?.status === "failed" && (
         <div className="flex flex-col gap-2 items-start">
-          <Text size="sm" variant="error">
+          <Text size="sm" c="red">
             {state.error}
           </Text>
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<ArrowClockwiseIcon size={14} />}
-            onClick={explore}
-          >
+          <Button size="sm" leftSection={<ArrowClockwiseIcon size={14} />} onClick={explore}>
             Try again
           </Button>
         </div>
       )}
-    </Surface>
+    </Paper>
   );
 }

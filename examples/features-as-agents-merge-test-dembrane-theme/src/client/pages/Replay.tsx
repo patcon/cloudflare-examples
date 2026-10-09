@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Surface, Text } from "@cloudflare/kumo";
+import { Button, Paper, Text, Title } from "@mantine/core";
 import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { REPLAY_WINDOW_SECONDS } from "../../shared/constants";
 import { decodeTo16kMono } from "../audio/replay";
@@ -42,11 +42,9 @@ export function Replay({ projectId, sessionId }: { projectId: string; sessionId:
   }
 
   return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
-      <Text size="sm" bold>
-        Debug: replay an audio file
-      </Text>
-      <Text size="xs" variant="secondary">
+    <Paper p="md" className="flex flex-col gap-3">
+      <Title order={5}>Debug: replay an audio file</Title>
+      <Text size="xs" c="dimmed">
         Instead of recording, each {REPLAY_WINDOW_SECONDS / 60} minutes of the file is transcribed
         and added to the transcript, as if it had been said live. Its length counts as recorded
         time.
@@ -59,23 +57,23 @@ export function Replay({ projectId, sessionId }: { projectId: string; sessionId:
         className="text-sm"
       />
       <Button
-        variant="primary"
-        icon={<UploadSimpleIcon size={16} />}
+        variant="filled"
+        leftSection={<UploadSimpleIcon size={16} />}
         disabled={!file || running}
         onClick={() => file && run(file)}
       >
         Replay
       </Button>
       {progress && (
-        <Text size="sm" variant="secondary">
+        <Text size="sm" c="dimmed">
           {progress}
         </Text>
       )}
       {error && (
-        <Text size="sm" variant="error">
+        <Text size="sm" c="red">
           {error}
         </Text>
       )}
-    </Surface>
+    </Paper>
   );
 }

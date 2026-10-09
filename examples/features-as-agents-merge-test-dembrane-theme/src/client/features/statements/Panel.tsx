@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Badge, Button, Surface, Text } from "@cloudflare/kumo";
+import { Anchor, Badge, Button, Paper, Text, Title } from "@mantine/core";
 import { LightningIcon } from "@phosphor-icons/react";
 import type {
   StatementsAgent,
@@ -62,33 +62,30 @@ export function StatementsPanel({
   const kept = windows.reduce((n, w) => n + w.kept, 0);
 
   return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2">
+    <Paper p="md" className="flex flex-col gap-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <Text size="sm" bold>
-          Statements
-        </Text>
-        <Text size="xs" variant="secondary">
+        <Title order={5}>Statements</Title>
+        <Text size="xs" c="dimmed">
           {kept} proposed ·{" "}
-          <a className="underline" href={`/${encodeURIComponent(projectId)}/review`}>
+          <Anchor inherit href={`/${encodeURIComponent(projectId)}/review`}>
             review
-          </a>
+          </Anchor>
         </Text>
         <Button
           size="xs"
-          variant="secondary"
           className="ml-auto"
-          icon={<LightningIcon size={14} />}
+          leftSection={<LightningIcon size={14} />}
           onClick={extract}
           disabled={notYet !== null}
         >
           Extract now
         </Button>
       </div>
-      <Text size="xs" variant="secondary">
+      <Text size="xs" c="dimmed">
         {notYet ?? "Runs by itself every few minutes while recording, and when it stops."}
       </Text>
       {windows.map((w) => (
-        <div key={w.id} className="flex items-center gap-2 text-xs text-kumo-subtle">
+        <div key={w.id} className="flex items-center gap-2 text-xs text-[var(--app-muted)]">
           <span>{new Date(w.created_at).toLocaleTimeString()}</span>
           <span>
             segments {w.from_seg}–{w.to_seg}
@@ -103,10 +100,10 @@ export function StatementsPanel({
         </div>
       ))}
       {(error || state?.lastRunError) && (
-        <Text size="xs" variant="error">
+        <Text size="xs" c="red">
           {error || state?.lastRunError}
         </Text>
       )}
-    </Surface>
+    </Paper>
   );
 }

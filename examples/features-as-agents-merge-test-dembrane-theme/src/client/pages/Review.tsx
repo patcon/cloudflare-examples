@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Badge, Button, Surface, Tabs, Text, Textarea } from "@cloudflare/kumo";
+import { Anchor, Badge, Button, Paper, Tabs, Text, Textarea, Title } from "@mantine/core";
 import {
   ArrowCounterClockwiseIcon,
   CheckIcon,
@@ -73,79 +73,70 @@ export function Review({ projectId }: { projectId: string }) {
 
   return (
     <Shell title={`${projectId} · review`}>
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2">
-        <Text size="sm" bold>
-          Sessions
-        </Text>
+      <Paper p="md" className="flex flex-col gap-2">
+        <Title order={5}>Sessions</Title>
         {sessions.length === 0 && (
-          <Text size="sm" variant="secondary">
+          <Text size="sm" c="dimmed">
             None yet. Start one at{" "}
-            <a className="underline" href={`/${encodeURIComponent(projectId)}/start`}>
+            <Anchor inherit href={`/${encodeURIComponent(projectId)}/start`}>
               /{projectId}/start
-            </a>
+            </Anchor>
             .
           </Text>
         )}
         {sessions.map((s, i) => (
           <div key={s.id} className="flex flex-col gap-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <a
-                className="text-sm underline"
-                href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}
-              >
+              <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}>
                 {s.name || `Session ${sessions.length - i}`}
-              </a>
-              <Text size="xs" variant="secondary">
+              </Anchor>
+              <Text size="xs" c="dimmed">
                 started {new Date(s.startedAt).toLocaleTimeString()}
                 {s.run?.lastRunAt &&
                   ` · last run ${new Date(s.run.lastRunAt).toLocaleTimeString()}`}
               </Text>
-              {s.run?.lastRunError && <Badge variant="destructive">last run failed</Badge>}
-              {s.candidates === null && <Badge variant="destructive">didn't answer</Badge>}
+              {s.run?.lastRunError && <Badge color="red">last run failed</Badge>}
+              {s.candidates === null && <Badge color="red">didn't answer</Badge>}
               <Button
                 size="xs"
-                variant="secondary"
-                icon={<LightningIcon size={14} />}
+                leftSection={<LightningIcon size={14} />}
                 onClick={() => run(project.call("extractNow", [s.id]))}
               >
                 Extract now
               </Button>
             </div>
             {s.run?.lastRunError && (
-              <Text size="xs" variant="error">
+              <Text size="xs" c="red">
                 {s.run.lastRunError}
               </Text>
             )}
           </div>
         ))}
-        <a
-          className="text-xs underline"
-          href={`/${encodeURIComponent(projectId)}/settings#general`}
-        >
+        <Anchor size="xs" href={`/${encodeURIComponent(projectId)}/settings#general`}>
           Extraction sees the project's details, on the settings page
-        </a>
-      </Surface>
+        </Anchor>
+      </Paper>
 
       {error && (
-        <Text size="sm" variant="error">
+        <Text size="sm" c="red">
           {error}
         </Text>
       )}
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <Tabs
-          tabs={TABS.map((t) => ({
-            value: t.value,
-            label: `${t.label} (${candidates.filter((c) => c.status === t.value).length})`,
-          }))}
-          value={tab}
-          onValueChange={(v) => setTab(v as CandidateStatus)}
-        />
+        <Tabs value={tab} onChange={(v) => v && setTab(v as CandidateStatus)}>
+          <Tabs.List>
+            {TABS.map((t) => (
+              <Tabs.Tab key={t.value} value={t.value}>
+                {`${t.label} (${candidates.filter((c) => c.status === t.value).length})`}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs>
         {tab === "approved" && approved.length > 0 && (
           <Button
             size="sm"
-            variant="secondary"
-            icon={<CopyIcon size={14} />}
+            leftSection={<CopyIcon size={14} />}
             onClick={() => navigator.clipboard.writeText(approved.join("\n"))}
           >
             Copy approved
@@ -154,7 +145,7 @@ export function Review({ projectId }: { projectId: string }) {
       </div>
 
       {shown.length === 0 && (
-        <Text size="sm" variant="secondary">
+        <Text size="sm" c="dimmed">
           Nothing here.
         </Text>
       )}
@@ -186,7 +177,7 @@ function CandidateCard({
   const [draft, setDraft] = useState(text);
 
   return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2">
+    <Paper p="md" className="flex flex-col gap-2">
       {editing ? (
         <Textarea
           aria-label="Statement"
@@ -198,34 +189,38 @@ function CandidateCard({
         <Text>{text}</Text>
       )}
       {c.edited_text && !editing && (
-        <Text size="xs" variant="secondary">
+        <Text size="xs" c="dimmed">
           Edited from: {c.text}
         </Text>
       )}
       {c.quote && (
-        <blockquote className="border-l-2 border-kumo-line pl-2 text-xs text-kumo-subtle">
+        <blockquote className="border-l pl-2 text-xs text-[var(--app-muted)]">
           “{c.quote}”
         </blockquote>
       )}
       {c.rationale && (
-        <Text size="xs" variant="secondary">
+        <Text size="xs" c="dimmed">
           {c.rationale}
         </Text>
       )}
       <div className="flex items-center gap-2 flex-wrap">
-        <Badge variant="secondary">{session}</Badge>
-        <Text size="xs" variant="secondary">
+        <Badge color="gray">{session}</Badge>
+        <Text size="xs" c="dimmed">
           clarity {c.clarity} · divisiveness {c.divisiveness} · novelty {c.novelty}
         </Text>
-        {c.filter_reason && <Badge variant="outline">{c.filter_reason.replace("_", " ")}</Badge>}
+        {c.filter_reason && (
+          <Badge variant="outline" color="gray">
+            {c.filter_reason.replace("_", " ")}
+          </Badge>
+        )}
       </div>
       <div className="flex gap-2 flex-wrap">
         {editing ? (
           <>
             <Button
               size="sm"
-              variant="primary"
-              icon={<CheckIcon size={14} />}
+              variant="filled"
+              leftSection={<CheckIcon size={14} />}
               onClick={() => {
                 decide("approved", draft);
                 setEditing(false);
@@ -233,7 +228,7 @@ function CandidateCard({
             >
               Save and approve
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+            <Button size="sm" variant="subtle" onClick={() => setEditing(false)}>
               Cancel
             </Button>
           </>
@@ -242,8 +237,8 @@ function CandidateCard({
             {c.status !== "approved" && (
               <Button
                 size="sm"
-                variant="primary"
-                icon={<CheckIcon size={14} />}
+                variant="filled"
+                leftSection={<CheckIcon size={14} />}
                 onClick={() => decide("approved")}
               >
                 Approve
@@ -251,8 +246,7 @@ function CandidateCard({
             )}
             <Button
               size="sm"
-              variant="secondary"
-              icon={<PencilSimpleIcon size={14} />}
+              leftSection={<PencilSimpleIcon size={14} />}
               onClick={() => {
                 setDraft(text);
                 setEditing(true);
@@ -263,8 +257,7 @@ function CandidateCard({
             {c.status !== "rejected" && (
               <Button
                 size="sm"
-                variant="secondary"
-                icon={<XIcon size={14} />}
+                leftSection={<XIcon size={14} />}
                 onClick={() => decide("rejected")}
               >
                 Reject
@@ -273,8 +266,8 @@ function CandidateCard({
             {c.status !== "pending" && (
               <Button
                 size="sm"
-                variant="ghost"
-                icon={<ArrowCounterClockwiseIcon size={14} />}
+                variant="subtle"
+                leftSection={<ArrowCounterClockwiseIcon size={14} />}
                 onClick={() => decide("pending")}
               >
                 Back to review
@@ -283,6 +276,6 @@ function CandidateCard({
           </>
         )}
       </div>
-    </Surface>
+    </Paper>
   );
 }

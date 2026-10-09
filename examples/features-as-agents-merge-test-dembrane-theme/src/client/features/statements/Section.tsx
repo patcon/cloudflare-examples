@@ -1,4 +1,4 @@
-import { Surface, Text } from "@cloudflare/kumo";
+import { Anchor, Paper, Text } from "@mantine/core";
 import type { SectionProps } from "../types";
 
 /**
@@ -7,14 +7,14 @@ import type { SectionProps } from "../types";
  */
 export function StatementsSection({ projectId }: SectionProps<"statements">) {
   return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
-      <Text size="xs" variant="secondary">
+    <Paper p="md" className="flex flex-col gap-3">
+      <Text size="xs" c="dimmed">
         Extraction sees the project's context, and the portal's title and content, from the General
         tab.
       </Text>
-      <a className="text-sm underline" href={`/${encodeURIComponent(projectId)}/review`}>
+      <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/review`}>
         Review every session's statements
-      </a>
-    </Surface>
+      </Anchor>
+    </Paper>
   );
 }

@@ -1,5 +1,5 @@
+import { resolve } from "node:path";
 import { cloudflare } from "@cloudflare/vite-plugin";
-import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import agents from "agents/vite";
 import { defineConfig } from "vite";
@@ -14,8 +14,23 @@ export default defineConfig(({ mode }) => ({
     agents(),
     react(),
     cloudflare({ tunnel: { autoStart: mode === "share" } }),
-    tailwindcss(),
   ],
+  // Tailwind 3 and Mantine's PostCSS preset run from postcss.config.js, as in echo.
+  resolve: {
+    alias: {
+      // The files copied from echo import its src/ as `@/`, and Lingui's
+      // macros, which shims stand in for.
+      "@/": `${resolve(import.meta.dirname, "src/client/dembrane")}/`,
+      "@lingui/core/macro": resolve(
+        import.meta.dirname,
+        "src/client/dembrane/shims/lingui-core-macro.ts",
+      ),
+      "@lingui/react/macro": resolve(
+        import.meta.dirname,
+        "src/client/dembrane/shims/lingui-react-macro.tsx",
+      ),
+    },
+  },
   server: {
     // Each example has its own port, so they can run side by side.
     port: 8798,

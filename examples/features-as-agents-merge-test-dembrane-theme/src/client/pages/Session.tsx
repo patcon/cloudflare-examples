@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Button, Surface, Text } from "@cloudflare/kumo";
+import { Button, Paper, Text } from "@mantine/core";
 import { CaretRightIcon, MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
 import type { ProjectState } from "../../server/project/agent";
 import type {
@@ -105,25 +105,20 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
   return (
     <Shell title={projectId}>
       {replay && <Replay projectId={projectId} sessionId={sessionId} />}
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3 items-center">
+      <Paper p="md" className="flex flex-col gap-3 items-center">
         {replay ? null : voice.status === "starting" ? (
-          <Button variant="primary" size="lg" icon={<MicrophoneIcon size={20} />} disabled>
+          <Button variant="filled" size="lg" leftSection={<MicrophoneIcon size={20} />} disabled>
             Waiting for the microphone…
           </Button>
         ) : recording ? (
-          <Button
-            variant="destructive"
-            size="lg"
-            icon={<StopIcon size={20} />}
-            onClick={voice.stop}
-          >
+          <Button color="red" size="lg" leftSection={<StopIcon size={20} />} onClick={voice.stop}>
             Stop
           </Button>
         ) : (
           <Button
-            variant="primary"
+            variant="filled"
             size="lg"
-            icon={<MicrophoneIcon size={20} />}
+            leftSection={<MicrophoneIcon size={20} />}
             onClick={record}
             disabled={!state?.projectId || elsewhere}
           >
@@ -131,19 +126,19 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
           </Button>
         )}
         {elsewhere && (
-          <Text size="sm" variant="secondary">
+          <Text size="sm" c="dimmed">
             Another page is recording this session.
           </Text>
         )}
-        <Text size="xs" variant="secondary">
+        <Text size="xs" c="dimmed">
           Recorded {formatDuration(seconds)}
         </Text>
         {(error || voice.error) && (
-          <Text size="sm" variant="error">
+          <Text size="sm" c="red">
             {error || voice.error}
           </Text>
         )}
-      </Surface>
+      </Paper>
 
       {project &&
         FEATURE_KEYS.filter((key) => project[key].enabled).map((key) => (
@@ -158,33 +153,33 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
           />
         ))}
 
-      <Surface className="p-4 rounded-xl ring ring-kumo-line">
+      <Paper p="md">
         {/* Open on every load; whether it was closed isn't kept. */}
         <details open className="group">
-          <summary className="flex items-center gap-1 cursor-pointer list-none text-xs text-kumo-subtle [&::-webkit-details-marker]:hidden">
+          <summary className="flex items-center gap-1 cursor-pointer list-none text-xs text-[var(--app-muted)] [&::-webkit-details-marker]:hidden">
             <CaretRightIcon size={12} className="transition-transform group-open:rotate-90" />
             Live transcript
           </summary>
           <div className="flex flex-col gap-2 mt-2 min-h-40">
             {segments.length === 0 && !voice.interimTranscript && (
-              <Text size="sm" variant="secondary">
+              <Text size="sm" c="dimmed">
                 Nothing yet.
               </Text>
             )}
             {segments.map((s) => (
-              <p key={s.id} className="text-sm text-kumo-default">
+              <p key={s.id} className="text-sm">
                 {s.text}
               </p>
             ))}
             {voice.interimTranscript && (
-              <p className="text-sm text-kumo-subtle">{voice.interimTranscript}</p>
+              <p className="text-sm text-[var(--app-muted)]">{voice.interimTranscript}</p>
             )}
           </div>
         </details>
-      </Surface>
+      </Paper>
 
       {empty && !replay && (
-        <a className="self-end text-xs text-kumo-subtle underline" href="?debug=true">
+        <a className="self-end text-xs text-[var(--app-muted)] underline" href="?debug=true">
           debug
         </a>
       )}

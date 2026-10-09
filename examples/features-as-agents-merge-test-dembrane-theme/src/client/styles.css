@@ -1,7 +1,7 @@
-@import "tailwindcss";
-@import "@cloudflare/kumo/styles/tailwind";
-/* Tailwind ignores node_modules by default, so we source Kumo for class extraction. */
-@source "../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+/* Mantine's styles, then echo's design system over them, in echo's order
+   (App.tsx imports Mantine's, then main.tsx imports index.css). */
+@import "@mantine/core/styles.css";
+@import "./dembrane/index.css";
 
 html,
 body,
@@ -20,7 +20,6 @@ body,
 .markdown h2,
 .markdown h3,
 .markdown h4 {
-  font-weight: 600;
   line-height: 1.3;
 }
 .markdown h1,
@@ -43,7 +42,7 @@ body,
   margin-top: 0.25em;
 }
 .markdown hr {
-  border-color: var(--color-kumo-line);
+  border-color: var(--app-rule-color);
 }
 .markdown em {
   font-style: italic;

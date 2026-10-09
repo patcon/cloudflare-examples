@@ -2,5 +2,13 @@
   // The page, which runs in the browser. It keeps agents/tsconfig's Workers
   // types too, since it imports the agents' types to call them.
   "extends": "agents/tsconfig",
+  "compilerOptions": {
+    // As vite.config.ts: echo's `@/` and the Lingui shims.
+    "paths": {
+      "@/*": ["./src/client/dembrane/*"],
+      "@lingui/core/macro": ["./src/client/dembrane/shims/lingui-core-macro.ts"],
+      "@lingui/react/macro": ["./src/client/dembrane/shims/lingui-react-macro.tsx"]
+    }
+  },
   "include": ["src/client", "src/shared", "env.d.ts"]
 }

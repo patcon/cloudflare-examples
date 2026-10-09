@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Badge, Button, InputArea, Radio, Surface, Text } from "@cloudflare/kumo";
+import { Anchor, Badge, Button, Paper, Radio, Stack, Text, Textarea, Title } from "@mantine/core";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import type { ContextPreview } from "../../../server/project/agent";
 import {
@@ -68,40 +68,43 @@ export function ExploreSection({
 
   return (
     <>
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-4">
-        <Text size="xs" variant="secondary">
+      <Paper p="md" className="flex flex-col gap-4">
+        <Text size="xs" c="dimmed">
           Every reply sees the project's context, and its portal's title and content, from the
           General tab.
         </Text>
         <Radio.Group
-          legend="How replies are written"
+          label="How replies are written"
           value={shown.mode}
-          onValueChange={(mode) => setDraft((d) => ({ ...d, mode: mode as ExploreMode }))}
+          onChange={(mode) => setDraft((d) => ({ ...d, mode: mode as ExploreMode }))}
         >
-          {MODES.map((m) => (
-            <Radio.Item key={m.value} value={m.value} label={`${m.label}: ${m.description}`} />
-          ))}
+          <Stack gap="xs" mt="xs">
+            {MODES.map((m) => (
+              <Radio key={m.value} value={m.value} label={`${m.label}: ${m.description}`} />
+            ))}
+          </Stack>
         </Radio.Group>
         {shown.mode === "custom" && (
-          <InputArea
+          <Textarea
             label="Custom prompt"
             value={shown.customPrompt}
             maxLength={MAX_CUSTOM_PROMPT_CHARS}
-            rows={6}
+            autosize
+            minRows={6}
             onChange={(e) => setDraft((d) => ({ ...d, customPrompt: e.target.value }))}
           />
         )}
         <div className="flex gap-2 items-center">
-          <Button variant="primary" onClick={save} disabled={!dirty || saving}>
+          <Button variant="filled" onClick={save} disabled={!dirty || saving}>
             Save
           </Button>
           {dirty && (
-            <Button variant="ghost" onClick={() => setDraft({})} disabled={saving}>
+            <Button variant="subtle" onClick={() => setDraft({})} disabled={saving}>
               Discard
             </Button>
           )}
         </div>
-      </Surface>
+      </Paper>
 
       <ContextSessions projectId={projectId} sessions={sessions} refresh={loadSessions} />
     </>
@@ -130,55 +133,55 @@ function ContextSessions({
   refresh: () => Promise<unknown>;
 }) {
   return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
+    <Paper p="md" className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <Text size="sm" bold>
-          Other sessions as context
-        </Text>
-        <Button size="sm" variant="ghost" icon={<ArrowClockwiseIcon size={14} />} onClick={refresh}>
+        <Title order={5}>Other sessions as context</Title>
+        <Button
+          size="sm"
+          variant="subtle"
+          leftSection={<ArrowClockwiseIcon size={14} />}
+          onClick={refresh}
+        >
           Refresh
         </Button>
       </div>
-      <Text size="xs" variant="secondary">
+      <Text size="xs" c="dimmed">
         Each reply sees the project's other sessions, newest first. This is what a new session's
         reply would get; a session's own reply leaves itself out.
       </Text>
       {sessions === null && (
-        <Text size="sm" variant="secondary">
+        <Text size="sm" c="dimmed">
           Loading…
         </Text>
       )}
       {sessions?.length === 0 && (
-        <Text size="sm" variant="secondary">
+        <Text size="sm" c="dimmed">
           No sessions yet.
         </Text>
       )}
       {sessions?.map((s) => (
-        <div key={s.id} className="flex flex-col gap-1 border-t border-kumo-line pt-3">
+        <div key={s.id} className="flex flex-col gap-1 border-t pt-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <a
-              className="text-sm underline"
-              href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}
-            >
+            <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}>
               {new Date(s.startedAt).toLocaleString()}
-            </a>
-            <Badge variant="secondary">{STATUS[s.status]}</Badge>
+            </Anchor>
+            <Badge color="gray">{STATUS[s.status]}</Badge>
             {s.tokens > 0 && (
-              <Text size="xs" variant="secondary">
+              <Text size="xs" c="dimmed">
                 about {s.tokens.toLocaleString()} tokens
               </Text>
             )}
           </div>
           {s.text && (
             <details>
-              <summary className="text-xs text-kumo-subtle cursor-pointer">
+              <summary className="text-xs text-[var(--app-muted)] cursor-pointer">
                 What is contributed to Explore prompt
               </summary>
-              <pre className="mt-1 text-xs whitespace-pre-wrap text-kumo-default">{s.text}</pre>
+              <pre className="mt-1 text-xs whitespace-pre-wrap">{s.text}</pre>
             </details>
           )}
         </div>
       ))}
-    </Surface>
+    </Paper>
   );
 }

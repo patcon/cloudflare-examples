@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Input, InputArea, Surface, Text } from "@cloudflare/kumo";
+import { Button, Paper, Text, Textarea, TextInput, Title } from "@mantine/core";
 import {
   MAX_CONTEXT_CHARS,
   MAX_NAME_CHARS,
@@ -44,57 +44,55 @@ export function GeneralSection({
 
   return (
     <>
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-4">
-        <Text size="sm" bold>
-          Project details
-        </Text>
-        <Input
+      <Paper p="md" className="flex flex-col gap-4">
+        <Title order={5}>Project details</Title>
+        <TextInput
           label="Name"
           description={named ? "Verify's outcomes see this." : "Required."}
           value={shown.name}
           maxLength={MAX_NAME_CHARS}
           onChange={edit("name")}
         />
-        <InputArea
+        <Textarea
           label="Context"
           description="What the project is about, such as the question the groups are discussing. Explore's replies see this."
           value={shown.context}
           maxLength={MAX_CONTEXT_CHARS}
-          rows={4}
+          autosize
+          minRows={4}
           onChange={edit("context")}
         />
-      </Surface>
+      </Paper>
 
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-4">
+      <Paper p="md" className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Text size="sm" bold>
-            Portal
-          </Text>
-          <Text size="xs" variant="secondary">
+          <Title order={5}>Portal</Title>
+          <Text size="xs" c="dimmed">
             What participants are shown. Explore's replies see this too.
           </Text>
         </div>
-        <Input
+        <TextInput
           label="Title"
           value={shown.portalTitle}
           maxLength={MAX_PORTAL_TITLE_CHARS}
           onChange={edit("portalTitle")}
         />
-        <InputArea
+        <Textarea
           label="Content"
           value={shown.portalContent}
           maxLength={MAX_PORTAL_CONTENT_CHARS}
-          rows={4}
+          autosize
+          minRows={4}
           onChange={edit("portalContent")}
         />
-      </Surface>
+      </Paper>
 
       <div className="flex gap-2 items-center">
-        <Button variant="primary" onClick={save} disabled={!dirty || !named || saving}>
+        <Button variant="filled" onClick={save} disabled={!dirty || !named || saving}>
           Save
         </Button>
         {dirty && (
-          <Button variant="ghost" onClick={() => setDraft({})} disabled={saving}>
+          <Button variant="subtle" onClick={() => setDraft({})} disabled={saving}>
             Discard
           </Button>
         )}

@@ -1,0 +1,43 @@
+/* Recommended buttons. Three roles from the style guide plus danger:
+ * primary  = filled pill, action blue, graphite on hover (one per view)
+ * secondary = outline, the theme default
+ * tertiary = subtle
+ * danger   = outline or subtle with color="red" (variant resolver maps it)
+ * Square everywhere except the pill. */
+
+.root {
+	border-radius: 0;
+	transition:
+		background-color 120ms ease,
+		color 120ms ease;
+}
+
+.root[data-variant="filled"] {
+	border-radius: 9999px;
+}
+
+.root:focus-visible {
+	outline: calc(2 * 1.36px) solid var(--app-action);
+	outline-offset: 2px;
+}
+
+/* Disabled follows every control (rules.css): the button keeps its own shape
+ * (box, pill, or none for subtle), its line turns pollen, its label goes quiet,
+ * and it fills with nothing. Pressing it anyway flashes the line red
+ * (src/lib/tamper.ts). Loading is not disabled: it keeps its look. */
+.root:disabled:not([data-loading="true"]),
+.root[data-disabled]:not([data-loading="true"]) {
+	background-color: transparent;
+	border: var(--app-stroke) solid var(--app-disabled);
+	color: var(--app-muted);
+	cursor: not-allowed;
+	font-weight: 240;
+	opacity: 1;
+	pointer-events: all;
+}
+.root:is([data-variant="subtle"], [data-variant="transparent"]):is(
+		:disabled,
+		[data-disabled]
+	):not([data-loading="true"]) {
+	border-color: transparent;
+}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Surface, Switch, Tabs, Text } from "@cloudflare/kumo";
+import { Anchor, Paper, Switch, Tabs, Text } from "@mantine/core";
 import type { ProjectMessage, ProjectState, SessionRow } from "../../server/project/agent";
 import { FEATURE_KEYS, FEATURES, type FeatureKey } from "../../shared/features";
 import { FEATURE_UI } from "../features";
@@ -75,23 +75,22 @@ export function Settings({ projectId }: { projectId: string }) {
 
   return (
     <Shell title={`${state?.general.name || projectId} settings`}>
-      <Tabs
-        tabs={[
-          { value: "general", label: "General" },
-          ...FEATURE_KEYS.map((key) => ({
-            value: key,
-            // A dot of the same width either way, so a tab keeps its size
-            // when its feature is switched; grey until the state loads.
-            label: `${!state ? "⚪" : state[key].enabled ? "🟢" : "⚫"} ${FEATURES[key].label}`,
-          })),
-          { value: "sessions", label: `Sessions${sessions ? ` (${sessions.length})` : ""}` },
-        ]}
-        value={tab}
-        onValueChange={(v) => pick(v as Tab)}
-      />
+      <Tabs value={tab} onChange={(v) => v && pick(v as Tab)}>
+        <Tabs.List>
+          <Tabs.Tab value="general">General</Tabs.Tab>
+          {FEATURE_KEYS.map((key) => (
+            <Tabs.Tab key={key} value={key}>
+              {/* A dot of the same width either way, so a tab keeps its size
+                  when its feature is switched; grey until the state loads. */}
+              {`${!state ? "⚪" : state[key].enabled ? "🟢" : "⚫"} ${FEATURES[key].label}`}
+            </Tabs.Tab>
+          ))}
+          <Tabs.Tab value="sessions">{`Sessions${sessions ? ` (${sessions.length})` : ""}`}</Tabs.Tab>
+        </Tabs.List>
+      </Tabs>
 
       {error && (
-        <Text size="sm" variant="error">
+        <Text size="sm" c="red">
           {error}
         </Text>
       )}
@@ -117,33 +116,33 @@ export function Settings({ projectId }: { projectId: string }) {
         ))}
 
       {tab === "sessions" && (
-        <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2">
+        <Paper p="md" className="flex flex-col gap-2">
           {sessions === null && (
-            <Text size="sm" variant="secondary">
+            <Text size="sm" c="dimmed">
               Loading…
             </Text>
           )}
           {sessions?.length === 0 && (
-            <Text size="sm" variant="secondary">
+            <Text size="sm" c="dimmed">
               No sessions yet.
             </Text>
           )}
           {sessions?.map((s) => (
-            <a
+            <Anchor
               key={s.id}
-              className="text-sm underline"
+              size="sm"
               href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}
             >
               {s.name ? `${s.name} · ` : ""}
               {new Date(s.started_at).toLocaleString()}
-            </a>
+            </Anchor>
           ))}
-        </Surface>
+        </Paper>
       )}
 
-      <a className="text-sm underline" href={`/${encodeURIComponent(projectId)}/start`}>
+      <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/start`}>
         Back to the start page
-      </a>
+      </Anchor>
     </Shell>
   );
 }
@@ -160,18 +159,19 @@ function FeatureSettings<K extends FeatureKey>({
   const { label } = FEATURES[feature];
   return (
     <section className="flex flex-col gap-3">
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-2">
+      <Paper p="md" className="flex flex-col gap-2">
         <Switch
           label={label}
           checked={props.settings.enabled}
-          onCheckedChange={(enabled) =>
-            props.run(props.project.call("updateSettings", [feature, { enabled }])).catch(() => {})
-          }
+          onChange={(e) => {
+            const enabled = e.currentTarget.checked;
+            props.run(props.project.call("updateSettings", [feature, { enabled }])).catch(() => {});
+          }}
         />
-        <Text size="xs" variant="secondary">
+        <Text size="xs" c="dimmed">
           {about} When it's off, sessions don't show it, and refuse it.
         </Text>
-      </Surface>
+      </Paper>
       <Section {...(props as SectionProps<K>)} />
     </section>
   );

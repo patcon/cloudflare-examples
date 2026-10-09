@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
-import { Button, Checkbox, Input, InputArea, Surface, Text } from "@cloudflare/kumo";
+import {
+  Anchor,
+  Button,
+  Checkbox,
+  Paper,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  Title,
+} from "@mantine/core";
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import type { Outcome } from "../../../server/features/verify/agent";
 import type { SessionOutcomes } from "../../../server/project/agent";
@@ -49,27 +59,22 @@ export function VerifySection({
         add={(topic) => run(project.call("addTopic", [topic]))}
         remove={(key) => run(project.call("removeTopic", [key]))}
       />
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
-        <Text size="sm" bold>
-          Approved outcomes
-        </Text>
+      <Paper p="md" className="flex flex-col gap-3">
+        <Title order={5}>Approved outcomes</Title>
         {withOutcomes.length === 0 && (
-          <Text size="sm" variant="secondary">
+          <Text size="sm" c="dimmed">
             None yet.
           </Text>
         )}
         {withOutcomes.map(({ id, outcomes }) => (
-          <div key={id} className="flex flex-col gap-1 border-t border-kumo-line pt-3">
-            <a
-              className="text-sm underline"
-              href={`/${encodeURIComponent(projectId)}/sessions/${id}`}
-            >
+          <div key={id} className="flex flex-col gap-1 border-t pt-3">
+            <Anchor size="sm" href={`/${encodeURIComponent(projectId)}/sessions/${id}`}>
               {new Date(started.get(id) ?? 0).toLocaleString()}
-            </a>
+            </Anchor>
             <SessionApproved outcomes={outcomes} />
           </div>
         ))}
-      </Surface>
+      </Paper>
     </>
   );
 }
@@ -103,20 +108,22 @@ function Topics({
 
   return (
     <>
-      <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
-        <Checkbox.Group legend="Topics participants see" value={shown} onValueChange={select}>
-          {all.map((t) => (
-            <Checkbox.Item key={t.key} value={t.key} label={`${t.icon} ${t.label}`.trim()} />
-          ))}
+      <Paper p="md" className="flex flex-col gap-3">
+        <Checkbox.Group label="Topics participants see" value={shown} onChange={select}>
+          <Stack gap="xs" mt="xs">
+            {all.map((t) => (
+              <Checkbox key={t.key} value={t.key} label={`${t.icon} ${t.label}`.trim()} />
+            ))}
+          </Stack>
         </Checkbox.Group>
         {notice && (
-          <Text size="sm" variant="secondary">
+          <Text size="sm" c="dimmed">
             {notice}
           </Text>
         )}
         {state.customTopics.length > 0 && (
-          <div className="flex flex-col gap-2 border-t border-kumo-line pt-3">
-            <Text size="xs" variant="secondary">
+          <div className="flex flex-col gap-2 border-t pt-3">
+            <Text size="xs" c="dimmed">
               This project's own topics
             </Text>
             {state.customTopics.map((t) => (
@@ -125,19 +132,21 @@ function Topics({
                   <span className="flex-1">{`${t.icon} ${t.label}`.trim()}</span>
                   <Button
                     size="sm"
-                    variant="ghost"
-                    icon={<TrashIcon size={14} />}
+                    variant="subtle"
+                    leftSection={<TrashIcon size={14} />}
                     onClick={() => remove(t.key).catch(() => {})}
                   >
                     Remove
                   </Button>
                 </summary>
-                <p className="mt-1 text-xs whitespace-pre-wrap text-kumo-subtle">{t.prompt}</p>
+                <p className="mt-1 text-xs whitespace-pre-wrap text-[var(--app-muted)]">
+                  {t.prompt}
+                </p>
               </details>
             ))}
           </div>
         )}
-      </Surface>
+      </Paper>
 
       <NewTopic add={add} />
     </>
@@ -161,19 +170,17 @@ function NewTopic({
       .finally(() => setSaving(false));
   };
   return (
-    <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-3">
-      <Text size="sm" bold>
-        Add a topic
-      </Text>
+    <Paper p="md" className="flex flex-col gap-3">
+      <Title order={5}>Add a topic</Title>
       <div className="flex gap-2">
-        <Input
+        <TextInput
           label="Emoji"
           className="w-20"
           value={topic.icon}
           maxLength={MAX_TOPIC_ICON_CHARS}
           onChange={(e) => setTopic((t) => ({ ...t, icon: e.target.value }))}
         />
-        <Input
+        <TextInput
           label="Label"
           className="flex-1"
           value={topic.label}
@@ -181,23 +188,24 @@ function NewTopic({
           onChange={(e) => setTopic((t) => ({ ...t, label: e.target.value }))}
         />
       </div>
-      <InputArea
+      <Textarea
         label="Prompt"
         description="What to write from the conversation."
         value={topic.prompt}
         maxLength={MAX_TOPIC_PROMPT_CHARS}
-        rows={4}
+        autosize
+        minRows={4}
         onChange={(e) => setTopic((t) => ({ ...t, prompt: e.target.value }))}
       />
       <Button
-        variant="primary"
-        icon={<PlusIcon size={16} />}
+        variant="filled"
+        leftSection={<PlusIcon size={16} />}
         disabled={saving || !topic.label.trim() || !topic.prompt.trim()}
         onClick={submit}
       >
         Add
       </Button>
-    </Surface>
+    </Paper>
   );
 }
 
@@ -206,14 +214,14 @@ function SessionApproved({ outcomes }: { outcomes: Outcome[] | null | undefined 
   if (outcomes === undefined || outcomes?.length === 0) return null;
   if (outcomes === null) {
     return (
-      <Text size="xs" variant="secondary">
+      <Text size="xs" c="dimmed">
         Its outcomes couldn't be loaded.
       </Text>
     );
   }
   return (
     <details>
-      <summary className="text-xs text-kumo-subtle cursor-pointer">
+      <summary className="text-xs text-[var(--app-muted)] cursor-pointer">
         {outcomes.length} approved {outcomes.length === 1 ? "outcome" : "outcomes"}
       </summary>
       <div className="flex flex-col gap-2 mt-2">

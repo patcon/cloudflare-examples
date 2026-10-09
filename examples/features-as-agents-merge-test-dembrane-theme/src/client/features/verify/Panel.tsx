@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Button, Meter, Surface, Text } from "@cloudflare/kumo";
+import { Button, Paper, Progress, Text } from "@mantine/core";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import type {
   Outcome,
@@ -111,39 +111,38 @@ export function VerifyPanel({ sessionId, facts, settings, now }: PanelProps<"ver
   return (
     <>
       {view === "none" && (
-        <Surface className="p-4 rounded-xl ring ring-kumo-line flex flex-col gap-1 items-center">
+        <Paper p="md" className="flex flex-col gap-1 items-center">
           {state?.pendingOutcome && (
-            <Button variant="primary" onClick={() => setBacked(false)}>
+            <Button variant="filled" onClick={() => setBacked(false)}>
               {state.pendingOutcome.topicIcon} Return to outcome
             </Button>
           )}
           <Button
-            variant="secondary"
-            icon={<CheckCircleIcon size={16} />}
+            leftSection={<CheckCircleIcon size={16} />}
             onClick={startVerify}
             disabled={notYet !== null}
           >
             Verify
           </Button>
           {facts.recordedSeconds < VERIFY_WAITS.sinceStart.recordedSeconds && (
-            <Meter
+            <Progress
               className="w-full max-w-xs"
-              label="Verify"
-              showValue={false}
+              aria-label="Verify"
+              size="sm"
               value={(100 * facts.recordedSeconds) / VERIFY_WAITS.sinceStart.recordedSeconds}
             />
           )}
           {notYet && (
-            <Text size="xs" variant="secondary">
+            <Text size="xs" c="dimmed">
               {notYet}
             </Text>
           )}
           {error && (
-            <Text size="sm" variant="error">
+            <Text size="sm" c="red">
               {error}
             </Text>
           )}
-        </Surface>
+        </Paper>
       )}
       {view === "topics" && (
         <TopicPicker topics={topics} start={verify} cancel={() => setPicking(false)} />
