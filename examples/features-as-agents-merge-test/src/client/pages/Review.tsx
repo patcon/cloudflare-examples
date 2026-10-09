@@ -93,7 +93,7 @@ export function Review({ projectId }: { projectId: string }) {
                 className="text-sm underline"
                 href={`/${encodeURIComponent(projectId)}/sessions/${s.id}`}
               >
-                Session {sessions.length - i}
+                {s.name || `Session ${sessions.length - i}`}
               </a>
               <Text size="xs" variant="secondary">
                 started {new Date(s.startedAt).toLocaleTimeString()}

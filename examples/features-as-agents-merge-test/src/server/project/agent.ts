@@ -48,6 +48,7 @@ export interface SessionOutcomes {
 /** A session's candidates, and its last extraction run, or null when it didn't answer. */
 export interface SessionCandidates {
   id: string;
+  name: string;
   startedAt: number;
   candidates: Candidate[] | null;
   run: Pick<StatementsState, "lastRunAt" | "lastRunError"> | null;
@@ -267,6 +268,7 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
     );
     return answers.map(({ id, value }, i) => ({
       id,
+      name: sessions[i].name,
       startedAt: sessions[i].started_at,
       candidates: value?.candidates ?? null,
       run: value?.run ?? null,
