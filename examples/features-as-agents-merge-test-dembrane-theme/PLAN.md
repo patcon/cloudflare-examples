@@ -1,5 +1,7 @@
 # Plan: features as agents
 
+> The plan of [`features-as-agents-merge-test`](../features-as-agents-merge-test), which this example is a copy of. Its pages are now echo's; see the README.
+
 ## Goal
 
 Merge `portal-explore`, `portal-verify` and `polis-statement-extraction` into one portal, each feature a clear unit, to see how simple the merged app gets when every feature is its own agent beside a transcript-only session.

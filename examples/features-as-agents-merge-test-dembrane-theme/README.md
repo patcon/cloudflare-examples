@@ -1,10 +1,34 @@
 # features-as-agents-merge-test-dembrane-theme: the merge test, in the dembrane portal's look
 
-A copy of [`features-as-agents-merge-test`](../features-as-agents-merge-test) whose pages are built from the dembrane portal's own Mantine theme and components, copied from [dembrane-echo](https://github.com/Dembrane/echo) rather than imitated. The agents are unchanged.
+A copy of [`features-as-agents-merge-test`](../features-as-agents-merge-test) whose pages are built from the dembrane portal's own theme and components: Mantine, DM Sans, and echo's participant screens, copied from [dembrane-echo](https://github.com/Dembrane/echo) rather than imitated. The agents are unchanged. The aim is to try the merge test with the portal's UX, and to keep the copies close enough to echo's that they could later be shared between echo's dashboard, its portal and these examples.
+
+## What's from echo
+
+The copies are in `src/client/dembrane/`, at the same paths as under echo's `dembrane/frontend/src/`, so echo's `@/` imports work as they are. [`scripts/echo-files.sh`](scripts/echo-files.sh) lists each one:
+
+- `scripts/echo-files.sh copy` copies any file on the list that isn't here yet, from the echo commit in `scripts/echo-ref`. `FORCE=1` overwrites ours.
+- `scripts/echo-files.sh diff` shows how ours differ. Today only `tailwind.config.js` does, in two lines marked `// example:`.
+
+What they need from echo but this app doesn't have is stood in for, in files of our own at the paths echo's are imported from. Each starts with `// example: ours`. [`src/client/dembrane/PROVENANCE.md`](src/client/dembrane/PROVENANCE.md) lists them, and what's left out.
+
+The toolchain is echo's, so the copied CSS works as is: Mantine 7, Tailwind 3 through PostCSS, and echo's `theme.tsx` and `rules.css`.
+
+## What's different from the merge test
+
+- **Start** is echo's onboarding deck: the welcome cards, privacy, then **Ready to begin?**, which asks for a session name. It opens the session at echo's path, `/:projectId/conversation/:id`.
+- **The session page** is echo's audio screen:
+  - echo's welcome, the portal's title and content, and its instructions.
+  - The record bar at the bottom: **Record** and **Finish**, then while recording the waveform, the timer, **ECHO** and **Stop**.
+  - **Stop** opens echo's **Recording paused** modal, with **Resume** and **Finish**.
+  - **Finish** goes to echo's thank-you page.
+- **Explore is the ECHO button.** It fills as the recording goes on. Until Explore can run, a press says how long is left. Its replies show under the conversation with dembrane's mark, as echo's do.
+- **The transcript** sits behind **View your responses**, as in echo, rather than in an open panel.
+- **Verify and Statements** keep their panels, restyled.
+- **Light only, and recording only.** There's no dark mode and no text input: the text-input buttons from echo are left out, and the pause modal's **Switch to text input** link only says so.
 
 ---
 
-## features-as-agents-merge-test: Explore, Verify and statement extraction in one portal
+## From the merge test: features-as-agents-merge-test: Explore, Verify and statement extraction in one portal
 
 A group sits around one phone, which records their conversation, and Gemini transcribes it live. Three features work from that transcript:
 
@@ -76,8 +100,9 @@ Everything runs on Gemini on Vertex AI, so you need a Google Cloud project with 
 
 | URL | Who | What |
 |---|---|---|
-| `/:projectId/start` | The recording phone | The portal's title and content, and **Start a session**, which makes a new session with a random ID |
-| `/:projectId/sessions/:sessionId` | The recording phone | Record and stop as often as you like, the live transcript, and a panel for each feature that's on |
+| `/:projectId/start` | The recording phone | echo's onboarding deck, ending in a session name, which makes a new session with a random ID |
+| `/:projectId/conversation/:sessionId` | The recording phone | echo's audio screen: record and stop as often as you like, Verify's and Statements' panels, and Explore's ECHO button. `/:projectId/sessions/:sessionId` opens it too |
+| `/:projectId/conversation/:sessionId/finish` | The recording phone | echo's thank-you page |
 | `/:projectId/settings` | The host | A General tab for the project's name and context, and the portal's title and content. Then a tab for each feature, with its switch and settings: Explore's context from other sessions, Verify's topics and approved outcomes. A last tab lists the sessions. The tab is in the link, such as `#verify` |
 | `/:projectId/review` | The host | Every session's candidate statements, to approve, edit, reject, or copy |
 
@@ -101,7 +126,10 @@ say -v Samantha --file-format=WAVE --data-format=LEI16@16000 -o test.wav "Let's 
 | `src/server/models.ts` | The Gemini models |
 | `src/shared/features/` | The registry, and each feature's settings, rules and views, shared by agents and pages |
 | `src/client/features/` | Each feature's panel and settings section, and their registry |
-| `src/client/pages/` | The home, start, session, settings, review and replay pages |
+| `src/client/pages/` | The home, start, session, finish, settings, review and replay pages |
+| `src/client/participant.tsx` | A participant page: echo's layout, with the project where echo's components look for it |
+| `src/client/dembrane/` | The files copied from echo, and the stand-ins they need; see its `PROVENANCE.md` |
+| `scripts/echo-files.sh`, `scripts/echo-ref` | Which files are copied from echo, from which commit |
 | `packages/voice-gemini/` | The Gemini Live and batch speech-to-text providers, copied from `portal-explore` |
 
 [`PLAN.md`](PLAN.md) has the decisions, what wasn't tested, and what's left for later.
