@@ -6,8 +6,9 @@ export type RecorderStatus = "idle" | "starting" | "recording";
 
 /**
  * `useVoiceInput`, with a `start()` that rejects when the microphone is
- * refused, and that resolves only once it's on. It also keeps the phone's
- * screen on while recording.
+ * refused or the session won't take the call, and that resolves only once
+ * the session is listening. It also keeps the phone's screen on while
+ * recording.
  *
  * `useVoiceInput` alone opens the call before it asks for the microphone,
  * then catches a refusal and only sets `error`, so its `start()` resolves
@@ -22,6 +23,39 @@ export function useVoiceRecorder(options: UseVoiceInputOptions) {
   level.current = voice.audioLevel;
   const peekAudioLevel = useCallback(() => level.current, []);
 
+  // `voice.start()` resolves once the microphone is on here, before the
+  // session has its transcriber and has taken the call (`onCallStart`). It
+  // says it has with "listening", which sets `isListening`; until then, the
+  // session would answer `micReady` with "This session isn't recording".
+  const listening = useRef(false);
+  listening.current = voice.isListening;
+  const waiter = useRef<{ resolve: () => void; reject: (e: Error) => void } | null>(null);
+  useEffect(() => {
+    if (!waiter.current) return;
+    if (voice.isListening) waiter.current.resolve();
+    else if (voice.error) waiter.current.reject(new Error(voice.error));
+    else return;
+    waiter.current = null;
+  }, [voice.isListening, voice.error]);
+  const untilListening = () =>
+    new Promise<void>((resolve, reject) => {
+      if (listening.current) return resolve();
+      const timer = setTimeout(() => {
+        waiter.current = null;
+        reject(new Error("The session didn't start listening. Try again."));
+      }, 20_000);
+      waiter.current = {
+        resolve: () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        reject: (e) => {
+          clearTimeout(timer);
+          reject(e);
+        },
+      };
+    });
+
   async function start() {
     if (status !== "idle") return;
     setStatus("starting");
@@ -35,6 +69,7 @@ export function useVoiceRecorder(options: UseVoiceInputOptions) {
     }
     try {
       await voice.start();
+      await untilListening();
     } catch (e) {
       voice.stop();
       setStatus("idle");
