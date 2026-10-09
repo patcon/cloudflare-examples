@@ -1,20 +1,7 @@
 import type { ReactNode } from "react";
-import { ActionIcon, Alert, Group, Text, useMantineColorScheme } from "@mantine/core";
-import { MoonIcon, SunIcon, WarningIcon } from "@phosphor-icons/react";
+import { Alert, Group, Text } from "@mantine/core";
+import { WarningIcon } from "@phosphor-icons/react";
 import { Logo } from "@/components/common/Logo";
-
-/** Light or dark, in Mantine's own storage, which index.html reads before mount. */
-function ModeToggle() {
-  const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const dark =
-    colorScheme === "dark" ||
-    (colorScheme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
-  return (
-    <ActionIcon aria-label="Toggle theme" onClick={() => setColorScheme(dark ? "light" : "dark")}>
-      {dark ? <SunIcon size={20} /> : <MoonIcon size={20} />}
-    </ActionIcon>
-  );
-}
 
 /**
  * The header and centered column the host's pages share, after echo's
@@ -25,14 +12,11 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
   return (
     <div className="flex min-h-full flex-col">
       <header className="w-full border-b">
-        <Group justify="space-between" className="mx-auto max-w-2xl px-4 py-2" wrap="nowrap">
-          <Group gap="md" wrap="nowrap" className="min-w-0">
-            <Logo hideTitle h="28px" to="/" linkLabel="Home" />
-            <Text size="sm" truncate>
-              {title}
-            </Text>
-          </Group>
-          <ModeToggle />
+        <Group gap="md" className="mx-auto max-w-2xl px-4 py-2" wrap="nowrap">
+          <Logo hideTitle h="28px" to="/" linkLabel="Home" />
+          <Text size="sm" truncate>
+            {title}
+          </Text>
         </Group>
       </header>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6">

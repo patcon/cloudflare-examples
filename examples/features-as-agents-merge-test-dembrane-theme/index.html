@@ -5,21 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.ico" />
     <title>dembrane portal</title>
-    <!-- From echo's index.html: the scheme and font, before React mounts,
-         so neither flashes. The scheme is Mantine's own. -->
+    <!-- From echo's index.html: the font and ground, before React mounts, so
+         neither flashes. Light only. -->
     <style>
-      :root[data-mantine-color-scheme="dark"] { --app-background: #000000; --app-text: #f6f4f1; }
       :root { background: var(--app-background, #f6f4f1); }
     </style>
     <script>
       (() => {
         try {
-          const stored = localStorage.getItem("mantine-color-scheme-value");
-          const dark =
-            stored === "dark" ||
-            (stored !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
           const root = document.documentElement;
-          root.setAttribute("data-mantine-color-scheme", dark ? "dark" : "light");
+          root.setAttribute("data-mantine-color-scheme", "light");
           const font = "'DM Sans Variable', sans-serif";
           root.style.setProperty("--app-font-family", font);
           root.style.setProperty("--app-content-bold-font-family", `'DM Sans Content', ${font}`);

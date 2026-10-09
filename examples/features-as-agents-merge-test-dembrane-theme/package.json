@@ -22,7 +22,10 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "workerd"
-    ]
+    ],
+    "overrides": {
+      "@types/hast": "3.0.4"
+    }
   },
   "dependencies": {
     "@cloudflare/voice-gemini": "workspace:*",
@@ -32,13 +35,14 @@
     "@mantine/modals": "^7.17.8",
     "@phosphor-icons/react": "^2.1.10",
     "agents": "0.27.0",
+    "axios": "^1.20.0",
     "clsx": "^2.1.1",
     "hono": "^4.13.12",
     "hono-agents": "^3.0.12",
     "liquidjs": "^10.30.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-markdown": "^10.1.0",
+    "react-markdown": "^9.1.0",
     "remark-gfm": "^4.0.1",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.1"

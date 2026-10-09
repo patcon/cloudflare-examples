@@ -40,6 +40,14 @@ FILES=(
   "src/assets/aiconl-logo-hq.png"
   "src/components/common/Logo.tsx"
   "src/components/common/Toaster.tsx"
+  "src/components/common/Markdown.tsx"
+  "src/components/common/RedactedText.tsx"
+  "src/components/voice/voiceInput.ts"
+  "src/components/voice/VoiceWaveform.tsx"
+  "src/components/participant/ParticipantRecordingWaveform.tsx"
+  "src/components/participant/SpikeMessage.tsx"
+  "src/components/participant/SystemMessage.tsx"
+  "src/components/participant/StopRecordingConfirmationModal.tsx"
 )
 
 target() {

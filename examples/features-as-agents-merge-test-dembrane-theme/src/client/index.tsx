@@ -51,7 +51,8 @@ if (root) {
     <MantineProvider
       theme={theme}
       cssVariablesResolver={cssVariablesResolver}
-      defaultColorScheme="auto"
+      // Light only, as the portal is used.
+      forceColorScheme="light"
     >
       {/* Phosphor's light cut, topped up to the one 1px stroke in rules.css */}
       <IconContext.Provider value={{ weight: "light" }}>
