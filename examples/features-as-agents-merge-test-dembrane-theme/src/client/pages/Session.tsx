@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Button, Paper, Text } from "@mantine/core";
-import { CaretRightIcon, MicrophoneIcon, StopIcon } from "@phosphor-icons/react";
+import { Box, Button, Group, Stack, Text } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import { CheckIcon, MicrophoneIcon, PauseIcon, StopIcon } from "@phosphor-icons/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/components/common/Toaster";
+import { chunksKey } from "@/components/participant/hooks";
+import { ParticipantBody } from "@/components/participant/ParticipantBody";
+import { ParticipantRecordingWaveform } from "@/components/participant/ParticipantRecordingWaveform";
+import { ParticipantSettingsModal } from "@/components/participant/ParticipantSettingsModal";
+import { StopRecordingConfirmationModal } from "@/components/participant/StopRecordingConfirmationModal";
+import { sessionName } from "@/lib/api";
 import type { ProjectState } from "../../server/project/agent";
 import type {
   Segment,
@@ -12,23 +21,42 @@ import type {
 import { FEATURE_KEYS, type FeatureKey } from "../../shared/features";
 import { recordedSecondsAt, type SessionFacts } from "../../shared/rules";
 import { FEATURE_UI } from "../features";
+import { ExploreEcho, ExploreReplies } from "../features/explore/Echo";
 import { parse } from "../features/parse";
 import type { PanelProps } from "../features/types";
 import { useNow } from "../hooks/use-now";
-import { useProject } from "../hooks/use-project";
 import { useVoiceRecorder } from "../hooks/use-voice-recorder";
-import { Shell } from "../ui";
+import { ParticipantPage } from "../participant";
+import { InsecureNotice } from "../ui";
 import { Replay } from "./Replay";
 
 /**
- * For the recording phone: records, and shows the live transcript, with a
- * panel for each feature the project has on. The page connects to the
- * session for the microphone and the transcript, and each panel connects to
- * its own feature's agent.
+ * For the recording phone, as echo's audio screen: its welcome and
+ * instructions, what each feature shows, and the record bar at the bottom.
+ * The page connects to the session for the microphone and the transcript;
+ * each feature connects to its own agent.
  */
 export function Session({ projectId, sessionId }: { projectId: string; sessionId: string }) {
+  return (
+    <ParticipantPage projectId={projectId}>
+      {(_project, state) => (
+        <SessionView projectId={projectId} sessionId={sessionId} project={state} />
+      )}
+    </ParticipantPage>
+  );
+}
+
+function SessionView({
+  projectId,
+  sessionId,
+  project,
+}: {
+  projectId: string;
+  sessionId: string;
+  project: ProjectState | null;
+}) {
+  const queryClient = useQueryClient();
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
 
   const agent = useAgent<SessionAgent, SessionState>({
@@ -45,23 +73,18 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
     },
   });
 
-  // The project's settings: which features are on, and how.
-  const [project, setProject] = useState<ProjectState | null>(null);
-  useProject(projectId, { onStateUpdate: setProject });
-
   // Joins the session to this page's project, with the name the start page
-  // put in the URL, then loads what's there.
+  // gave it, then loads what's there.
   useEffect(() => {
-    const name = new URLSearchParams(location.search).get("name") ?? "";
     agent.ready
-      .then(() => agent.call("attach", [projectId, name]))
+      .then(() => agent.call("attach", [projectId, sessionName(sessionId)]))
       .then(() => agent.call("listSegments"))
       .then(setSegments)
-      .catch((e: Error) => setError(e.message));
-  }, [agent, projectId]);
+      .catch((e: Error) => toast.error(e.message));
+  }, [agent, projectId, sessionId]);
 
   const voice = useVoiceRecorder({ agent: "SessionAgent", name: sessionId });
-  const recording = voice.status !== "idle";
+  const isRecording = voice.status === "recording";
   const now = useNow();
   const seconds = state ? recordedSecondsAt(state, now) : 0;
   // The same facts the feature agents ask the session for, live.
@@ -73,25 +96,56 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
     recording: state?.recordingSince != null,
   };
 
+  // What was said, as echo's responses: each segment one, and what's being
+  // said now, as it's heard.
+  useEffect(() => {
+    const chunk = (id: string, at: number, transcript: string): TConversationChunk => ({
+      id,
+      transcript,
+      timestamp: new Date(at),
+      created_at: new Date(at),
+      updated_at: new Date(at),
+      conversation_id: sessionId,
+    });
+    const chunks = segments.map((s) => chunk(`segment-${s.id}`, s.at, s.text));
+    if (voice.interimTranscript) chunks.push(chunk("interim", Date.now(), voice.interimTranscript));
+    queryClient.setQueryData(chunksKey(sessionId), chunks);
+  }, [queryClient, sessionId, segments, voice.interimTranscript]);
+
+  const voiceError = voice.error;
+  useEffect(() => {
+    if (voiceError) toast.error(voiceError);
+  }, [voiceError]);
+
+  const [stopOpened, { open: openStop, close: closeStop }] = useDisclosure(false);
+  const [settingsOpened, { open: openSettings, close: closeSettings }] = useDisclosure(false);
+
   const record = async () => {
-    setError(null);
     try {
       await voice.start();
       // The recorded time starts once the microphone is on.
       await agent.call("micReady");
     } catch (e) {
       voice.stop();
-      setError((e as Error).message);
+      toast.error((e as Error).message);
     }
+  };
+  // As echo's Stop: the microphone stops, and the modal asks Resume or Finish.
+  const stop = () => {
+    voice.stop();
+    openStop();
+  };
+  const finish = () => {
+    location.assign(`/${encodeURIComponent(projectId)}/conversation/${sessionId}/finish`);
   };
 
   // Another page, or one that's gone, is recording this session.
-  const elsewhere = !recording && state?.recordingSince != null;
+  const elsewhere = voice.status === "idle" && state?.recordingSince != null;
   // `?debug=true` offers an audio file in place of the microphone, until
   // the session has anything in it.
   const empty =
     !!state?.projectId &&
-    !recording &&
+    voice.status === "idle" &&
     state.recordingSince === null &&
     state.recordedSeconds === 0 &&
     segments.length === 0;
@@ -102,88 +156,140 @@ export function Session({ projectId, sessionId }: { projectId: string; sessionId
     if (canReplay) setReplay(true);
   }, [canReplay]);
 
+  const exploreOn = !!project?.explore.enabled;
+  const showTimer = isRecording || stopOpened;
+
   return (
-    <Shell title={projectId}>
-      {replay && <Replay projectId={projectId} sessionId={sessionId} />}
-      <Paper p="md" className="flex flex-col gap-3 items-center">
-        {replay ? null : voice.status === "starting" ? (
-          <Button variant="filled" size="lg" leftSection={<MicrophoneIcon size={20} />} disabled>
-            Waiting for the microphone…
-          </Button>
-        ) : recording ? (
-          <Button color="red" size="lg" leftSection={<StopIcon size={20} />} onClick={voice.stop}>
-            Stop
-          </Button>
-        ) : (
-          <Button
-            variant="filled"
-            size="lg"
-            leftSection={<MicrophoneIcon size={20} />}
-            onClick={record}
-            disabled={!state?.projectId || elsewhere}
-          >
-            {seconds > 0 ? "Record more" : "Record"}
-          </Button>
-        )}
+    <Box className="container mx-auto flex h-full max-w-2xl flex-col justify-end">
+      <ParticipantSettingsModal opened={settingsOpened} onClose={closeSettings} />
+      <StopRecordingConfirmationModal
+        opened={stopOpened}
+        close={closeStop}
+        isStopping={false}
+        handleConfirmFinish={finish}
+        handleResume={() => void record()}
+        // This app has no text input.
+        handleSwitchToText={() => toast.info("This example only records.")}
+      />
+
+      <Box className="relative flex-grow p-4 transition-all">
+        <InsecureNotice />
+        {replay && <Replay projectId={projectId} sessionId={sessionId} />}
+        <ParticipantBody
+          interleaveMessages={false}
+          projectId={projectId}
+          conversationId={sessionId}
+          isRecording={isRecording}
+        />
         {elsewhere && (
           <Text size="sm" c="dimmed">
             Another page is recording this session.
           </Text>
         )}
-        <Text size="xs" c="dimmed">
-          Recorded {formatDuration(seconds)}
-        </Text>
-        {(error || voice.error) && (
-          <Text size="sm" c="red">
-            {error || voice.error}
-          </Text>
-        )}
-      </Paper>
-
-      {project &&
-        FEATURE_KEYS.filter((key) => project[key].enabled).map((key) => (
-          <FeaturePanel
-            key={key}
-            feature={key}
-            projectId={projectId}
-            sessionId={sessionId}
-            facts={facts}
-            settings={project[key]}
-            now={now}
-          />
-        ))}
-
-      <Paper p="md">
-        {/* Open on every load; whether it was closed isn't kept. */}
-        <details open className="group">
-          <summary className="flex items-center gap-1 cursor-pointer list-none text-xs text-[var(--app-muted)] [&::-webkit-details-marker]:hidden">
-            <CaretRightIcon size={12} className="transition-transform group-open:rotate-90" />
-            Live transcript
-          </summary>
-          <div className="flex flex-col gap-2 mt-2 min-h-40">
-            {segments.length === 0 && !voice.interimTranscript && (
-              <Text size="sm" c="dimmed">
-                Nothing yet.
-              </Text>
-            )}
-            {segments.map((s) => (
-              <p key={s.id} className="text-sm">
-                {s.text}
-              </p>
+        <Stack gap="md">
+          {project &&
+            FEATURE_KEYS.filter((key) => project[key].enabled).map((key) => (
+              <FeaturePanel
+                key={key}
+                feature={key}
+                projectId={projectId}
+                sessionId={sessionId}
+                facts={facts}
+                settings={project[key]}
+                now={now}
+              />
             ))}
-            {voice.interimTranscript && (
-              <p className="text-sm text-[var(--app-muted)]">{voice.interimTranscript}</p>
-            )}
-          </div>
-        </details>
-      </Paper>
+          {exploreOn && <ExploreReplies projectId={projectId} sessionId={sessionId} />}
+        </Stack>
+        {empty && !replay && (
+          <a className="mt-4 block text-right text-xs text-[var(--app-muted)]" href="?debug=true">
+            debug
+          </a>
+        )}
+      </Box>
 
-      {empty && !replay && (
-        <a className="self-end text-xs text-[var(--app-muted)] underline" href="?debug=true">
-          debug
-        </a>
-      )}
-    </Shell>
+      {/* echo's record bar, from ParticipantConversationAudio. */}
+      <Stack
+        bg="var(--app-background)"
+        gap="lg"
+        className="sticky bottom-0 z-10 w-full min-h-[84px] border-t p-4"
+        style={{ borderColor: "var(--app-rule-color)" }}
+      >
+        {isRecording && (
+          <ParticipantRecordingWaveform
+            onSilence={openSettings}
+            peekAudioLevel={voice.peekAudioLevel}
+          />
+        )}
+
+        <Group justify="space-between">
+          {showTimer && (
+            <Group justify="center" align="center" gap="xs" mih={50}>
+              {stopOpened ? (
+                <PauseIcon size={20} />
+              ) : (
+                <div
+                  className="h-4 w-4 animate-pulse rounded-full"
+                  style={{ background: "var(--app-danger)" }}
+                />
+              )}
+              <Text size="lg">{formatTime(seconds)}</Text>
+            </Group>
+          )}
+
+          {!isRecording && !stopOpened && !replay && (
+            <Group className="w-full" wrap="nowrap">
+              <Button
+                size="lg"
+                variant="filled"
+                leftSection={<MicrophoneIcon size={20} />}
+                onClick={record}
+                loading={voice.status === "starting"}
+                disabled={!state?.projectId || elsewhere}
+                className="flex-grow"
+              >
+                Record
+              </Button>
+              {seconds > 0 && (
+                <Button
+                  size="lg"
+                  onClick={openStop}
+                  leftSection={<CheckIcon size={20} className="hidden sm:block" />}
+                  className="w-auto"
+                >
+                  Finish
+                </Button>
+              )}
+            </Group>
+          )}
+
+          {/* Mounted while idle too, so replies keep arriving. */}
+          <Group gap="lg" className={isRecording ? "" : "hidden"}>
+            {project && exploreOn && (
+              <ExploreEcho
+                projectId={projectId}
+                sessionId={sessionId}
+                facts={facts}
+                settings={project.explore}
+                now={now}
+                recording={isRecording}
+              />
+            )}
+            {isRecording && (
+              <Button
+                size="lg"
+                color="red"
+                onClick={stop}
+                className={exploreOn ? "" : "px-7 md:px-10"}
+                leftSection={<StopIcon size={20} className="hidden md:block" />}
+              >
+                Stop
+              </Button>
+            )}
+          </Group>
+        </Group>
+      </Stack>
+    </Box>
   );
 }
 
@@ -193,7 +299,10 @@ function FeaturePanel<K extends FeatureKey>({ feature, ...props }: PanelProps<K>
   return <Panel {...(props as PanelProps<K>)} />;
 }
 
-function formatDuration(seconds: number) {
+/** mm:ss, or hh:mm:ss past an hour, as echo's timer. */
+function formatTime(seconds: number) {
   const s = Math.floor(seconds);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const hours = Math.floor(s / 3600);
+  return `${hours > 0 ? `${pad(hours)}:` : ""}${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
 }

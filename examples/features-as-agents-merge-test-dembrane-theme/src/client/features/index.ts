@@ -1,7 +1,6 @@
 import type { ComponentType } from "react";
 import type { FeatureKey } from "../../shared/features";
 import type { PanelProps, SectionProps } from "./types";
-import { ExplorePanel } from "./explore/Panel";
 import { ExploreSection } from "./explore/Section";
 import { StatementsPanel } from "./statements/Panel";
 import { StatementsSection } from "./statements/Section";
@@ -22,7 +21,9 @@ export const FEATURE_UI: {
   };
 } = {
   explore: {
-    Panel: ExplorePanel,
+    // Explore is the ECHO button in the session page's record bar
+    // (explore/Echo.tsx), and its replies join the conversation.
+    Panel: () => null,
     Section: ExploreSection,
     about: "A short reply to the conversation so far, when someone asks.",
   },

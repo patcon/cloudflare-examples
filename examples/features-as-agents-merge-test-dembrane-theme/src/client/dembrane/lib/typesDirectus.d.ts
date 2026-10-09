@@ -25,6 +25,12 @@ interface Project {
   conversation_ask_for_participant_name_label: string | null;
   default_conversation_tutorial_slug: string | null;
   tags: (string | ProjectTag)[];
+  default_conversation_finish_text: string | null;
+  default_conversation_ask_for_participant_email: boolean | null;
+  is_project_notification_subscription_allowed: boolean | null;
+  is_get_reply_enabled: boolean | null;
+  is_verify_enabled: boolean | null;
+  is_dembrane_event_cta_enabled: boolean | null;
 }
 
 interface ParticipantProject extends Project {

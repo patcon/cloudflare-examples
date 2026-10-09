@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useVoiceInput, type UseVoiceInputOptions } from "agents/voice/react";
 import { useWakeLock } from "./use-wake-lock";
 
@@ -17,6 +17,10 @@ export function useVoiceRecorder(options: UseVoiceInputOptions) {
   const voice = useVoiceInput(options);
   const wakeLock = useWakeLock();
   const [status, setStatus] = useState<RecorderStatus>("idle");
+  // The microphone's level, for echo's waveform, which polls it.
+  const level = useRef(0);
+  level.current = voice.audioLevel;
+  const peekAudioLevel = useCallback(() => level.current, []);
 
   async function start() {
     if (status !== "idle") return;
@@ -58,5 +62,6 @@ export function useVoiceRecorder(options: UseVoiceInputOptions) {
     stop,
     error: voice.error,
     interimTranscript: voice.interimTranscript,
+    peekAudioLevel,
   };
 }

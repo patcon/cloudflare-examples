@@ -6,7 +6,7 @@
  * one, so the participant pages are picked by path: a start page or a
  * conversation.
  */
-export const USE_PARTICIPANT_ROUTER = /^\/[^/]+\/(start|(conversation|sessions)\/[^/]+)\/?$/.test(
+export const USE_PARTICIPANT_ROUTER = /^\/[^/]+\/(start|(conversation|sessions)\/[^/]+(\/finish)?)\/?$/.test(
   location.pathname,
 );
 

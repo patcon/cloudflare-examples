@@ -58,6 +58,11 @@ FILES=(
   "src/components/layout/ParticipantLayout.tsx"
   "src/components/layout/ParticipantHeader.tsx"
   "src/lib/visitorId.ts"
+  "src/components/participant/ParticipantBody.tsx"
+  "src/components/participant/UserChunkMessage.tsx"
+  "src/components/common/TipBanner.tsx"
+  "src/hooks/useOnlineStatus.ts"
+  "src/routes/participant/ParticipantPostConversation.tsx"
 )
 
 target() {

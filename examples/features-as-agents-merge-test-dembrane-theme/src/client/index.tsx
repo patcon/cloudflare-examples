@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { AppPreferencesProvider } from "@/hooks/useAppPreferences";
 import { cssVariablesResolver, theme } from "@/theme";
 import { isProjectId, isSessionId } from "../shared/ids";
+import { Finish } from "./pages/Finish";
 import { Home } from "./pages/Home";
 import { Review } from "./pages/Review";
 import { Session } from "./pages/Session";
@@ -26,6 +27,16 @@ function App() {
     // A project's own link, such as /demo/, opens its start page.
     location.replace(`/${encodeURIComponent(projectId)}/start`);
     return null;
+  }
+  // echo's thank-you page, after Finish.
+  if (
+    isProjectId(projectId) &&
+    page === "conversation" &&
+    isSessionId(sessionId) &&
+    rest.length === 1 &&
+    rest[0] === "finish"
+  ) {
+    return <Finish projectId={projectId} />;
   }
   if (isProjectId(projectId) && rest.length === 0) {
     if (page === "start" && !sessionId) return <Start projectId={projectId} />;
@@ -62,7 +73,7 @@ if (root) {
           <AppPreferencesProvider>
             <ModalsProvider>
               <App />
-              </ModalsProvider>
+            </ModalsProvider>
           </AppPreferencesProvider>
         </IconContext.Provider>
       </MantineProvider>

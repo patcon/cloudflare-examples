@@ -32,3 +32,19 @@ export const sessionName = (id: string) => {
     return "";
   }
 };
+
+/** Echo lets a participant delete a response. This app's sessions keep everything said. */
+export const deleteParticipantConversationChunk = async (
+  _projectId: string,
+  _conversationId: string,
+  _chunkId: string,
+): Promise<void> => {
+  throw new Error("This example can't delete what was said.");
+};
+
+/** Echo emails participants when the report is out. This app sends no email. */
+export const submitNotificationParticipant = async (
+  _emails: string[],
+  _projectId: string,
+  _conversationId: string,
+): Promise<void> => {};
