@@ -11,7 +11,7 @@ Biome skips them (`biome.jsonc`), so they keep echo's formatting.
 The packages these copies need are pinned to echo's versions, in `package.json`:
 
 - `@types/hast` 3.0.4, through `pnpm.overrides`: Markdown.tsx's footnote options don't typecheck against 3.0.5.
-- `zod` 3.24.2, and `pnpm.packageExtensions` giving `@hookform/resolvers` it as a peer, since `agents` brings in zod 4, which the resolver's types would otherwise find.
+- `zod` 3.25, not echo's 3.24.2: the Worker's MCP SDK imports `zod/v4`, which 3.25 also has. `pnpm.packageExtensions` gives `@hookform/resolvers` it as a peer, since `agents` brings in zod 4, which the resolver's types would otherwise find.
 - `react-markdown` 9, whose `className` prop Markdown.tsx uses.
 
 ## Ours, at echo's paths
