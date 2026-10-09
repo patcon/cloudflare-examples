@@ -48,6 +48,16 @@ FILES=(
   "src/components/participant/SpikeMessage.tsx"
   "src/components/participant/SystemMessage.tsx"
   "src/components/participant/StopRecordingConfirmationModal.tsx"
+  "src/components/participant/ParticipantOnboardingCards.tsx"
+  "src/components/participant/ParticipantOnboardingCards.css"
+  "src/components/participant/hooks/useOnboardingCards.ts"
+  "src/components/participant/ParticipantInitiateForm.tsx"
+  "src/components/participant/recordingCap.ts"
+  "src/components/participant/ParticipantSettingsModal.tsx"
+  "src/components/participant/MicrophoneTest.tsx"
+  "src/components/layout/ParticipantLayout.tsx"
+  "src/components/layout/ParticipantHeader.tsx"
+  "src/lib/visitorId.ts"
 )
 
 target() {

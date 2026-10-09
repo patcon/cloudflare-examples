@@ -3,11 +3,13 @@
   // types too, since it imports the agents' types to call them.
   "extends": "agents/tsconfig",
   "compilerOptions": {
-    // As vite.config.ts: echo's `@/` and the Lingui shims.
+    // As vite.config.ts: echo's `@/`, and the shims for Lingui, its router and analytics.
     "paths": {
       "@/*": ["./src/client/dembrane/*"],
       "@lingui/core/macro": ["./src/client/dembrane/shims/lingui-core-macro.ts"],
-      "@lingui/react/macro": ["./src/client/dembrane/shims/lingui-react-macro.tsx"]
+      "@lingui/react/macro": ["./src/client/dembrane/shims/lingui-react-macro.tsx"],
+      "react-router": ["./src/client/dembrane/shims/react-router.tsx"],
+      "posthog-js": ["./src/client/dembrane/shims/posthog.ts"]
     }
   },
   "include": ["src/client", "src/shared", "env.d.ts"]

@@ -1,8 +1,8 @@
 import { MantineProvider } from "@mantine/core";
 import { ModalsProvider } from "@mantine/modals";
 import { IconContext } from "@phosphor-icons/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
-import { Toaster } from "@/components/common/Toaster";
 import { AppPreferencesProvider } from "@/hooks/useAppPreferences";
 import { cssVariablesResolver, theme } from "@/theme";
 import { isProjectId, isSessionId } from "../shared/ids";
@@ -31,7 +31,8 @@ function App() {
     if (page === "start" && !sessionId) return <Start projectId={projectId} />;
     if (page === "settings" && !sessionId) return <Settings projectId={projectId} />;
     if (page === "review" && !sessionId) return <Review projectId={projectId} />;
-    if (page === "sessions" && isSessionId(sessionId)) {
+    // echo's participant path, which its start page opens, or this app's own.
+    if ((page === "conversation" || page === "sessions") && isSessionId(sessionId)) {
       return <Session projectId={projectId} sessionId={sessionId} />;
     }
   }
@@ -45,24 +46,26 @@ function App() {
 }
 
 // echo's providers (App.tsx), less what's only for its dashboard and data.
+const queryClient = new QueryClient();
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
-    <MantineProvider
-      theme={theme}
-      cssVariablesResolver={cssVariablesResolver}
-      // Light only, as the portal is used.
-      forceColorScheme="light"
-    >
-      {/* Phosphor's light cut, topped up to the one 1px stroke in rules.css */}
-      <IconContext.Provider value={{ weight: "light" }}>
-        <AppPreferencesProvider>
-          <ModalsProvider>
-            <App />
-            <Toaster />
-          </ModalsProvider>
-        </AppPreferencesProvider>
-      </IconContext.Provider>
-    </MantineProvider>,
+    <QueryClientProvider client={queryClient}>
+      <MantineProvider
+        theme={theme}
+        cssVariablesResolver={cssVariablesResolver}
+        // Light only, as the portal is used.
+        forceColorScheme="light"
+      >
+        {/* Phosphor's light cut, topped up to the one 1px stroke in rules.css */}
+        <IconContext.Provider value={{ weight: "light" }}>
+          <AppPreferencesProvider>
+            <ModalsProvider>
+              <App />
+              </ModalsProvider>
+          </AppPreferencesProvider>
+        </IconContext.Provider>
+      </MantineProvider>
+    </QueryClientProvider>,
   );
 }

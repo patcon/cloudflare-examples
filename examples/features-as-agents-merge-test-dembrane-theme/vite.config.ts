@@ -19,12 +19,14 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       // The files copied from echo import its src/ as `@/`, and Lingui's
-      // macros, which shims stand in for.
+      // macros, its router and its analytics, which shims stand in for.
       "@/": `${resolve(import.meta.dirname, "src/client/dembrane")}/`,
       "@lingui/core/macro": resolve(
         import.meta.dirname,
         "src/client/dembrane/shims/lingui-core-macro.ts",
       ),
+      "react-router": resolve(import.meta.dirname, "src/client/dembrane/shims/react-router.tsx"),
+      "posthog-js": resolve(import.meta.dirname, "src/client/dembrane/shims/posthog.ts"),
       "@lingui/react/macro": resolve(
         import.meta.dirname,
         "src/client/dembrane/shims/lingui-react-macro.tsx",
