@@ -10,7 +10,8 @@
  * | portalTitle     | yes     | no     |
  * | portalContent   | yes     | no     |
  *
- * Statements takes what Explore does.
+ * Statements takes what Explore does. `pauseButton` is only for the
+ * portal's record bar.
  */
 export interface GeneralSettings {
   /** Required. A new project starts with its ID. */
@@ -21,6 +22,12 @@ export interface GeneralSettings {
   portalTitle: string;
   /** The portal's text under it, the original's default conversation description. */
   portalContent: string;
+  /**
+   * The record bar's **Pause** beside **Stop**: Pause pauses in place, and
+   * Stop asks to resume or finish. Off, as in the original, Stop pauses and
+   * asks.
+   */
+  pauseButton: boolean;
 }
 
 export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
@@ -28,6 +35,7 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
   context: "",
   portalTitle: "",
   portalContent: "",
+  pauseButton: false,
 };
 
 /** What Explore and Statements tell the model about the project. */
@@ -73,6 +81,10 @@ export function checkGeneralChange(change: unknown): Partial<GeneralSettings> {
   }
   if ("portalContent" in c) {
     out.portalContent = text(c.portalContent, "portalContent", MAX_PORTAL_CONTENT_CHARS);
+  }
+  if ("pauseButton" in c) {
+    if (typeof c.pauseButton !== "boolean") throw new Error("pauseButton must be true or false");
+    out.pauseButton = c.pauseButton;
   }
   return out;
 }

@@ -3,7 +3,7 @@ import { useAgent } from "agents/react";
 import { useLocation, useNavigate } from "react-router";
 import { Box, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useDisclosure, useLocalStorage } from "@mantine/hooks";
-import { CheckIcon, MicrophoneIcon, PauseIcon, StopIcon } from "@phosphor-icons/react";
+import { CheckIcon, MicrophoneIcon, PauseIcon, PlayIcon, StopIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/common/Toaster";
 import { chunksKey } from "@/components/participant/hooks";
@@ -136,20 +136,38 @@ function SessionView({
   const [stopOpened, { open: openStop, close: closeStop }] = useDisclosure(false);
   const [settingsOpened, { open: openSettings, close: closeSettings }] = useDisclosure(false);
 
+  // The project's Pause button: Pause pauses in place, with no modal, and
+  // Stop pauses and asks to resume or finish.
+  const pauseMode = !!project?.general.pauseButton;
+  const [paused, setPaused] = useState(false);
+  const [pausedOpened, { open: openPaused, close: closePaused }] = useDisclosure(false);
+
   const record = async () => {
     try {
       await voice.start();
       // The recorded time starts once the microphone is on.
       await agent.call("micReady");
+      setPaused(false);
     } catch (e) {
       voice.stop();
       toast.error((e as Error).message);
     }
   };
   // As echo's Stop: the microphone stops, and the modal asks Resume or Finish.
+  // With the Pause button, it pauses, then asks the same, in this app's
+  // modal.
   const stop = () => {
     voice.stop();
-    openStop();
+    if (pauseMode) {
+      setPaused(true);
+      openPaused();
+    } else {
+      openStop();
+    }
+  };
+  const pause = () => {
+    voice.stop();
+    setPaused(true);
   };
   const finish = () => navigate(`${conversationUrl}/finish`);
 
@@ -172,7 +190,8 @@ function SessionView({
 
   const exploreOn = !!project?.explore.enabled;
   const verifyOn = !!project?.verify.enabled;
-  const showTimer = isRecording || stopOpened;
+  const isPaused = pauseMode && (paused || pausedOpened) && !isRecording;
+  const showTimer = isRecording || stopOpened || isPaused;
 
   // echo's ECHO button: until a minute's recorded, it fills, and a press
   // says how long is left. Explore turns it off while its reply comes.
@@ -221,6 +240,15 @@ function SessionView({
         handleResume={() => void record()}
         // This app has no text input.
         handleSwitchToText={() => toast.info("This example only records.")}
+      />
+      <PausedModal
+        opened={pausedOpened}
+        onClose={closePaused}
+        onResume={() => {
+          closePaused();
+          void record();
+        }}
+        onFinish={finish}
       />
       {/* echo's refine info modal. */}
       <Modal
@@ -309,7 +337,7 @@ function SessionView({
         <Group justify="space-between">
           {showTimer && (
             <Group justify="center" align="center" gap="xs" mih={50}>
-              {stopOpened ? (
+              {stopOpened || isPaused ? (
                 <PauseIcon size={20} />
               ) : (
                 <div
@@ -321,7 +349,31 @@ function SessionView({
             </Group>
           )}
 
-          {!isRecording && !stopOpened && !replay && (
+          {/* The Pause button's bar while paused: Resume where Pause was. */}
+          {isPaused && (
+            <Group gap="lg">
+              <Button
+                size="lg"
+                variant="filled"
+                onClick={record}
+                loading={voice.status === "starting"}
+                leftSection={<PlayIcon size={20} className="hidden md:block" />}
+              >
+                Resume
+              </Button>
+              <Button
+                size="lg"
+                color="red"
+                onClick={stop}
+                disabled={voice.status === "starting"}
+                leftSection={<StopIcon size={20} className="hidden md:block" />}
+              >
+                Stop
+              </Button>
+            </Group>
+          )}
+
+          {!isRecording && !stopOpened && !isPaused && !replay && (
             <Group className="w-full" wrap="nowrap">
               <Button
                 size="lg"
@@ -366,11 +418,20 @@ function SessionView({
                   <span className="relative z-10">ECHO</span>
                 </Button>
               )}
+              {pauseMode && (
+                <Button
+                  size="lg"
+                  onClick={pause}
+                  leftSection={<PauseIcon size={20} className="hidden md:block" />}
+                >
+                  Pause
+                </Button>
+              )}
               <Button
                 size="lg"
                 color="red"
                 onClick={stop}
-                className={exploreOn ? "" : "px-7 md:px-10"}
+                className={exploreOn || pauseMode ? "" : "px-7 md:px-10"}
                 leftSection={<StopIcon size={20} className="hidden md:block" />}
               >
                 Stop
@@ -380,6 +441,42 @@ function SessionView({
         </Group>
       </Stack>
     </Box>
+  );
+}
+
+/**
+ * The Pause button's Stop: echo's **Recording paused**, with **Resume** as
+ * the quieter choice and **Finish** in red. Closing it stays paused.
+ */
+function PausedModal({
+  opened,
+  onClose,
+  onResume,
+  onFinish,
+}: {
+  opened: boolean;
+  onClose: () => void;
+  onResume: () => void;
+  onFinish: () => void;
+}) {
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      centered
+      title="Recording paused"
+      size="sm"
+      padding="xl"
+    >
+      <Group gap="sm" py="sm">
+        <Button onClick={onResume} miw={100} size="md">
+          Resume
+        </Button>
+        <Button color="red" variant="filled" onClick={onFinish} miw={100} size="md">
+          Finish
+        </Button>
+      </Group>
+    </Modal>
   );
 }
 

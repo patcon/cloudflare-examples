@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Paper, Text, Textarea, TextInput, Title } from "@mantine/core";
+import { Button, Paper, Switch, Text, Textarea, TextInput, Title } from "@mantine/core";
 import {
   MAX_CONTEXT_CHARS,
   MAX_NAME_CHARS,
@@ -84,6 +84,12 @@ export function GeneralSection({
           autosize
           minRows={4}
           onChange={edit("portalContent")}
+        />
+        <Switch
+          label="Pause button"
+          description="While recording, Pause beside Stop: Pause pauses in place, and Stop asks to resume or finish. Off, as in echo, Stop pauses and asks."
+          checked={shown.pauseButton ?? false}
+          onChange={(e) => setDraft((d) => ({ ...d, pauseButton: e.currentTarget.checked }))}
         />
       </Paper>
 

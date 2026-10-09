@@ -3,13 +3,7 @@
 // URL. Navigating loads the page, except between a conversation and its
 // refine and verify screens, which echo nests in the conversation's route
 // so the recording carries on: those change the URL in place.
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useMemo,
-  useSyncExternalStore,
-} from "react";
+import { createContext, type ReactNode, useContext, useMemo, useSyncExternalStore } from "react";
 
 const listeners = new Set<() => void>();
 const notify = () => {

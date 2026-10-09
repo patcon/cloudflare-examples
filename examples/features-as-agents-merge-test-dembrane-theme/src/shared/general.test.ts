@@ -29,6 +29,8 @@ describe("checkGeneralChange", () => {
       /over/,
     );
     expect(() => checkGeneralChange(null)).toThrow(/object/);
+    expect(() => checkGeneralChange({ pauseButton: "yes" })).toThrow(/true or false/);
+    expect(checkGeneralChange({ pauseButton: true })).toEqual({ pauseButton: true });
   });
 });
 
