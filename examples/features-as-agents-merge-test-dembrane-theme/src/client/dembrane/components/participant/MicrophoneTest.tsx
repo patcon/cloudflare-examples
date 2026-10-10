@@ -346,6 +346,7 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 						<Alert
 							color="red"
 							className="w-full text-start"
+							classNames={ICON_CENTRED} // example: as the others
 							{...testId("portal-settings-mic-error-alert")}
 						>
 							{errorMessage}
