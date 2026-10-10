@@ -367,19 +367,23 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 									Please allow microphone access to start the test.
 								</Trans>
 							</Alert>
-							<Group
-								gap="xs"
-								wrap="nowrap"
-								{...layer(isLoadingDevices)}
-								{...testId("portal-settings-mic-loading-alert")}
-							>
-								<Loader size="sm" />
-								<Text size="sm" c="dimmed">
-									<Trans id="participant.alert.microphone.access.loading">
-										Requesting microphone access to detect available devices...
-									</Trans>
-								</Text>
-							</Group>
+							{/* example: the line's centred in the cell, and the spinner
+							    sits on the text's first line. */}
+							<div {...layer(isLoadingDevices)}>
+								<Group
+									gap="xs"
+									wrap="nowrap"
+									align="flex-start"
+									{...testId("portal-settings-mic-loading-alert")}
+								>
+									<Loader size="sm" />
+									<Text size="sm" c="dimmed">
+										<Trans id="participant.alert.microphone.access.loading">
+											Requesting microphone access to detect available devices...
+										</Trans>
+									</Text>
+								</Group>
+							</div>
 
 							{/* Real-time feedback alerts - only show after mic access granted */}
 							<Alert
