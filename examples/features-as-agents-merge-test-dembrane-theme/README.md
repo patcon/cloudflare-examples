@@ -7,7 +7,7 @@ A copy of [`features-as-agents-merge-test`](../features-as-agents-merge-test) wh
 The copies are in `src/client/dembrane/`, at the same paths as under echo's `dembrane/frontend/src/`, so echo's `@/` imports work as they are. [`scripts/echo-files.sh`](scripts/echo-files.sh) lists each one:
 
 - `scripts/echo-files.sh copy` copies any file on the list that isn't here yet, from the echo commit in `scripts/echo-ref`. `FORCE=1` overwrites ours.
-- `scripts/echo-files.sh diff` shows how ours differ. Today only `tailwind.config.js` and `ParticipantRecordingWaveform.tsx` do, in lines marked `// example:`.
+- `scripts/echo-files.sh diff` shows how ours differ. Today only `tailwind.config.js`, `ParticipantRecordingWaveform.tsx` and `MicrophoneTest.tsx` do, in lines marked `// example:`.
 
 What they need from echo but this app doesn't have is stood in for, in files of our own at the paths echo's are imported from. Each starts with `// example: ours`. [`src/client/dembrane/PROVENANCE.md`](src/client/dembrane/PROVENANCE.md) lists them, and what's left out.
 

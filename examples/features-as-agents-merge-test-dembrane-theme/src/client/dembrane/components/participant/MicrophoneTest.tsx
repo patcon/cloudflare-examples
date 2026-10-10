@@ -381,21 +381,24 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 					)}
 
 					{/* Real-time feedback alerts - only show after mic access granted */}
-					{micAccessGranted &&
-						(isMicTestSuccessful ? (
+					{/* example: both alerts in one cell, the other hidden, so the
+					    space is the longer one's and doesn't jump as they swap. */}
+					{micAccessGranted && (
+						<div className="grid w-full">
 							<Alert
 								color="green"
-								className="w-full text-start"
+								className={`w-full text-start [grid-area:1/1] ${isMicTestSuccessful ? "" : "invisible"}`}
+								aria-hidden={!isMicTestSuccessful}
 								{...testId("portal-settings-mic-success-alert")}
 							>
 								<Trans id="participant.alert.microphone.access.success">
 									Everything looks good – you can continue.
 								</Trans>
 							</Alert>
-						) : (
 							<Alert
 								color="yellow"
-								className="w-full text-start"
+								className={`w-full text-start [grid-area:1/1] ${isMicTestSuccessful ? "invisible" : ""}`}
+								aria-hidden={isMicTestSuccessful}
 								{...testId("portal-settings-mic-issue-alert")}
 							>
 								<Trans id="participant.alert.microphone.access.issue">
@@ -403,7 +406,8 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 									a little closer to the device.
 								</Trans>
 							</Alert>
-						))}
+						</div>
+					)}
 
 					{/* Continue button for modal mode */}
 					{isInModal && (
