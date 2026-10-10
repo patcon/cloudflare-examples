@@ -241,15 +241,7 @@ function SessionView({
         // This app has no text input.
         handleSwitchToText={() => toast.info("This example only records.")}
       />
-      <PausedModal
-        opened={pausedOpened}
-        onClose={closePaused}
-        onResume={() => {
-          closePaused();
-          void record();
-        }}
-        onFinish={finish}
-      />
+      <PausedModal opened={pausedOpened} onClose={closePaused} onFinish={finish} />
       {/* echo's refine info modal. */}
       <Modal
         opened={refineInfoOpened}
@@ -452,18 +444,17 @@ function SessionView({
 }
 
 /**
- * The Pause button's Stop: echo's **Recording paused**, with **Resume** as
- * the quieter choice and **Finish** in red. Closing it stays paused.
+ * The Pause button's Stop: echo's **Recording paused**, with **Back** as
+ * the quieter choice and **Finish** in red. Back, like closing it, only
+ * closes it: the recording stays paused, for the bar's Resume.
  */
 function PausedModal({
   opened,
   onClose,
-  onResume,
   onFinish,
 }: {
   opened: boolean;
   onClose: () => void;
-  onResume: () => void;
   onFinish: () => void;
 }) {
   return (
@@ -476,8 +467,8 @@ function PausedModal({
       padding="xl"
     >
       <Group gap="sm" py="sm">
-        <Button onClick={onResume} miw={100} size="md">
-          Resume
+        <Button onClick={onClose} miw={100} size="md">
+          Back
         </Button>
         <Button color="red" variant="filled" onClick={onFinish} miw={100} size="md">
           Finish
