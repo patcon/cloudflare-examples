@@ -342,19 +342,6 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 						{...testId("portal-settings-mic-level-progress")}
 					/>
 
-					{/* Show error or permission prompt */}
-					{!micAccessGranted && !isLoadingDevices && !micAccessDenied && (
-						<Alert
-							color="yellow"
-							className="w-full text-start"
-							{...testId("portal-settings-mic-permission-alert")}
-						>
-							<Trans id="participant.alert.microphone.access">
-								Please allow microphone access to start the test.
-							</Trans>
-						</Alert>
-					)}
-
 					{errorMessage && (
 						<Alert
 							color="red"
@@ -364,31 +351,40 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 							{errorMessage}
 						</Alert>
 					)}
-					{isLoadingDevices && (
-						<Group
-							gap="xs"
-							wrap="nowrap"
-							className="w-full"
-							{...testId("portal-settings-mic-loading-alert")}
-						>
-							<Loader size="sm" />
-							<Text size="sm" c="dimmed">
-								<Trans id="participant.alert.microphone.access.loading">
-									Requesting microphone access to detect available devices...
-								</Trans>
-							</Text>
-						</Group>
-					)}
 
-					{/* Real-time feedback alerts - only show after mic access granted */}
-					{/* example: both alerts in one cell, the other hidden, so the
-					    space is the longer one's and doesn't jump as they swap. */}
-					{micAccessGranted && (
+					{/* example: the loading line, the permission prompt and the
+					    feedback alerts in one cell, the others hidden, so the space
+					    is the tallest one's and doesn't jump as they swap. */}
+					{!micAccessDenied && (
 						<div className="grid w-full">
+							{/* Show permission prompt */}
+							<Alert
+								color="yellow"
+								{...layer(!micAccessGranted && !isLoadingDevices)}
+								{...testId("portal-settings-mic-permission-alert")}
+							>
+								<Trans id="participant.alert.microphone.access">
+									Please allow microphone access to start the test.
+								</Trans>
+							</Alert>
+							<Group
+								gap="xs"
+								wrap="nowrap"
+								{...layer(isLoadingDevices)}
+								{...testId("portal-settings-mic-loading-alert")}
+							>
+								<Loader size="sm" />
+								<Text size="sm" c="dimmed">
+									<Trans id="participant.alert.microphone.access.loading">
+										Requesting microphone access to detect available devices...
+									</Trans>
+								</Text>
+							</Group>
+
+							{/* Real-time feedback alerts - only show after mic access granted */}
 							<Alert
 								color="green"
-								className={`w-full text-start [grid-area:1/1] ${isMicTestSuccessful ? "" : "invisible"}`}
-								aria-hidden={!isMicTestSuccessful}
+								{...layer(micAccessGranted && isMicTestSuccessful)}
 								{...testId("portal-settings-mic-success-alert")}
 							>
 								<Trans id="participant.alert.microphone.access.success">
@@ -397,8 +393,7 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 							</Alert>
 							<Alert
 								color="yellow"
-								className={`w-full text-start [grid-area:1/1] ${isMicTestSuccessful ? "invisible" : ""}`}
-								aria-hidden={isMicTestSuccessful}
+								{...layer(micAccessGranted && !isMicTestSuccessful)}
 								{...testId("portal-settings-mic-issue-alert")}
 							>
 								<Trans id="participant.alert.microphone.access.issue">
@@ -462,3 +457,9 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 };
 
 export default MicrophoneTest;
+
+// example: one of the messages sharing a cell, shown or holding its space.
+const layer = (shown: boolean) => ({
+	className: `w-full text-start [grid-area:1/1] ${shown ? "" : "invisible"}`,
+	"aria-hidden": !shown,
+});
