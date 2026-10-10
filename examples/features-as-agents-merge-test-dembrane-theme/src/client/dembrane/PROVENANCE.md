@@ -4,7 +4,7 @@ Everything here is at the path it has under `dembrane/frontend/src/` in [dembran
 
 ## Copied from echo, as they are
 
-[`scripts/echo-files.sh`](../../../scripts/echo-files.sh) lists them, and copies them from the commit in [`scripts/echo-ref`](../../../scripts/echo-ref). `scripts/echo-files.sh diff` shows any difference from echo; there's none, except in `tailwind.config.js` (at the example's root, as in echo's frontend), whose import of `./src/colors` and `content` paths are marked `// example:`.
+[`scripts/echo-files.sh`](../../../scripts/echo-files.sh) lists them, and copies them from the commit in [`scripts/echo-ref`](../../../scripts/echo-ref). `scripts/echo-files.sh diff` shows any difference from echo; there's none, except in `tailwind.config.js` (at the example's root, as in echo's frontend), whose import of `./src/colors` and `content` paths are marked `// example:`, and `components/participant/ParticipantRecordingWaveform.tsx`, whose `paused` prop, for the Pause button, is marked the same way.
 
 Biome skips them (`biome.jsonc`), so they keep echo's formatting.
 

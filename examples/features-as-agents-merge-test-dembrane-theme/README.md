@@ -7,7 +7,7 @@ A copy of [`features-as-agents-merge-test`](../features-as-agents-merge-test) wh
 The copies are in `src/client/dembrane/`, at the same paths as under echo's `dembrane/frontend/src/`, so echo's `@/` imports work as they are. [`scripts/echo-files.sh`](scripts/echo-files.sh) lists each one:
 
 - `scripts/echo-files.sh copy` copies any file on the list that isn't here yet, from the echo commit in `scripts/echo-ref`. `FORCE=1` overwrites ours.
-- `scripts/echo-files.sh diff` shows how ours differ. Today only `tailwind.config.js` does, in two lines marked `// example:`.
+- `scripts/echo-files.sh diff` shows how ours differ. Today only `tailwind.config.js` and `ParticipantRecordingWaveform.tsx` do, in lines marked `// example:`.
 
 What they need from echo but this app doesn't have is stood in for, in files of our own at the paths echo's are imported from. Each starts with `// example: ours`. [`src/client/dembrane/PROVENANCE.md`](src/client/dembrane/PROVENANCE.md) lists them, and what's left out.
 
@@ -21,7 +21,7 @@ The toolchain is echo's, so the copied CSS works as is: Mantine 7, Tailwind 3 th
   - The record bar at the bottom: **Record** and **Finish**, then while recording the waveform, the timer, **ECHO** and **Stop**.
   - echo's screens above the bar, at `/refine`, `/verify` and `/verify/approve` under the conversation, change the URL in place, so the recording carries on.
   - **Stop** opens echo's **Recording paused** modal, with **Resume** and **Finish**.
-  - Or, with **Pause button** on in Settings → General, **Pause** beside **Stop**. Pause pauses in place, with no modal, and turns into **Resume**. Stop pauses and opens **Recording paused**, with **Resume** and a red **Finish**. It's off by default, as echo has no Pause.
+  - Or, with **Pause button** on in Settings → General, **Pause** beside **Stop**. Pause pauses in place, with no modal, and turns into **Resume**; the waveform stays, still. Stop pauses and opens **Recording paused**, with **Resume** and a red **Finish**. It's off by default, as echo has no Pause.
   - **Finish** goes to echo's thank-you page.
 - **Verify and Explore are behind the ECHO button**, as in echo. It fills over the first minute recorded; until then, a press says how long is left. Then it opens echo's refine screen, with a card for each feature that's on:
   - **Verify** opens echo's verify screens: pick a topic, read the outcome, revise or edit it, approve it. Approved outcomes show under the conversation, as echo's do. Its panel is gone.

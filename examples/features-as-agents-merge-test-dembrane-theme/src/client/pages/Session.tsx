@@ -327,10 +327,12 @@ function SessionView({
         className="sticky bottom-0 z-10 w-full min-h-[84px] border-t p-4"
         style={{ borderColor: "var(--app-rule-color)" }}
       >
-        {isRecording && (
+        {/* The Pause button's pause keeps it, still. */}
+        {(isRecording || isPaused) && (
           <ParticipantRecordingWaveform
             onSilence={openSettings}
             peekAudioLevel={voice.peekAudioLevel}
+            paused={!isRecording}
           />
         )}
 
