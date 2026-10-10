@@ -339,15 +339,20 @@ function SessionView({
         <Group justify="space-between">
           {showTimer && (
             <Group justify="center" align="center" gap="xs" mih={50}>
-              {stopOpened || isPaused ? (
-                <PauseIcon size={20} />
-              ) : (
-                <div
-                  className="h-4 w-4 animate-pulse rounded-full"
-                  style={{ background: "var(--app-danger)" }}
-                />
-              )}
-              <Text size="lg">{formatTime(seconds)}</Text>
+              {/* One slot for either icon, and even digits, so the time holds still. */}
+              <span className="flex h-5 w-5 items-center justify-center">
+                {stopOpened || isPaused ? (
+                  <PauseIcon size={20} />
+                ) : (
+                  <div
+                    className="h-4 w-4 animate-pulse rounded-full"
+                    style={{ background: "var(--app-danger)" }}
+                  />
+                )}
+              </span>
+              <Text size="lg" className="tabular-nums">
+                {formatTime(seconds)}
+              </Text>
             </Group>
           )}
 
