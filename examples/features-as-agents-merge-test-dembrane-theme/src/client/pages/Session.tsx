@@ -229,6 +229,26 @@ function SessionView({
           ? "Get an immediate reply from dembrane to help you deepen the conversation."
           : "";
 
+  // echo's ECHO button, while recording, and with the Pause button, while
+  // paused too.
+  const echoButton = screen === "" && (verifyOn || exploreOn) && (
+    <Button
+      size="lg"
+      onClick={handleRefineClick}
+      disabled={isRefineDisabled}
+      className="relative overflow-hidden"
+      variant={seconds < REFINE_BUTTON_THRESHOLD_SECONDS ? undefined : "filled"}
+    >
+      {seconds < REFINE_BUTTON_THRESHOLD_SECONDS && (
+        <div
+          className="absolute bottom-0 left-0 top-0 bg-primary-600/20 transition-all duration-1000 ease-linear"
+          style={{ width: `${refineProgress}%` }}
+        />
+      )}
+      <span className="relative z-10">ECHO</span>
+    </Button>
+  );
+
   return (
     <Box className="container mx-auto flex h-full max-w-2xl flex-col justify-end">
       <ParticipantSettingsModal opened={settingsOpened} onClose={closeSettings} />
@@ -351,6 +371,7 @@ function SessionView({
           {/* The Pause button's bar while paused: Resume where Pause was. */}
           {isPaused && (
             <Group gap="lg">
+              {echoButton}
               <Button
                 size="lg"
                 variant="filled"
@@ -400,23 +421,7 @@ function SessionView({
 
           {isRecording && (
             <Group gap="lg">
-              {screen === "" && (verifyOn || exploreOn) && (
-                <Button
-                  size="lg"
-                  onClick={handleRefineClick}
-                  disabled={isRefineDisabled}
-                  className="relative overflow-hidden"
-                  variant={seconds < REFINE_BUTTON_THRESHOLD_SECONDS ? undefined : "filled"}
-                >
-                  {seconds < REFINE_BUTTON_THRESHOLD_SECONDS && (
-                    <div
-                      className="absolute bottom-0 left-0 top-0 bg-primary-600/20 transition-all duration-1000 ease-linear"
-                      style={{ width: `${refineProgress}%` }}
-                    />
-                  )}
-                  <span className="relative z-10">ECHO</span>
-                </Button>
-              )}
+              {echoButton}
               {pauseMode && (
                 <Button
                   size="lg"
