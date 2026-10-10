@@ -361,32 +361,34 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 							<Alert
 								color="yellow"
 								{...layer(!micAccessGranted && !isLoadingDevices)}
-								classNames={ICON_CENTRED}
 								{...testId("portal-settings-mic-permission-alert")}
 							>
 								<Trans id="participant.alert.microphone.access">
 									Please allow microphone access to start the test.
 								</Trans>
 							</Alert>
-							<Group
-								gap="xs"
-								wrap="nowrap"
-								{...layer(isLoadingDevices)}
-								{...testId("portal-settings-mic-loading-alert")}
-							>
-								<Loader size="sm" />
-								<Text size="sm" c="dimmed">
-									<Trans id="participant.alert.microphone.access.loading">
-										Requesting microphone access to detect available devices...
-									</Trans>
-								</Text>
-							</Group>
+							{/* example: the line's centred in the cell, and the spinner
+							    sits on the text's first line. */}
+							<div {...layer(isLoadingDevices)}>
+								<Group
+									gap="xs"
+									wrap="nowrap"
+									align="flex-start"
+									{...testId("portal-settings-mic-loading-alert")}
+								>
+									<Loader size="sm" />
+									<Text size="sm" c="dimmed">
+										<Trans id="participant.alert.microphone.access.loading">
+											Requesting microphone access to detect available devices...
+										</Trans>
+									</Text>
+								</Group>
+							</div>
 
 							{/* Real-time feedback alerts - only show after mic access granted */}
 							<Alert
 								color="green"
 								{...layer(micAccessGranted && isMicTestSuccessful)}
-								classNames={ICON_CENTRED}
 								{...testId("portal-settings-mic-success-alert")}
 							>
 								<Trans id="participant.alert.microphone.access.success">
@@ -396,7 +398,6 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 							<Alert
 								color="yellow"
 								{...layer(micAccessGranted && !isMicTestSuccessful)}
-								classNames={ICON_CENTRED}
 								{...testId("portal-settings-mic-issue-alert")}
 							>
 								<Trans id="participant.alert.microphone.access.issue">
@@ -460,9 +461,6 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 };
 
 export default MicrophoneTest;
-
-// example: an alert's icon centred on its own, not on the first line.
-const ICON_CENTRED = { icon: "self-center !mt-0" };
 
 // example: one of the messages sharing a cell, shown or holding its space,
 // its contents centred in the cell's height.
