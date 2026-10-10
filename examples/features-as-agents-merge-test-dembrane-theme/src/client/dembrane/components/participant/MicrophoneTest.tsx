@@ -458,8 +458,9 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 
 export default MicrophoneTest;
 
-// example: one of the messages sharing a cell, shown or holding its space.
+// example: one of the messages sharing a cell, shown or holding its space,
+// its contents centred in the cell's height.
 const layer = (shown: boolean) => ({
-	className: `w-full text-start [grid-area:1/1] ${shown ? "" : "invisible"}`,
+	className: `flex w-full items-center text-start [grid-area:1/1] ${shown ? "" : "invisible"}`,
 	"aria-hidden": !shown,
 });
