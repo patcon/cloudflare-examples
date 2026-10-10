@@ -361,6 +361,7 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 							<Alert
 								color="yellow"
 								{...layer(!micAccessGranted && !isLoadingDevices)}
+								classNames={ICON_CENTRED}
 								{...testId("portal-settings-mic-permission-alert")}
 							>
 								<Trans id="participant.alert.microphone.access">
@@ -385,6 +386,7 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 							<Alert
 								color="green"
 								{...layer(micAccessGranted && isMicTestSuccessful)}
+								classNames={ICON_CENTRED}
 								{...testId("portal-settings-mic-success-alert")}
 							>
 								<Trans id="participant.alert.microphone.access.success">
@@ -394,6 +396,7 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 							<Alert
 								color="yellow"
 								{...layer(micAccessGranted && !isMicTestSuccessful)}
+								classNames={ICON_CENTRED}
 								{...testId("portal-settings-mic-issue-alert")}
 							>
 								<Trans id="participant.alert.microphone.access.issue">
@@ -457,6 +460,9 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 };
 
 export default MicrophoneTest;
+
+// example: an alert's icon centred on its own, not on the first line.
+const ICON_CENTRED = { icon: "self-center !mt-0" };
 
 // example: one of the messages sharing a cell, shown or holding its space,
 // its contents centred in the cell's height.
