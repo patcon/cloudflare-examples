@@ -369,7 +369,7 @@ const MicrophoneTest: React.FC<MicrophoneTestProps> = ({
 								</Trans>
 							</Alert>
 							<Group
-								gap="xs"
+								gap="md" // example: as an alert's icon is spaced
 								wrap="nowrap"
 								{...layer(isLoadingDevices)}
 								{...testId("portal-settings-mic-loading-alert")}
