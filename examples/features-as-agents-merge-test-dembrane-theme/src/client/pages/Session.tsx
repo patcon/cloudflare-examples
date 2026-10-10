@@ -379,7 +379,7 @@ function SessionView({
                 loading={voice.status === "starting"}
                 leftSection={<PlayIcon size={20} className="hidden md:block" />}
               >
-                Resume
+                <SameWidth label="Resume" other="Pause" />
               </Button>
               <Button
                 size="lg"
@@ -428,7 +428,7 @@ function SessionView({
                   onClick={pause}
                   leftSection={<PauseIcon size={20} className="hidden md:block" />}
                 >
-                  Pause
+                  <SameWidth label="Pause" other="Resume" />
                 </Button>
               )}
               <Button
@@ -480,6 +480,21 @@ function PausedModal({
         </Button>
       </Group>
     </Modal>
+  );
+}
+
+/**
+ * A label as wide as the wider of it and `other`, which holds the space,
+ * hidden, so two buttons that take turns in one place match.
+ */
+function SameWidth({ label, other }: { label: string; other: string }) {
+  return (
+    <span className="grid">
+      <span className="[grid-area:1/1]">{label}</span>
+      <span className="invisible [grid-area:1/1]" aria-hidden>
+        {other}
+      </span>
+    </span>
   );
 }
 
