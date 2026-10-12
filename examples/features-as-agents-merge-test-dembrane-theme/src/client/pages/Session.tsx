@@ -304,9 +304,11 @@ function SessionView({
         {screen === "" && (
           <>
             {replay && <Replay projectId={projectId} sessionId={sessionId} />}
-            {/* echo's ParticipantConversationAudioContent. */}
+            {/* echo's ParticipantConversationAudioContent. The responses show inline,
+                as in its text mode, so the transcript streams in as it's heard. */}
             <ParticipantBody
               interleaveMessages={false}
+              viewResponses
               projectId={projectId}
               conversationId={sessionId}
               isRecording={isRecording}
