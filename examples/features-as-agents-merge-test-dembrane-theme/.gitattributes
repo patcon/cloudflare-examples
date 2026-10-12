@@ -1,0 +1,2 @@
+# The captured Vertex response keeps its CRLF line endings, as sent.
+test/fixtures/stream.txt -text

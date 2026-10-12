@@ -1,0 +1,85 @@
+{
+  "name": "features-as-agents-merge-test-dembrane-theme",
+  "version": "1.0.0",
+  "description": "The features-as-agents merge test, built from the dembrane portal's Mantine theme and components",
+  "scripts": {
+    "dev": "vite dev",
+    "dev:share": "vite dev --mode share",
+    "google-token": "node scripts/google-token.mjs",
+    "deploy": "vite build && wrangler deploy",
+    "types": "wrangler types env.d.ts --include-runtime false",
+    "typecheck": "tsc && tsc --project tsconfig.client.json",
+    "test": "vitest run && pnpm --filter @cloudflare/voice-gemini test",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint ."
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.34.5",
+  "private": true,
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ],
+    "overrides": {
+      "@types/hast": "3.0.4"
+    },
+    "packageExtensions": {
+      "@hookform/resolvers@3": {
+        "peerDependencies": {
+          "zod": "*"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@cloudflare/voice-gemini": "workspace:*",
+    "@formkit/auto-animate": "^0.8.4",
+    "@hookform/resolvers": "^3.10.0",
+    "@mantine/core": "^7.17.8",
+    "@mantine/hooks": "^7.17.8",
+    "@mantine/modals": "^7.17.8",
+    "@mdxeditor/editor": "^3.55.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "@tanstack/react-query": "^5.104.1",
+    "agents": "0.27.0",
+    "axios": "^1.20.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "hono": "^4.13.12",
+    "hono-agents": "^3.0.12",
+    "js-cookie": "^3.0.8",
+    "liquidjs": "^10.30.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.89.0",
+    "react-markdown": "^9.1.0",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^1.7.4",
+    "tailwind-merge": "^2.6.1",
+    "use-session-storage-state": "^19.0.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@cloudflare/vite-plugin": "^1.48.0",
+    "@cloudflare/workers-types": "^5.20260729.1",
+    "@tailwindcss/typography": "^0.5.20",
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^26.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.28",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.0",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.115.0"
+  }
+}

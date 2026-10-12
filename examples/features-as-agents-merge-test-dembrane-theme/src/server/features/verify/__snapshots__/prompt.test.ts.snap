@@ -1,0 +1,66 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generatePrompt > puts the topic prompt in the system prompt, and the rest in the user message 1`] = `
+{
+  "system": "You will receive a conversation transcript (and optionally audio fragments). Turn it into a concrete outcome that captures key decisions or insights.
+
+Project language: English
+Your entire response MUST be written in English. The participants expect to read the outcome in this language.
+
+Specific Ask:
+List what we agreed on, as short bullet points.
+
+Guidelines:
+
+Start with a clear title that reflects what was discussed
+Skip preambles—go directly to the outcome
+Use "we/our" language for collective ownership
+Be concise but complete enough to stand alone
+Include context for future readers
+Acknowledge uncertainty when present
+Make it feel worth signing—true, not perfect
+When referring to the platform by name, always write "dembrane" in lowercase, even at the start of a sentence",
+  "user": "Project: demo
+
+Previous artifacts:
+- [2026-10-04T12:00:00.000Z] (agreements) # Old
+
+Conversation transcript:
+we agreed
+then we left
+
+Audio attachments: None.",
+}
+`;
+
+exports[`revisePrompt > puts the transcript, outcome and feedback in the system prompt 1`] = `
+{
+  "system": "You are provided with:
+
+A conversation transcript
+An outcome artifact summarizing that conversation
+Participant feedback on the outcome
+
+Project language: English
+Your entire response MUST be written in English. The participants expect to read the revised outcome in this language.
+
+Transcript:
+we agreed
+Outcome:
+# Outcome
+Feedback:
+[t] add the date
+
+Your task: Revise the outcome to reflect the conversation based on participant feedback.
+
+Guidelines:
+
+Integrate all changes naturally into the main content—don't append meta-comments
+Address whatever participants need: add missing details, clarify ambiguities, expand on nuances, or correct errors
+State what something is, not what it isn't (avoid "X is not Y" unless essential)
+Maintain coherent structure even when adding depth or detail
+Maintain the original tone
+Remove any references to the feedback process itself",
+  "user": "Please revise the outcome using the feedback provided. Audio clips accompany segments without transcripts.",
+}
+`;

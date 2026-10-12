@@ -1,0 +1,102 @@
+import { useEffect, useMemo } from "react";
+import type { Components } from "react-markdown";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import {
+	escapeRedactedTokens,
+	REDACTED_CODE_PREFIX,
+	RedactedBadge,
+} from "@/components/common/RedactedText";
+import { cn } from "@/lib/utils";
+
+export const Markdown = ({
+	content,
+	className,
+	components: customComponents,
+	footnoteLabel,
+	footnoteIdPrefix,
+	allowBold,
+}: {
+	content: string;
+	className?: string;
+	components?: Components;
+	/** Render bold at a real weight. Off by default: the app font
+	 * deliberately flattens bold. */
+	allowBold?: boolean;
+	/** Visible, localised heading for the GFM footnote list. Without it the
+	 * renderer's default English "Footnotes" heading is kept but visually
+	 * hidden (screen readers still announce it). */
+	footnoteLabel?: string;
+	/** Prefix for footnote ids and hrefs. Every message rendered on a page
+	 * otherwise mints the same `#user-content-fn-1` ids, so the browser
+	 * resolves a superscript to the first message that defined it. */
+	footnoteIdPrefix?: string;
+}) => {
+	// FIXME: workaround to load Tally embeds
+	useEffect(() => {
+		try {
+			// biome-ignore lint/suspicious/noExplicitAny: needs to be fixed
+			if ((window as any).Tally) {
+				setTimeout(() => {
+					// biome-ignore lint/suspicious/noExplicitAny: needs to be fixed
+					(window as any).Tally.loadEmbeds();
+				}, 500);
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	}, []);
+
+	const processedContent = useMemo(
+		() => escapeRedactedTokens(content),
+		[content],
+	);
+
+	const components = useMemo<Components>(
+		() => ({
+			code({ children, className: codeClassName, ...props }) {
+				const text = String(children).trim();
+				if (!codeClassName && text.startsWith(REDACTED_CODE_PREFIX)) {
+					const type = text.slice(REDACTED_CODE_PREFIX.length);
+					return <RedactedBadge type={type} />;
+				}
+				return (
+					<code className={codeClassName} {...props}>
+						{children}
+					</code>
+				);
+			},
+			...customComponents,
+		}),
+		[customComponents],
+	);
+
+	const remarkRehypeOptions = useMemo(
+		() => ({
+			...(footnoteIdPrefix ? { clobberPrefix: footnoteIdPrefix } : {}),
+			// A caller who names the label wants it visible; without one, the
+			// renderer's default English "Footnotes" heading stays, hidden with
+			// our own class. The library's default is `sr-only`, which our
+			// Tailwind build never generates (no source file uses it).
+			...(footnoteLabel
+				? { footnoteLabel, footnoteLabelProperties: {} }
+				: { footnoteLabelProperties: { className: "dembrane-sr-only" } }),
+		}),
+		[footnoteLabel, footnoteIdPrefix],
+	);
+
+	return (
+		<ReactMarkdown
+			className={cn(
+				"prose prose-table:block prose-table:w-full prose-table:overflow-x-scroll",
+				allowBold && "allow-bold",
+				className,
+			)}
+			remarkPlugins={[remarkGfm]}
+			remarkRehypeOptions={remarkRehypeOptions}
+			components={components}
+		>
+			{processedContent}
+		</ReactMarkdown>
+	);
+};

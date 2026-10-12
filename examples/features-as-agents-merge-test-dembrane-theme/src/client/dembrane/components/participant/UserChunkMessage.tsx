@@ -1,0 +1,118 @@
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
+import { ActionIcon, Menu, Paper, Text } from "@mantine/core";
+import { DotsThreeVerticalIcon, TrashIcon } from "@phosphor-icons/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams } from "react-router";
+import { Markdown } from "@/components/common/Markdown";
+import { toast } from "@/components/common/Toaster";
+import { deleteParticipantConversationChunk } from "@/lib/api";
+
+const UserChunkMessage = ({
+	chunk,
+	hide,
+}: {
+	chunk?: TConversationChunk;
+	hide?: boolean;
+}) => {
+	const { projectId, conversationId } = useParams<{
+		projectId: string;
+		conversationId: string;
+	}>();
+	const queryClient = useQueryClient();
+
+	const deleteChunkMutation = useMutation({
+		mutationFn: ({
+			projectId,
+			conversationId,
+			chunkId,
+		}: {
+			projectId: string;
+			conversationId: string;
+			chunkId: string;
+		}) =>
+			deleteParticipantConversationChunk(
+				projectId ?? "",
+				conversationId ?? "",
+				chunkId ?? "",
+			),
+		onError: (error, _vars, context) => {
+			// Restore the previous data if the mutation fails
+			queryClient.setQueryData(
+				["participant", "conversation_chunks", conversationId ?? ""],
+				context,
+			);
+			console.error("Error deleting chunk:", error);
+			toast.error(t`Failed to delete response`);
+		},
+		onMutate: (vars) => {
+			queryClient.cancelQueries({
+				queryKey: ["participant", "conversation_chunks", conversationId ?? ""],
+			});
+			const previousValue = queryClient.getQueryData([
+				"participant",
+				"conversation_chunks",
+				conversationId ?? "",
+			]);
+			queryClient.setQueryData(
+				["participant", "conversation_chunks", conversationId ?? ""],
+
+				(old: TConversationChunk[] | undefined) =>
+					old?.filter((c) => c.id !== vars.chunkId),
+			);
+			return previousValue;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: ["participant", "conversation_chunks", conversationId ?? ""],
+			});
+			toast.success(t`Deleted successfully`);
+		},
+	});
+
+	if (!chunk) return <></>;
+	if (hide) return <></>;
+
+	const handleDelete = () => {
+		deleteChunkMutation.mutate({
+			chunkId: chunk.id,
+			conversationId: conversationId ?? "",
+			projectId: projectId ?? "",
+		});
+	};
+
+	return (
+		<div className="flex items-baseline justify-end">
+			<div>
+				<Menu shadow="md" width={200}>
+					<Menu.Target>
+						<ActionIcon variant="transparent" c="dimmed" className="h-full">
+							<DotsThreeVerticalIcon size={20} />
+						</ActionIcon>
+					</Menu.Target>
+
+					<Menu.Dropdown>
+						<Menu.Item
+							onClick={handleDelete}
+							disabled={deleteChunkMutation.isPending}
+							leftSection={<TrashIcon size={16} />}
+						>
+							<Trans>Delete</Trans>
+						</Menu.Item>
+					</Menu.Dropdown>
+				</Menu>
+			</div>
+			<Paper withBorder={false} bg="var(--app-rule-color)" className="my-2 p-4">
+				<Text className="prose text-sm">
+					{chunk.transcript == null ? (
+						<Markdown content={t`*Transcription in progress.*`} />
+					) : (
+						<Markdown content={chunk.transcript} />
+					)}
+				</Text>
+			</Paper>
+		</div>
+	);
+};
+
+export default UserChunkMessage;
