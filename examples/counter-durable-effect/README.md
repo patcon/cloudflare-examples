@@ -16,7 +16,9 @@ durable-effect's Durable Object takes events and answers with its state, over RP
 ```
 
 - [`src/server.ts`](src/server.ts): the `counter` task. Its state, `{ count }`, and its events (`Increment`, `Decrement`, `Reset`) are Effect schemas, which durable-effect checks on the way in and out. `onEvent` reads the count with `ctx.recall()` and writes it with `ctx.save()`. `makeTaskGroupDO` turns the task into the `Counter` Durable Object class, and its client sends events and reads state from the Worker.
+- The Worker's request handler is an Effect too, with typed errors. A POST body that isn't one of the events fails with a `BadEvent` (a `Schema.TaggedError`), decoded with `Schema.fromJsonString(CounterEvent)`, and durable-effect's client fails with a `TaskExecutionError` if the Durable Object does. `Effect.catchTags` turns them into a 400 and a 500, and the compiler flags any it doesn't handle. `counter-no-durable-effect` does the same with `throw` and `try`/`catch`.
 - [`src/client.tsx`](src/client.tsx): the same as `counter-no-durable-effect`'s.
+- [`CLAUDE.md`](CLAUDE.md): tells coding agents to read the guide that ships in `node_modules/effect/AGENTS.md` before writing Effect code, as the `effect-ts` skill suggests.
 
 ## Run it
 

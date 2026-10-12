@@ -41,25 +41,45 @@ const taskGroup = makeTaskGroupDO(registry.build({ counter }));
 export const Counter = taskGroup.DO;
 const tasks = taskGroup.client(env.COUNTER);
 
-const getCount = (id: string) =>
-  tasks
-    .task("counter")
-    .getState(id)
-    .pipe(Effect.map((state) => state?.count ?? 0));
+const getCount = Effect.fn("getCount")(function* (id: string) {
+  const state = yield* tasks.task("counter").getState(id);
+  return state?.count ?? 0;
+});
 
-const sendEvent = (id: string, event: CounterEvent) => tasks.task("counter").send(id, event);
+const sendEvent = Effect.fn("sendEvent")(function* (id: string, event: CounterEvent) {
+  yield* tasks.task("counter").send(id, event);
+});
 
-export default {
-  async fetch(request) {
+/** A POST body that isn't JSON, or isn't one of the events. */
+class BadEvent extends Schema.TaggedError<BadEvent>()("BadEvent", { message: Schema.String }) {}
+
+const decodeEvent = Effect.fn("decodeEvent")(function* (body: string) {
+  return yield* Schema.decodeUnknownEffect(Schema.fromJsonString(CounterEvent))(body).pipe(
+    Effect.mapError((error) => new BadEvent({ message: error.message })),
+  );
+});
+
+const handleRequest = Effect.fn("handleRequest")(
+  function* (request: Request) {
     if (new URL(request.url).pathname !== "/api/counter") {
       return new Response("Not found", { status: 404 });
     }
     // POST { "_tag": "Increment" } (or "Decrement", or "Reset") changes the count.
     if (request.method === "POST") {
-      const event = await request.json();
-      if (!Schema.is(CounterEvent)(event)) return new Response("Bad event", { status: 400 });
-      await Effect.runPromise(sendEvent("default", event));
+      const event = yield* decodeEvent(yield* Effect.promise(() => request.text()));
+      yield* sendEvent("default", event);
     }
-    return Response.json({ count: await Effect.runPromise(getCount("default")) });
+    return Response.json({ count: yield* getCount("default") });
   },
+  Effect.catchTags({
+    BadEvent: (error) => Effect.succeed(new Response(error.message, { status: 400 })),
+    // The Durable Object checks the event too, but the Worker has already.
+    TaskValidationError: (error) => Effect.succeed(new Response(error.message, { status: 400 })),
+    TaskExecutionError: (error) =>
+      Effect.succeed(new Response(`Counter failed: ${error.cause}`, { status: 500 })),
+  }),
+);
+
+export default {
+  fetch: (request) => Effect.runPromise(handleRequest(request)),
 } satisfies ExportedHandler<Env>;

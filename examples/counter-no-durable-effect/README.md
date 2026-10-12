@@ -11,7 +11,7 @@ Compared with `counter`, there's no Agents SDK and no WebSocket: the page reads 
 └──────────────┘  { count }         └────────┘  getState()   └───────────────────┘
 ```
 
-- [`src/server.ts`](src/server.ts): the `Counter` Durable Object, shaped like a durable-effect task: a state, `{ count }`, changed by tagged events (`Increment`, `Decrement`, `Reset`) through `send`, and read through `getState`. The Worker serves `GET /api/counter` and `POST /api/counter`, and calls the Durable Object over RPC.
+- [`src/server.ts`](src/server.ts): the `Counter` Durable Object, shaped like a durable-effect task: a state, `{ count }`, changed by tagged events (`Increment`, `Decrement`, `Reset`) through `send`, and read through `getState`. The Worker serves `GET /api/counter` and `POST /api/counter`, and calls the Durable Object over RPC. A POST body that isn't one of the events throws a `BadEvent`, which the Worker turns into a 400, and any other error, such as a failed RPC, into a 500.
 - [`src/client.tsx`](src/client.tsx): shows the count, polls for it, and posts an event for each button.
 
 ## Run it
