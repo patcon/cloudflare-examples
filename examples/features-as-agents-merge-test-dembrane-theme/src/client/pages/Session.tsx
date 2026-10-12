@@ -171,8 +171,18 @@ function SessionView({
   };
   const finish = () => navigate(`${conversationUrl}/finish`);
 
+  // The recording this page started, by when the session says it began:
+  // after a pause or Stop, the session still shows it until the stop reaches
+  // it, and that isn't another page's.
+  const [ownSince, setOwnSince] = useState<number | null>(null);
+  useEffect(() => {
+    if (isRecording && state?.recordingSince != null) setOwnSince(state.recordingSince);
+  }, [isRecording, state?.recordingSince]);
   // Another page, or one that's gone, is recording this session.
-  const elsewhere = voice.status === "idle" && state?.recordingSince != null;
+  const elsewhere =
+    voice.status === "idle" &&
+    state?.recordingSince != null &&
+    state.recordingSince !== ownSince;
   // `?debug=true` offers an audio file in place of the microphone, until
   // the session has anything in it.
   const empty =
