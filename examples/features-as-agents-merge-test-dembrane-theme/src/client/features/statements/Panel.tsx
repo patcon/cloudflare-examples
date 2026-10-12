@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAgent } from "agents/react";
-import { Anchor, Badge, Button, Paper, Text, Title } from "@mantine/core";
+import { Anchor, Badge, Button, Stack, Text } from "@mantine/core";
 import { LightningIcon } from "@phosphor-icons/react";
 import type {
   StatementsAgent,
@@ -15,7 +15,8 @@ import type { PanelProps } from "../types";
 /**
  * Statement extraction on the session page: each run so far, and **Extract
  * now**. Runs also happen by themselves while recording. It has its own
- * connection, to this session's `StatementsAgent`.
+ * connection, to this session's `StatementsAgent`. It sits in the session
+ * page's Statements modal, which gives it its title.
  */
 export function StatementsPanel({
   projectId,
@@ -62,9 +63,8 @@ export function StatementsPanel({
   const kept = windows.reduce((n, w) => n + w.kept, 0);
 
   return (
-    <Paper p="md" className="flex flex-col gap-2">
+    <Stack gap="xs">
       <div className="flex items-center gap-2 flex-wrap">
-        <Title order={5}>Statements</Title>
         <Text size="xs" c="dimmed">
           {kept} proposed ·{" "}
           <Anchor inherit href={`/${encodeURIComponent(projectId)}/review`}>
@@ -104,6 +104,6 @@ export function StatementsPanel({
           {error || state?.lastRunError}
         </Text>
       )}
-    </Paper>
+    </Stack>
   );
 }

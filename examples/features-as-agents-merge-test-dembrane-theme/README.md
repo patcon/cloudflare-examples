@@ -27,7 +27,7 @@ The toolchain is echo's, so the copied CSS works as is: Mantine 7, Tailwind 3 th
   - **Verify** opens echo's verify screens: pick a topic, read the outcome, revise or edit it, approve it. Approved outcomes show under the conversation, as echo's do. Its panel is gone.
   - **Explore** goes back to the conversation and asks for a reply, which shows under it with dembrane's mark. The ECHO button is off until the reply is done.
 - **The transcript** streams in under the conversation, as echo's responses in its text mode, rather than in a panel of its own.
-- **Statements** keeps its panel, restyled.
+- **Statements** keeps its panel, restyled, in a modal behind the quotes button left of ECHO.
 - **Light only, and recording only.** There's no dark mode and no text input: the text-input buttons from echo are left out, and the pause modal's **Switch to text input** link only says so.
 
 ---

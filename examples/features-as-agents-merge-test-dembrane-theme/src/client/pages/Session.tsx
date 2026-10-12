@@ -3,7 +3,14 @@ import { useAgent } from "agents/react";
 import { useLocation, useNavigate } from "react-router";
 import { Box, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { useDisclosure, useLocalStorage } from "@mantine/hooks";
-import { CheckIcon, MicrophoneIcon, PauseIcon, PlayIcon, StopIcon } from "@phosphor-icons/react";
+import {
+  CheckIcon,
+  MicrophoneIcon,
+  PauseIcon,
+  PlayIcon,
+  QuotesIcon,
+  StopIcon,
+} from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/common/Toaster";
 import { chunksKey } from "@/components/participant/hooks";
@@ -180,9 +187,7 @@ function SessionView({
   }, [isRecording, state?.recordingSince]);
   // Another page, or one that's gone, is recording this session.
   const elsewhere =
-    voice.status === "idle" &&
-    state?.recordingSince != null &&
-    state.recordingSince !== ownSince;
+    voice.status === "idle" && state?.recordingSince != null && state.recordingSince !== ownSince;
   // `?debug=true` offers an audio file in place of the microphone, until
   // the session has anything in it.
   const empty =
@@ -200,6 +205,9 @@ function SessionView({
 
   const exploreOn = !!project?.explore.enabled;
   const verifyOn = !!project?.verify.enabled;
+  // Statements' runs are behind a button left of ECHO, in a modal.
+  const statementsOn = !!project?.statements.enabled;
+  const [statementsOpened, { open: openStatements, close: closeStatements }] = useDisclosure(false);
   const isPaused = pauseMode && (paused || pausedOpened) && !isRecording;
   const showTimer = isRecording || stopOpened || isPaused;
 
@@ -256,6 +264,12 @@ function SessionView({
         />
       )}
       <span className="relative z-10">ECHO</span>
+    </Button>
+  );
+
+  const statementsButton = screen === "" && statementsOn && (
+    <Button size="lg" px={0} w={48} onClick={openStatements} aria-label="Statements">
+      <QuotesIcon size={20} />
     </Button>
   );
 
@@ -325,18 +339,39 @@ function SessionView({
         {/* Mounted on echo's screens too, for the connections in them. */}
         <Stack gap="md" className={screen === "" ? "" : "hidden"}>
           {project &&
-            FEATURE_KEYS.filter((key) => project[key].enabled).map((key) => (
-              <FeaturePanel
-                key={key}
-                feature={key}
-                projectId={projectId}
-                sessionId={sessionId}
-                facts={facts}
-                settings={project[key]}
-                now={now}
-              />
-            ))}
+            FEATURE_KEYS.filter((key) => key !== "statements" && project[key].enabled).map(
+              (key) => (
+                <FeaturePanel
+                  key={key}
+                  feature={key}
+                  projectId={projectId}
+                  sessionId={sessionId}
+                  facts={facts}
+                  settings={project[key]}
+                  now={now}
+                />
+              ),
+            )}
         </Stack>
+        {/* Kept mounted while closed, so its runs are there when it opens. */}
+        {project && statementsOn && (
+          <Modal
+            opened={statementsOpened}
+            onClose={closeStatements}
+            title="Statements"
+            size="lg"
+            keepMounted
+          >
+            <FeaturePanel
+              feature="statements"
+              projectId={projectId}
+              sessionId={sessionId}
+              facts={facts}
+              settings={project.statements}
+              now={now}
+            />
+          </Modal>
+        )}
         {screen === "" && empty && !replay && (
           <a className="mt-4 block text-right text-xs text-[var(--app-muted)]" href="?debug=true">
             debug
@@ -383,6 +418,7 @@ function SessionView({
           {/* The Pause button's bar while paused: Resume where Pause was. */}
           {isPaused && (
             <Group gap="lg">
+              {statementsButton}
               {echoButton}
               <Button
                 size="lg"
@@ -433,6 +469,7 @@ function SessionView({
 
           {isRecording && (
             <Group gap="lg">
+              {statementsButton}
               {echoButton}
               {pauseMode && (
                 <Button
