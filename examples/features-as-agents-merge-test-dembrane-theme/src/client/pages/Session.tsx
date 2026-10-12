@@ -294,12 +294,13 @@ function SessionView({
         {screen === "" && (
           <>
             {replay && <Replay projectId={projectId} sessionId={sessionId} />}
-            {/* echo's ParticipantConversationAudioContent. */}
+            {/* echo's ParticipantConversationAudioContent. Its Welcome waits for the
+                recording to end: a pause, or Stop's modal, keeps it away. */}
             <ParticipantBody
               interleaveMessages={false}
               projectId={projectId}
               conversationId={sessionId}
-              isRecording={isRecording}
+              isRecording={showTimer}
             />
             {verifyOn && <VerifiedArtefactsList conversationId={sessionId} projectId={projectId} />}
             {elsewhere && (
