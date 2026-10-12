@@ -110,11 +110,10 @@ export const ParticipantBody = ({
 
 	return (
 		<Stack ref={ref} className="max-h-full">
-			{!isRecording && (
-				<Title order={2} mt="sm" {...testId("portal-welcome-heading")}>
-					<Trans>Welcome</Trans>
-				</Title>
-			)}
+			{/* example: always, not only before recording, so nothing moves when it starts. */}
+			<Title order={2} mt="sm" {...testId("portal-welcome-heading")}>
+				<Trans>Welcome</Trans>
+			</Title>
 
 			{!isOnline && (
 				<TipBanner

@@ -4,7 +4,7 @@ Everything here is at the path it has under `dembrane/frontend/src/` in [dembran
 
 ## Copied from echo, as they are
 
-[`scripts/echo-files.sh`](../../../scripts/echo-files.sh) lists them, and copies them from the commit in [`scripts/echo-ref`](../../../scripts/echo-ref). `scripts/echo-files.sh diff` shows any difference from echo; there's none, except in `tailwind.config.js` (at the example's root, as in echo's frontend), whose import of `./src/colors` and `content` paths are marked `// example:`, `components/participant/ParticipantRecordingWaveform.tsx`, whose `paused` prop, for the Pause button, is marked the same way, and `components/participant/MicrophoneTest.tsx`, whose loading line, permission prompt, and success and warning alerts share one grid cell, so the check holds its height as they swap.
+[`scripts/echo-files.sh`](../../../scripts/echo-files.sh) lists them, and copies them from the commit in [`scripts/echo-ref`](../../../scripts/echo-ref). `scripts/echo-files.sh diff` shows any difference from echo; there's none, except in `tailwind.config.js` (at the example's root, as in echo's frontend), whose import of `./src/colors` and `content` paths are marked `// example:`, `components/participant/ParticipantRecordingWaveform.tsx`, whose `paused` prop, for the Pause button, is marked the same way, and `components/participant/MicrophoneTest.tsx`, whose loading line, permission prompt, and success and warning alerts share one grid cell, so the check holds its height as they swap, and `components/participant/ParticipantBody.tsx`, whose Welcome heading shows always, not only before recording, marked `// example:`.
 
 Biome skips them (`biome.jsonc`), so they keep echo's formatting.
 
