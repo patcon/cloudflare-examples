@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "counter-durable-effect",
+  "main": "src/server.ts",
+  "compatibility_date": "2026-06-11",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "class_name": "Counter", "name": "COUNTER" }]
+  },
+  "migrations": [{ "new_sqlite_classes": ["Counter"], "tag": "v1" }]
+}
