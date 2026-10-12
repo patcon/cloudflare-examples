@@ -9,10 +9,15 @@ interface ParticipantSettingsModalProps {
 	onMicTestSuccess?: (success: boolean) => void;
 }
 
+// example: one function, not a new one each render, which MicrophoneTest's
+// setup depends on: a new one reran it as the modal closed, and the check
+// flashed "We cannot hear you".
+const noop = () => {};
+
 export function ParticipantSettingsModal({
 	opened,
 	onClose,
-	onMicTestSuccess = () => {},
+	onMicTestSuccess = noop, // example: was () => {}
 }: ParticipantSettingsModalProps) {
 	return (
 		<Modal
