@@ -21,10 +21,8 @@ export class FeatureAgent<S> extends Agent<Env, S> {
    * throw after `RPC_TIMEOUT_MS`.
    */
   async session() {
-    return createTransformStub(await getAgentByName(this.env.SessionAgent, this.name)).with(
-      timeout,
-      RPC_TIMEOUT_MS,
-    );
+    const stub = await getAgentByName(this.env.SessionAgent, this.name);
+    return createTransformStub(stub).with(timeout, RPC_TIMEOUT_MS);
   }
 
   /**
@@ -34,8 +32,9 @@ export class FeatureAgent<S> extends Agent<Env, S> {
   async project() {
     const { projectId } = await (await this.session()).facts();
     if (!projectId) throw new Error("This session isn't in a project yet");
-    const project = createTransformStub(await getAgentByName(this.env.ProjectAgent, projectId));
-    return { projectId, project: project.with(timeout, RPC_TIMEOUT_MS) };
+    const stub = await getAgentByName(this.env.ProjectAgent, projectId);
+    const project = createTransformStub(stub).with(timeout, RPC_TIMEOUT_MS);
+    return { projectId, project };
   }
 
   /**
