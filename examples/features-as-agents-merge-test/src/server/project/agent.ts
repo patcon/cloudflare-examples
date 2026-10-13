@@ -180,7 +180,7 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   /**
    * Asks each session's Explore, but the one excluded, for its transcript
    * with its replies, then plans them newest first. A session that doesn't
-   * answer is left out.
+   * answer within `optional`'s 5 seconds is left out.
    */
   async #planContext(excludeId: string | null): Promise<ContextEntry[]> {
     const ids = this.listSessions()
@@ -200,7 +200,8 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
 
   /**
    * For the settings page: each session's approved outcomes. A session that
-   * doesn't answer shows as null, and the rest still show.
+   * doesn't answer within `optional`'s 5 seconds shows as null, and the rest
+   * still show.
    */
   @callable()
   async approvedOutcomes(): Promise<SessionOutcomes[]> {
@@ -263,7 +264,8 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   /**
    * For the review page, and each session's extraction, to leave out what
    * the project already has: every session's candidates, newest session
-   * first.
+   * first. A session that doesn't answer within `optional`'s 5 seconds shows
+   * as null, and the rest still show.
    */
   @callable()
   async candidates(): Promise<SessionCandidates[]> {
