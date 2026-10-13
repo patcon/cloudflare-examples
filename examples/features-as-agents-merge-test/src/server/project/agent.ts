@@ -1,3 +1,4 @@
+import { createTransformStub } from "@durability/transforms";
 import { Agent, callable, getAgentByName, type Connection } from "agents";
 import {
   backfill,
@@ -25,6 +26,7 @@ import {
 import type { Candidate, StatementsState } from "../features/statements/agent";
 import type { Outcome } from "../features/verify/agent";
 import { gather } from "../lib/gather";
+import { optional } from "../transforms/optional";
 
 /**
  * The project's own details, and every feature's settings, synced to every
@@ -178,14 +180,16 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   /**
    * Asks each session's Explore, but the one excluded, for its transcript
    * with its replies, then plans them newest first. A session that doesn't
-   * answer is left out.
+   * answer within `optional`'s 5 seconds is left out.
    */
   async #planContext(excludeId: string | null): Promise<ContextEntry[]> {
     const ids = this.listSessions()
       .map((s) => s.id)
       .filter((id) => id !== excludeId);
     const answers = await gather(ids, async (id) =>
-      (await getAgentByName(this.env.ExploreAgent, id)).transcriptForContext(),
+      createTransformStub(await getAgentByName(this.env.ExploreAgent, id))
+        .with(optional, { label: `Session ${id}`, else: null })
+        .transcriptForContext(),
     );
     return planContext(
       answers.flatMap(({ id, value }) => (value === null ? [] : [{ id, transcript: value }])),
@@ -196,13 +200,16 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
 
   /**
    * For the settings page: each session's approved outcomes. A session that
-   * doesn't answer shows as null, and the rest still show.
+   * doesn't answer within `optional`'s 5 seconds shows as null, and the rest
+   * still show.
    */
   @callable()
   async approvedOutcomes(): Promise<SessionOutcomes[]> {
     const ids = this.listSessions().map((s) => s.id);
     const answers = await gather(ids, async (id) =>
-      (await getAgentByName(this.env.VerifyAgent, id)).listOutcomes(),
+      createTransformStub(await getAgentByName(this.env.VerifyAgent, id))
+        .with(optional, { label: `Session ${id}`, else: null })
+        .listOutcomes(),
     );
     return answers.map(({ id, value }) => ({ id, outcomes: value }));
   }
@@ -257,14 +264,18 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   /**
    * For the review page, and each session's extraction, to leave out what
    * the project already has: every session's candidates, newest session
-   * first.
+   * first. A session that doesn't answer within `optional`'s 5 seconds shows
+   * as null, and the rest still show.
    */
   @callable()
   async candidates(): Promise<SessionCandidates[]> {
     const sessions = this.listSessions();
     const answers = await gather(
       sessions.map((s) => s.id),
-      async (id) => (await getAgentByName(this.env.StatementsAgent, id)).review(),
+      async (id) =>
+        createTransformStub(await getAgentByName(this.env.StatementsAgent, id))
+          .with(optional, { label: `Session ${id}`, else: null })
+          .review(),
     );
     return answers.map(({ id, value }, i) => ({
       id,
