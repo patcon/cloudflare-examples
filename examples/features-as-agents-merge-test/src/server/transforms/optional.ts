@@ -12,13 +12,14 @@ export interface OptionalOptions {
    * type should allow for it, as `gather`'s `T | null` does.
    */
   else: unknown;
+  /** How long the agent has to answer, in milliseconds. 5 seconds by default. */
   within?: number;
 }
 
 /**
  * A caller transform, for an answer that's nice to have: if the agent
- * throws, or doesn't answer `within` its time, the call logs it and gives
- * `else`. It only wraps the method call. Getting the stub, as
+ * throws, or doesn't answer within 5 seconds (or `within`), the call logs
+ * it and gives `else`. It only wraps the method call. Getting the stub, as
  * `getAgentByName` does with an RPC of its own, can still throw.
  *
  * @example
