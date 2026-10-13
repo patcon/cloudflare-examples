@@ -73,7 +73,8 @@ export class ExploreAgent extends FeatureAgent<ExploreState> {
       const facts = await (await this.session()).facts();
       const { project } = await this.project();
       // RPC loses `settings`' generic, so the type is put back by hand.
-      settings = (await project.settings("explore")) as ExploreSettings;
+      // The timeout transform's stub loses more of it, so through `unknown`.
+      settings = (await project.settings("explore")) as unknown as ExploreSettings;
       general = await project.general();
       pressed = { at: Date.now(), recordedSeconds: facts.recordedSeconds };
       const reason = whyNotExplore({
