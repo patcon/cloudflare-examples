@@ -1,3 +1,4 @@
+import { createTransformStub } from "@durability/transforms";
 import { Agent, callable, getAgentByName, type Connection } from "agents";
 import {
   backfill,
@@ -25,6 +26,7 @@ import {
 import type { Candidate, StatementsState } from "../features/statements/agent";
 import type { Outcome } from "../features/verify/agent";
 import { gather } from "../lib/gather";
+import { optional } from "../transforms/optional";
 
 /**
  * The project's own details, and every feature's settings, synced to every
@@ -185,7 +187,9 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
       .map((s) => s.id)
       .filter((id) => id !== excludeId);
     const answers = await gather(ids, async (id) =>
-      (await getAgentByName(this.env.ExploreAgent, id)).transcriptForContext(),
+      createTransformStub(await getAgentByName(this.env.ExploreAgent, id))
+        .with(optional, { label: `Session ${id}`, else: null })
+        .transcriptForContext(),
     );
     return planContext(
       answers.flatMap(({ id, value }) => (value === null ? [] : [{ id, transcript: value }])),
@@ -202,7 +206,9 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
   async approvedOutcomes(): Promise<SessionOutcomes[]> {
     const ids = this.listSessions().map((s) => s.id);
     const answers = await gather(ids, async (id) =>
-      (await getAgentByName(this.env.VerifyAgent, id)).listOutcomes(),
+      createTransformStub(await getAgentByName(this.env.VerifyAgent, id))
+        .with(optional, { label: `Session ${id}`, else: null })
+        .listOutcomes(),
     );
     return answers.map(({ id, value }) => ({ id, outcomes: value }));
   }
@@ -264,7 +270,10 @@ export class ProjectAgent extends Agent<Env, ProjectState> {
     const sessions = this.listSessions();
     const answers = await gather(
       sessions.map((s) => s.id),
-      async (id) => (await getAgentByName(this.env.StatementsAgent, id)).review(),
+      async (id) =>
+        createTransformStub(await getAgentByName(this.env.StatementsAgent, id))
+          .with(optional, { label: `Session ${id}`, else: null })
+          .review(),
     );
     return answers.map(({ id, value }, i) => ({
       id,
