@@ -27,8 +27,10 @@
   "dependencies": {
     "@cloudflare/kumo": "^2.6.0",
     "@cloudflare/voice-gemini": "workspace:*",
+    "@durability/transforms": "0.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "agents": "0.27.0",
+    "better-result": "^2.10.0",
     "hono": "^4.13.12",
     "hono-agents": "^3.0.12",
     "liquidjs": "^10.30.0",

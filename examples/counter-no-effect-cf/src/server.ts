@@ -30,6 +30,15 @@ export class Counter extends DurableObject<Env> {
     return (await this.ctx.storage.get<number>("count")) ?? 0;
   }
 
+  /** Sends `{ count }` to every open socket. */
+  broadcast(count: number) {
+    const update = JSON.stringify({ count });
+    for (const socket of this.ctx.getWebSockets()) {
+      // A socket can close before Cloudflare has told the object.
+      if (socket.readyState === WebSocket.OPEN) socket.send(update);
+    }
+  }
+
   async fetch() {
     const [client, server] = Object.values(new WebSocketPair());
     // Hibernatable: the object can be evicted while sockets stay open.
@@ -61,11 +70,7 @@ export class Counter extends DurableObject<Env> {
         break;
     }
     await this.ctx.storage.put("count", next);
-    const update = JSON.stringify({ count: next });
-    for (const socket of this.ctx.getWebSockets()) {
-      // A socket can close before Cloudflare has told the object.
-      if (socket.readyState === WebSocket.OPEN) socket.send(update);
-    }
+    this.broadcast(next);
   }
 
   // Cloudflare answers the page's close itself (`web_socket_auto_reply_to_close`),
