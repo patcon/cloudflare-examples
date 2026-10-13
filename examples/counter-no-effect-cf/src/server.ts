@@ -83,7 +83,7 @@ export default {
     if (new URL(request.url).pathname !== "/api/counter") {
       return new Response("Not found", { status: 404 });
     }
-    if (request.headers.get("Upgrade") !== "websocket") {
+    if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("Expected a WebSocket", { status: 426 });
     }
     return env.COUNTER.getByName("default").fetch(request);

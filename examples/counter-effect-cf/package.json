@@ -13,10 +13,7 @@
   "private": true,
   "type": "module",
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "workerd"
-    ]
+    "onlyBuiltDependencies": ["esbuild", "workerd"]
   },
   "dependencies": {
     "@cloudflare/kumo": "^2.6.0",
